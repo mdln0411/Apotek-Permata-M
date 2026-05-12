@@ -1,98 +1,224 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import { router, Tabs } from 'expo-router';
+import React from 'react';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function HomeScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={styles.container}>
+      {/* Menyembunyikan header bawaan tab Expo */}
+      <Tabs.Screen options={{ headerShown: false }} />
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {/* Header ApotekKu */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Apotek Permata</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        
+        {/* Banner Selamat Datang */}
+        <View style={styles.welcomeCard}>
+          <Text style={styles.welcomeTitle}>Selamat Datang!</Text>
+          <Text style={styles.welcomeSubtitle}>Kesehatan Anda, Prioritas Kami</Text>
+        </View>
+
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Feather name="search" size={20} color="#888" style={styles.searchIcon} />
+          <TextInput 
+            style={styles.searchInput} 
+            placeholder="Cari obat atau gejala..." 
+            placeholderTextColor="#999"
+          />
+        </View>
+
+{/* Asisten Virtual */}
+<TouchableOpacity style={styles.assistantCard} onPress={() => router.push('/asisten-virtual' as any)}>
+          <View style={styles.assistantIconBg}>
+            <Ionicons name="chatbubble-ellipses" size={24} color="#FFF" />
+          </View>
+          <View style={styles.assistantTextContainer}>
+            <Text style={styles.assistantTitle}>Asisten Virtual</Text>
+            <Text style={styles.assistantSubtitle}>Tanya tentang obat</Text>
+          </View>
+          <Feather name="chevron-right" size={24} color="#888" />
+        </TouchableOpacity>
+
+        {/* Layanan Kami */}
+        <Text style={styles.sectionTitle}>Layanan Kami</Text>
+        
+ <View style={styles.gridContainer}>
+          {/* Menu 1: Simulasi Obat */}
+          <TouchableOpacity style={styles.gridItem} onPress={() => router.push('/simulasi-obat' as any)}>
+            <View style={[styles.iconWrapper, { backgroundColor: '#E3F2FD' }]}>
+              <Ionicons name="sparkles-outline" size={28} color="#1976D2" />
+            </View>
+            <Text style={styles.gridText}>Simulasi Obat</Text>
+          </TouchableOpacity>
+
+          {/* Menu 2: Alergi Saya */}
+          <TouchableOpacity style={styles.gridItem} onPress={() => router.push('/alergi-obat' as any)}>
+            <View style={[styles.iconWrapper, { backgroundColor: '#FFEBEE' }]}>
+              <Ionicons name="heart-outline" size={28} color="#D32F2F" />
+            </View>
+            <Text style={styles.gridText}>Alergi Saya</Text>
+          </TouchableOpacity>
+
+          {/* Menu 3: Pengingat */}
+          <TouchableOpacity style={styles.gridItem} onPress={() => router.push('/pengingat-obat' as any)}>
+            <View style={[styles.iconWrapper, { backgroundColor: '#F3E5F5' }]}>
+              <Ionicons name="time-outline" size={28} color="#7B1FA2" />
+            </View>
+            <Text style={styles.gridText}>Pengingat</Text>
+          </TouchableOpacity>
+
+          {/* Menu 4: Upload Resep */}
+          <TouchableOpacity style={styles.gridItem} onPress={() => router.push('/upload-resep' as any)}>
+            <View style={[styles.iconWrapper, { backgroundColor: '#F1F8E9' }]}>
+              <Feather name="upload" size={28} color="#689F38" />
+            </View>
+            <Text style={styles.gridText}>Upload Resep</Text>
+          </TouchableOpacity>
+        
+        </View>
+
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
+  },
+  header: {
+    backgroundColor: '#2E8B57',
+    paddingHorizontal: 20,
+    paddingTop: 50, // Disesuaikan untuk status bar
+    paddingBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  welcomeCard: {
+    backgroundColor: '#66BB6A', // Hijau yang sedikit lebih muda dari header
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  welcomeTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginBottom: 4,
+  },
+  welcomeSubtitle: {
+    fontSize: 14,
+    color: '#E8F5E9',
+  },
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 50,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  searchIcon: {
+    marginRight: 10,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333',
+  },
+  assistantCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  assistantIconBg: {
+    backgroundColor: '#2E8B57',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  assistantTextContainer: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  assistantTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  assistantSubtitle: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+gridItem: {
+    width: '47%', // Ubah dari 30% menjadi 47%
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  iconWrapper: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  gridText: {
+    fontSize: 12,
+    color: '#333',
+    textAlign: 'center',
+    fontWeight: '500',
+    lineHeight: 16,
   },
 });
