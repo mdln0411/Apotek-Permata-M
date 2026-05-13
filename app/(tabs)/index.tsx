@@ -6,12 +6,14 @@ import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity
 export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
-      {/* Menyembunyikan header bawaan tab Expo */}
       <Tabs.Screen options={{ headerShown: false }} />
 
-      {/* Header ApotekKu */}
+      {/* Header Konsultasi */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Apotek Permata</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={24} color="#FFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Konsultasi</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -32,13 +34,13 @@ export default function HomeScreen() {
           />
         </View>
 
-{/* Asisten Virtual */}
-<TouchableOpacity style={styles.assistantCard} onPress={() => router.push('/asisten-virtual' as any)}>
+        {/* Chat Apoteker */}
+        <TouchableOpacity style={styles.assistantCard} onPress={() => router.push('/asisten-virtual' as any)}>
           <View style={styles.assistantIconBg}>
             <Ionicons name="chatbubble-ellipses" size={24} color="#FFF" />
           </View>
           <View style={styles.assistantTextContainer}>
-            <Text style={styles.assistantTitle}>Asisten Virtual</Text>
+            <Text style={styles.assistantTitle}>Chat Apoteker</Text>
             <Text style={styles.assistantSubtitle}>Tanya tentang obat</Text>
           </View>
           <Feather name="chevron-right" size={24} color="#888" />
@@ -47,7 +49,7 @@ export default function HomeScreen() {
         {/* Layanan Kami */}
         <Text style={styles.sectionTitle}>Layanan Kami</Text>
         
- <View style={styles.gridContainer}>
+        <View style={styles.gridContainer}>
           {/* Menu 1: Simulasi Obat */}
           <TouchableOpacity style={styles.gridItem} onPress={() => router.push('/simulasi-obat' as any)}>
             <View style={[styles.iconWrapper, { backgroundColor: '#E3F2FD' }]}>
@@ -64,22 +66,21 @@ export default function HomeScreen() {
             <Text style={styles.gridText}>Alergi Saya</Text>
           </TouchableOpacity>
 
-          {/* Menu 3: Pengingat */}
-          <TouchableOpacity style={styles.gridItem} onPress={() => router.push('/pengingat-obat' as any)}>
-            <View style={[styles.iconWrapper, { backgroundColor: '#F3E5F5' }]}>
-              <Ionicons name="time-outline" size={28} color="#7B1FA2" />
-            </View>
-            <Text style={styles.gridText}>Pengingat</Text>
-          </TouchableOpacity>
-
-          {/* Menu 4: Upload Resep */}
+          {/* Menu 3: Upload Resep */}
           <TouchableOpacity style={styles.gridItem} onPress={() => router.push('/upload-resep' as any)}>
             <View style={[styles.iconWrapper, { backgroundColor: '#F1F8E9' }]}>
               <Feather name="upload" size={28} color="#689F38" />
             </View>
             <Text style={styles.gridText}>Upload Resep</Text>
           </TouchableOpacity>
-        
+
+          {/* Menu 4: Pengingat */}
+          <TouchableOpacity style={styles.gridItem} onPress={() => router.push('/pengingat-obat' as any)}>
+            <View style={[styles.iconWrapper, { backgroundColor: '#F3E5F5' }]}>
+              <Ionicons name="time-outline" size={28} color="#7B1FA2" />
+            </View>
+            <Text style={styles.gridText}>Pengingat</Text>
+          </TouchableOpacity>
         </View>
 
       </ScrollView>
@@ -94,12 +95,17 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#2E8B57',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 50, // Disesuaikan untuk status bar
+    paddingTop: 50, 
     paddingBottom: 20,
   },
+  backButton: {
+    marginRight: 16,
+  },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#FFF',
   },
@@ -108,7 +114,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   welcomeCard: {
-    backgroundColor: '#66BB6A', // Hijau yang sedikit lebih muda dari header
+    backgroundColor: '#66BB6A', 
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
@@ -190,8 +196,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-gridItem: {
-    width: '47%', // Ubah dari 30% menjadi 47%
+  gridItem: {
+    width: '47%', 
     backgroundColor: '#FFF',
     borderRadius: 16,
     paddingVertical: 16,

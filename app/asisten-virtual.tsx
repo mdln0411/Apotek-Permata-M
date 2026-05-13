@@ -8,12 +8,11 @@ export default function AsistenVirtualScreen() {
     <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Asisten Virtual</Text>
+        <Text style={styles.headerTitle}>Chat Apoteker</Text>
       </View>
 
       <KeyboardAvoidingView 
@@ -22,32 +21,27 @@ export default function AsistenVirtualScreen() {
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           
-          {/* Pesan Bot 1 */}
           <View style={styles.messageRowBot}>
             <View style={styles.botBubble}>
               <Text style={styles.botText}>Halo! Ada yang bisa saya bantu?</Text>
             </View>
           </View>
 
-          {/* Pesan User */}
           <View style={styles.messageRowUser}>
             <View style={styles.userBubble}>
               <Text style={styles.userText}>Saya demam dan sakit kepala</Text>
             </View>
           </View>
 
-          {/* Pesan Bot 2 (Rekomendasi) */}
           <View style={styles.messageRowBot}>
             <View style={styles.botBubble}>
               <Text style={styles.botText}>Untuk demam dan sakit kepala, saya merekomendasikan:</Text>
               
-              {/* Card Obat 1 */}
               <TouchableOpacity style={styles.medicineCard}>
                 <Text style={styles.medicineName}>Paracetamol 500mg</Text>
                 <Text style={styles.medicinePrice}>Rp 15.000</Text>
               </TouchableOpacity>
 
-              {/* Card Obat 2 */}
               <TouchableOpacity style={styles.medicineCard}>
                 <Text style={styles.medicineName}>Ibuprofen 400mg</Text>
                 <Text style={styles.medicinePrice}>Rp 18.000</Text>
@@ -55,7 +49,6 @@ export default function AsistenVirtualScreen() {
             </View>
           </View>
 
-          {/* Pesan Bot 3 */}
           <View style={styles.messageRowBot}>
             <View style={styles.botBubble}>
               <Text style={styles.botText}>Apakah ada yang perlu ditanyakan lagi?</Text>
@@ -64,7 +57,6 @@ export default function AsistenVirtualScreen() {
 
         </ScrollView>
 
-        {/* Input Area */}
         <View style={styles.inputContainer}>
           <View style={styles.inputWrapper}>
             <TextInput 
@@ -124,7 +116,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     padding: 16,
     borderRadius: 16,
-    borderTopLeftRadius: 4, // Efek ekor bubble di kiri atas
+    borderTopLeftRadius: 4, 
     borderWidth: 1,
     borderColor: '#E0E0E0',
     maxWidth: '85%',
@@ -138,7 +130,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#2E8B57',
     padding: 16,
     borderRadius: 16,
-    borderTopRightRadius: 4, // Efek ekor bubble di kanan atas
+    borderTopRightRadius: 4, 
     maxWidth: '80%',
   },
   botText: {
