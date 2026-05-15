@@ -12,7 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Mengizinkan CORS secara otomatis untuk API
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
