@@ -36,9 +36,11 @@ export default function LoginScreen() {
             // Simpan ke context
             await login(res.data, res.access_token);
 
-            Alert.alert('Login Berhasil', `Selamat datang, ${res.data.name}!`, [
-                { text: 'OK', onPress: () => router.replace('/(tabs)' as any) }
-            ]);
+            if (res.data.role === 'admin') {
+                router.replace('/admin/dashboard' as any);
+            } else {
+                router.replace('/(tabs)' as any);
+            }
 
         } catch (e: any) {
             console.error('Error Login Detail:', e);
