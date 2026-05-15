@@ -1,9 +1,62 @@
+import { login as apiLogin } from '@/api/authService';
+import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
-import React from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { 
+    ActivityIndicator, 
+    Alert, 
+    SafeAreaView, 
+    ScrollView, 
+    StyleSheet, 
+    Text, 
+    TextInput, 
+    TouchableOpacity, 
+    View 
+} from 'react-native';
 
 export default function LoginScreen() {
+    const { login } = useAuth();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleLogin = async () => {
+        if (!email || !password) {
+            Alert.alert('Error', 'Email dan password harus diisi');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            console.log('Mencoba login ke:', email);
+            const res = await apiLogin({ email, password });
+            console.log('Login Berhasil:', res.data.role);
+            
+            // Simpan ke context
+            await login(res.data, res.access_token);
+
+            Alert.alert('Login Berhasil', `Selamat datang, ${res.data.name}!`, [
+                { text: 'OK', onPress: () => router.replace('/(tabs)' as any) }
+            ]);
+
+        } catch (e: any) {
+            console.error('Error Login Detail:', e);
+            console.log('Response Error:', e.response?.data);
+
+            const errorMsg = e.response?.data?.message || e.message || 'Terjadi kesalahan koneksi ke server';
+            Alert.alert('Login Gagal', errorMsg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Fungsi helper untuk demo login
+    const fillDemo = (e: string) => {
+        setEmail(e);
+        setPassword('password123');
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
@@ -38,6 +91,9 @@ export default function LoginScreen() {
                         placeholder="email@example.com"
                         placeholderTextColor="#999"
                         keyboardType="email-address"
+                        value={email}
+                        onChangeText={setEmail}
+                        autoCapitalize="none"
                     />
 
                     <Text style={styles.inputLabel}>Password</Text>
@@ -46,14 +102,24 @@ export default function LoginScreen() {
                         placeholder="••••••••"
                         placeholderTextColor="#999"
                         secureTextEntry
+                        value={password}
+                        onChangeText={setPassword}
                     />
 
                     <TouchableOpacity style={styles.forgotPasswordBtn} onPress={() => router.push('/lupa-password' as any)}>
                         <Text style={styles.forgotPasswordText}>Lupa password?</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.primaryButton}>
-                        <Text style={styles.primaryButtonText}>Masuk</Text>
+                    <TouchableOpacity 
+                        style={[styles.primaryButton, loading && styles.disabledButton]} 
+                        onPress={handleLogin}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color="#FFF" />
+                        ) : (
+                            <Text style={styles.primaryButtonText}>Masuk</Text>
+                        )}
                     </TouchableOpacity>
 
                     <View style={styles.registerRow}>
@@ -74,10 +140,16 @@ export default function LoginScreen() {
                 {/* Demo Info Card */}
                 <View style={styles.card}>
                     <Text style={styles.demoTitle}>Coba login sebagai:</Text>
-                    <Text style={styles.demoItem}>• Member: user@mail.com</Text>
-                    <Text style={styles.demoItem}>• Apoteker: apoteker@mail.com</Text>
-                    <Text style={styles.demoItem}>• Admin: admin@mail.com</Text>
-                    <Text style={styles.demoNote}>Password: bebas (demo mode)</Text>
+                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('member@apotek.com')}>
+                        <Text style={styles.demoItem}>• Member: member@apotek.com</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('apoteker@apotek.com')}>
+                        <Text style={styles.demoItem}>• Apoteker: apoteker@apotek.com</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('admin@apotek.com')}>
+                        <Text style={styles.demoItem}>• Admin: admin@apotek.com</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.demoNote}>Password: password123</Text>
                 </View>
 
             </ScrollView>
@@ -102,6 +174,7 @@ const styles = StyleSheet.create({
     forgotPasswordBtn: { alignSelf: 'flex-end', marginTop: 12, marginBottom: 20 },
     forgotPasswordText: { color: '#2E8B57', fontSize: 14, fontWeight: '500' },
     primaryButton: { backgroundColor: '#2E8B57', height: 48, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+    disabledButton: { backgroundColor: '#A5D6A7' },
     primaryButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
     registerRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
     registerText: { color: '#555', fontSize: 14 },
@@ -110,6 +183,7 @@ const styles = StyleSheet.create({
     dividerLine: { flex: 1, height: 1, backgroundColor: '#DCEBDE' },
     dividerText: { marginHorizontal: 12, color: '#555', fontSize: 14 },
     demoTitle: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 12 },
+    demoBtn: { paddingVertical: 4 },
     demoItem: { fontSize: 14, color: '#444', marginBottom: 8 },
     demoNote: { fontSize: 12, color: '#777', marginTop: 12 }
 });

@@ -1,9 +1,215 @@
+import { getMedicineCategories, getMedicines, MedicineListItem } from '@/api/medicineService';
+import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
+import { QuantityModal } from '@/components/QuantityModal';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
-import React from 'react';
-import { Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    FlatList,
+    RefreshControl,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { Image } from 'expo-image'; // Gunakan expo-image untuk performa lebih baik
 
 export default function KatalogObatScreen() {
+    const { user } = useAuth();
+    const { addToCart, itemCount } = useCart();
+    const [medicines, setMedicines] = useState<MedicineListItem[]>([]);
+    const [categories, setCategories] = useState<string[]>(['Semua']);
+    const [selectedCategory, setSelectedCategory] = useState('Semua');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [totalData, setTotalData] = useState(0);
+
+    // Modal state
+    const [modalVisible, setModalVisible] = useState(false);
+    const [selectedMedicine, setSelectedMedicine] = useState<MedicineListItem | null>(null);
+
+    const handleOpenModal = (item: MedicineListItem) => {
+        if (!user) {
+            router.push('/login' as any);
+            return;
+        }
+        setSelectedMedicine(item);
+        setModalVisible(true);
+    };
+
+    const handleConfirmAddToCart = async (quantity: number) => {
+        if (selectedMedicine) {
+            await addToCart(selectedMedicine.id, quantity);
+            setModalVisible(false);
+        }
+    };
+
+    // ... sisa kode fetch ...
+
+    // Ambil kategori dari API
+    const fetchCategories = async () => {
+        try {
+            const res = await getMedicineCategories();
+            setCategories(['Semua', ...res.data]);
+        } catch (e) {
+            console.error('Gagal ambil kategori:', e);
+        }
+    };
+
+    // Ambil data obat dari API
+    const fetchMedicines = useCallback(async (page = 1, reset = false) => {
+        try {
+            if (page === 1) setLoading(true);
+            else setLoadingMore(true);
+
+            const params: any = { page, per_page: 10 };
+            if (searchQuery.trim()) params.search = searchQuery.trim();
+            if (selectedCategory !== 'Semua') params.category = selectedCategory;
+
+            const res = await getMedicines(params);
+
+            setTotalData(res.pagination.total);
+            setHasMore(res.pagination.has_more);
+            setCurrentPage(res.pagination.current_page);
+
+            if (reset || page === 1) {
+                setMedicines(res.data);
+            } else {
+                setMedicines(prev => [...prev, ...res.data]);
+            }
+        } catch (e) {
+            console.error('Gagal ambil obat:', e);
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+            setRefreshing(false);
+        }
+    }, [searchQuery, selectedCategory]);
+
+    // Load awal
+    useEffect(() => {
+        fetchCategories();
+    }, []);
+
+    // Fetch ulang jika search/kategori berubah
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchMedicines(1, true);
+        }, 400); // debounce 400ms
+        return () => clearTimeout(timer);
+    }, [searchQuery, selectedCategory]);
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchMedicines(1, true);
+    };
+
+    const onLoadMore = () => {
+        if (!loadingMore && hasMore) {
+            fetchMedicines(currentPage + 1);
+        }
+    };
+
+    const renderMedicineCard = ({ item }: { item: MedicineListItem }) => (
+        <TouchableOpacity
+            style={styles.productCard}
+            onPress={() => router.push({ pathname: '/detail-obat', params: { id: item.id } } as any)}
+            activeOpacity={0.85}
+        >
+            {/* Gambar */}
+            <View style={styles.imageWrapper}>
+                {item.image_url ? (
+                    <Image
+                        source={{ uri: item.image_url }}
+                        style={styles.productImage}
+                        resizeMode="contain"
+                    />
+                ) : (
+                    <View style={styles.noImageBox}>
+                        <Ionicons name="medical" size={36} color="#C8E6C9" />
+                    </View>
+                )}
+                {/* Badge resep */}
+                {item.prescription_required && (
+                    <View style={styles.badgeResep}>
+                        <Ionicons name="document-text" size={10} color="#1B5E20" />
+                        <Text style={styles.badgeResepText}>Resep</Text>
+                    </View>
+                )}
+                {/* Badge stok habis */}
+                {item.stock === 0 && (
+                    <View style={styles.badgeHabis}>
+                        <Text style={styles.badgeHabisText}>Habis</Text>
+                    </View>
+                )}
+            </View>
+
+            {/* Info */}
+            <View style={styles.productInfo}>
+                <Text style={styles.productCategory}>{item.category}</Text>
+                <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+                {item.unit && (
+                    <Text style={styles.productUnit}>{item.unit}</Text>
+                )}
+                <View style={styles.productFooter}>
+                    <Text style={styles.productPrice}>{item.price_formatted}</Text>
+                    <Text style={[
+                        styles.productStock,
+                        item.stock < 10 && item.stock > 0 && styles.stockLow,
+                        item.stock === 0 && styles.stockEmpty,
+                    ]}>
+                        {item.stock === 0 ? 'Habis' : `Stok: ${item.stock}`}
+                    </Text>
+                </View>
+
+                {/* Tombol tambah keranjang */}
+                <TouchableOpacity
+                    style={[styles.btnAddCart, item.stock === 0 && styles.btnAddCartDisabled]}
+                    disabled={item.stock === 0}
+                    activeOpacity={0.8}
+                    onPress={() => handleOpenModal(item)}
+                >
+                    <Feather name="shopping-cart" size={13} color={item.stock === 0 ? '#AAA' : '#FFF'} />
+                    <Text style={[styles.btnAddCartText, item.stock === 0 && styles.btnAddCartTextDisabled]}>
+                        {item.stock === 0 ? 'Habis' : 'Keranjang'}
+                    </Text>
+                </TouchableOpacity>
+            </View>
+        </TouchableOpacity>
+    );
+
+    const renderFooter = () => {
+        if (!loadingMore) return null;
+        return (
+            <View style={styles.loadingMore}>
+                <ActivityIndicator size="small" color="#2E8B57" />
+                <Text style={styles.loadingMoreText}>Memuat lebih banyak...</Text>
+            </View>
+        );
+    };
+
+    const renderEmpty = () => {
+        if (loading) return null;
+        return (
+            <View style={styles.emptyContainer}>
+                <Ionicons name="search-outline" size={64} color="#CCC" />
+                <Text style={styles.emptyTitle}>Obat tidak ditemukan</Text>
+                <Text style={styles.emptySubtitle}>
+                    Coba kata kunci atau kategori yang berbeda
+                </Text>
+            </View>
+        );
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
@@ -11,173 +217,282 @@ export default function KatalogObatScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <View style={styles.logoContainer}>
-                    <Ionicons name="medical" size={20} color="#FFF" />
-                    <Text style={styles.headerTitle}>Apotek Permata</Text>
+                    <View style={styles.logoIcon}>
+                        <Ionicons name="medical" size={18} color="#FFF" />
+                    </View>
+                    <View>
+                        <Text style={styles.headerTitle}>Apotek Permata</Text>
+                        {user && <Text style={styles.headerUser}>Halo, {user.name}</Text>}
+                    </View>
                 </View>
-                <TouchableOpacity onPress={() => router.push('/login' as any)}>
-                    <Text style={styles.loginText}>Masuk</Text>
-                </TouchableOpacity>
+                <View style={styles.headerRight}>
+                    {user ? (
+                        <TouchableOpacity 
+                            style={styles.cartIconBtn} 
+                            onPress={() => router.push('/keranjang' as any)}
+                        >
+                            <Feather name="shopping-cart" size={20} color="#FFF" />
+                            {itemCount > 0 && (
+                                <View style={styles.badgeCount}>
+                                    <Text style={styles.badgeCountText}>{itemCount}</Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity onPress={() => router.push('/login' as any)}>
+                            <Text style={styles.loginText}>Masuk</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            {/* Search Bar */}
+            <View style={styles.searchWrapper}>
+                <Feather name="search" size={18} color="#999" style={styles.searchIcon} />
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Cari nama obat..."
+                    placeholderTextColor="#BBB"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    returnKeyType="search"
+                />
+                {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                        <Feather name="x" size={18} color="#999" />
+                    </TouchableOpacity>
+                )}
+            </View>
 
-                {/* Title Section */}
-                <View style={styles.titleContainer}>
-                    <Text style={styles.mainTitle}>Katalog Obat</Text>
-                    <Text style={styles.subTitle}>Temukan obat yang Anda butuhkan</Text>
-                </View>
-
-                {/* Search Bar */}
-                <TouchableOpacity
-                    style={styles.searchContainer}
-                    activeOpacity={0.8}
-                    onPress={() => router.push('/cari-obat' as any)}
+            {/* Filter Kategori */}
+            <View style={styles.categoryWrapper}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.categoryScroll}
                 >
-                    <Feather name="search" size={20} color="#999" style={styles.searchIcon} />
-                    <Text style={styles.searchPlaceholder}>Cari obat...</Text>
-                </TouchableOpacity>
+                    {categories.map((cat) => (
+                        <TouchableOpacity
+                            key={cat}
+                            style={[styles.categoryPill, selectedCategory === cat && styles.categoryPillActive]}
+                            onPress={() => setSelectedCategory(cat)}
+                        >
+                            <Text style={[styles.categoryText, selectedCategory === cat && styles.categoryTextActive]}>
+                                {cat}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
 
-                {/* Kategori Horizontal */}
-                <View style={styles.categoryWrapper}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-                        <TouchableOpacity style={[styles.categoryPill, styles.categoryPillActive]}>
-                            <Text style={[styles.categoryText, styles.categoryTextActive]}>All</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.categoryPill}>
-                            <Text style={styles.categoryText}>Pain Relief</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.categoryPill}>
-                            <Text style={styles.categoryText}>Antibiotics</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.categoryPill}>
-                            <Text style={styles.categoryText}>Vitamins</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.categoryPill}>
-                            <Text style={styles.categoryText}>Digestive</Text>
-                        </TouchableOpacity>
-                    </ScrollView>
+            {/* Judul & Total */}
+            {!loading && (
+                <View style={styles.resultHeader}>
+                    <Text style={styles.resultTitle}>
+                        {selectedCategory === 'Semua' ? 'Semua Obat' : selectedCategory}
+                    </Text>
+                    <Text style={styles.resultCount}>{totalData} obat</Text>
                 </View>
+            )}
 
-                {/* Product Grid */}
-                <View style={styles.productGrid}>
-                    {/* Produk 1 */}
-                    <TouchableOpacity style={styles.productCard} onPress={() => router.push('/detail-obat' as any)}>
-                        <Image source={{ uri: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?q=80&w=400' }} style={styles.productImage} />
-                        <View style={styles.productInfo}>
-                            <Text style={styles.productName} numberOfLines={1}>Paracetamol 500m</Text>
-                            <Text style={styles.productCategory}>Pain Relief</Text>
-                            <View style={styles.productPriceRow}>
-                                <Text style={styles.productPrice}>Rp 15.000</Text>
-                                <Text style={styles.productStock}>Stok: 150</Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-
-                    {/* Produk 2 */}
-                    <TouchableOpacity style={styles.productCard} onPress={() => router.push('/detail-obat' as any)}>
-                        <Image source={{ uri: 'https://images.unsplash.com/photo-1585435557343-3b092031a831?q=80&w=400' }} style={styles.productImage} />
-                        <View style={styles.badgeResep}>
-                            <Text style={styles.badgeResepText}>Resep</Text>
-                        </View>
-                        <View style={styles.productInfo}>
-                            <Text style={styles.productName} numberOfLines={2}>Amoxicillin 500mg</Text>
-                            <Text style={styles.productCategory}>Antibiotics</Text>
-                            <View style={styles.productPriceRow}>
-                                <Text style={styles.productPrice}>Rp 45.000</Text>
-                                <Text style={styles.productStock}>Stok: 80</Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-
-                    {/* Produk 3 */}
-                    <TouchableOpacity style={styles.productCard} onPress={() => router.push('/detail-obat' as any)}>
-                        <Image source={{ uri: 'https://images.unsplash.com/photo-1550572017-edb3f56b2df4?q=80&w=400' }} style={styles.productImage} />
-                        <View style={styles.productInfo}>
-                            <Text style={styles.productName} numberOfLines={1}>Vitamin C 1000m</Text>
-                            <Text style={styles.productCategory}>Vitamins</Text>
-                            <View style={styles.productPriceRow}>
-                                <Text style={styles.productPrice}>Rp 35.000</Text>
-                                <Text style={styles.productStock}>Stok: 200</Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-
-                    {/* Produk 4 */}
-                    <TouchableOpacity style={styles.productCard} onPress={() => router.push('/detail-obat' as any)}>
-                        <Image source={{ uri: 'https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?q=80&w=400' }} style={styles.productImage} />
-                        <View style={styles.productInfo}>
-                            <Text style={styles.productName} numberOfLines={1}>Ibuprofen 400mg</Text>
-                            <Text style={styles.productCategory}>Pain Relief</Text>
-                            <View style={styles.productPriceRow}>
-                                <Text style={styles.productPrice}>Rp 25.000</Text>
-                                <Text style={styles.productStock}>Stok: 120</Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-
-                    {/* Produk 5 */}
-                    <TouchableOpacity style={styles.productCard} onPress={() => router.push('/detail-obat' as any)}>
-                        <Image source={{ uri: 'https://images.unsplash.com/photo-1576073719676-aa95576db207?q=80&w=400' }} style={styles.productImage} />
-                        <View style={styles.badgeResep}>
-                            <Text style={styles.badgeResepText}>Resep</Text>
-                        </View>
-                        <View style={styles.productInfo}>
-                            <Text style={styles.productName} numberOfLines={2}>Omeprazole 20mg</Text>
-                            <Text style={styles.productCategory}>Digestive</Text>
-                            <View style={styles.productPriceRow}>
-                                <Text style={styles.productPrice}>Rp 55.000</Text>
-                                <Text style={styles.productStock}>Stok: 90</Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-
-                    {/* Produk 6 */}
-                    <TouchableOpacity style={styles.productCard} onPress={() => router.push('/detail-obat' as any)}>
-                        <Image source={{ uri: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?q=80&w=400' }} style={styles.productImage} />
-                        <View style={styles.productInfo}>
-                            <Text style={styles.productName} numberOfLines={2}>Multivitamin Complete</Text>
-                            <Text style={styles.productCategory}>Vitamins</Text>
-                            <View style={styles.productPriceRow}>
-                                <Text style={styles.productPrice}>Rp 65.000</Text>
-                                <Text style={styles.productStock}>Stok: 180</Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
+            {/* Loading State */}
+            {loading ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#2E8B57" />
+                    <Text style={styles.loadingText}>Memuat data obat...</Text>
                 </View>
+            ) : (
+                <FlatList
+                    data={medicines}
+                    renderItem={renderMedicineCard}
+                    keyExtractor={(item) => item.id.toString()}
+                    numColumns={2}
+                    columnWrapperStyle={styles.columnWrapper}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    onEndReached={onLoadMore}
+                    onEndReachedThreshold={0.3}
+                    ListFooterComponent={renderFooter}
+                    ListEmptyComponent={renderEmpty}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={['#2E8B57']}
+                            tintColor="#2E8B57"
+                        />
+                    }
+                />
+            )}
 
-            </ScrollView>
+            {/* Modal Pilih Jumlah (Shopee Style) */}
+            <QuantityModal 
+                visible={modalVisible}
+                onClose={() => setModalVisible(false)}
+                onConfirm={handleConfirmAddToCart}
+                medicine={selectedMedicine}
+            />
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F4F9F4' },
-    header: { backgroundColor: '#2E8B57', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 16 },
+
+    // Header
+    header: {
+        backgroundColor: '#2E8B57',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingTop: 50,
+        paddingBottom: 16,
+    },
     logoContainer: { flexDirection: 'row', alignItems: 'center' },
-    headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFF', marginLeft: 8 },
-    loginText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
-    scrollContent: { paddingBottom: 40 },
-    titleContainer: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 },
-    mainTitle: { fontSize: 24, fontWeight: 'bold', color: '#333', marginBottom: 4 },
-    subTitle: { fontSize: 14, color: '#555' },
-    searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 8, paddingHorizontal: 12, height: 48, marginHorizontal: 20, marginBottom: 16, borderWidth: 1, borderColor: '#E0E0E0' },
+    logoIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 8,
+    },
+    headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFF' },
+    headerUser: { fontSize: 11, color: '#E8F5E9', marginTop: -2 },
+    headerRight: { flexDirection: 'row', alignItems: 'center' },
+    cartIconBtn: { padding: 8, position: 'relative' },
+    badgeCount: { position: 'absolute', top: 0, right: 0, backgroundColor: '#FF5252', borderRadius: 10, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#2E8B57' },
+    badgeCountText: { color: '#FFF', fontSize: 9, fontWeight: 'bold' },
+    loginText: { color: '#FFF', fontSize: 14, fontWeight: '600', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+
+    // Search
+    searchWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF',
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        height: 48,
+        marginHorizontal: 16,
+        marginTop: 16,
+        marginBottom: 12,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+    },
     searchIcon: { marginRight: 8 },
-    searchPlaceholder: { flex: 1, fontSize: 15, color: '#BBB' },
-    categoryWrapper: { marginBottom: 20 },
-    categoryScroll: { paddingHorizontal: 20 },
-    categoryPill: { backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#DCEBDE', marginRight: 8, justifyContent: 'center' },
+    searchInput: { flex: 1, fontSize: 15, color: '#333', paddingVertical: 0 },
+
+    // Kategori
+    categoryWrapper: { marginBottom: 4 },
+    categoryScroll: { paddingHorizontal: 16, paddingVertical: 4 },
+    categoryPill: {
+        backgroundColor: '#FFF',
+        paddingHorizontal: 16,
+        paddingVertical: 7,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#DCEBDE',
+        marginRight: 8,
+    },
     categoryPillActive: { backgroundColor: '#2E8B57', borderColor: '#2E8B57' },
-    categoryText: { fontSize: 13, color: '#333', fontWeight: '500' },
+    categoryText: { fontSize: 13, color: '#555', fontWeight: '500' },
     categoryTextActive: { color: '#FFF' },
-    productGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 20 },
-    productCard: { width: '48%', backgroundColor: '#FFF', borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E0E0E0', overflow: 'hidden' },
-    productImage: { width: '100%', height: 120, backgroundColor: '#F5F5F5' },
-    badgeResep: { position: 'absolute', top: 8, right: 8, backgroundColor: '#A5D6A7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-    badgeResepText: { fontSize: 10, fontWeight: 'bold', color: '#2E7D32' },
-    productInfo: { padding: 12 },
-    productName: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 2 },
-    productCategory: { fontSize: 12, color: '#777', marginBottom: 8 },
-    productPriceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    productPrice: { fontSize: 14, fontWeight: 'bold', color: '#2E8B57' },
-    productStock: { fontSize: 11, color: '#555' },
+
+    // Result Header
+    resultHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+    },
+    resultTitle: { fontSize: 15, fontWeight: 'bold', color: '#333' },
+    resultCount: { fontSize: 13, color: '#888' },
+
+    // List
+    listContent: { paddingHorizontal: 16, paddingBottom: 32 },
+    columnWrapper: { justifyContent: 'space-between' },
+
+    // Kartu Produk
+    productCard: {
+        width: '48.5%',
+        backgroundColor: '#FFF',
+        borderRadius: 14,
+        marginBottom: 14,
+        overflow: 'hidden',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.07,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
+    },
+    imageWrapper: {
+        width: '100%',
+        height: 120,
+        backgroundColor: '#F8FCF8',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    productImage: { width: '100%', height: '100%' },
+    noImageBox: { justifyContent: 'center', alignItems: 'center' },
+    badgeResep: {
+        position: 'absolute',
+        top: 8,
+        left: 8,
+        backgroundColor: '#E8F5E9',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        borderRadius: 8,
+        gap: 2,
+    },
+    badgeResepText: { fontSize: 9, fontWeight: 'bold', color: '#1B5E20' },
+    badgeHabis: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        backgroundColor: '#FFEBEE',
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        borderRadius: 8,
+    },
+    badgeHabisText: { fontSize: 9, fontWeight: 'bold', color: '#B71C1C' },
+
+    productInfo: { padding: 10 },
+    productCategory: { fontSize: 10, color: '#2E8B57', fontWeight: '600', textTransform: 'uppercase', marginBottom: 2 },
+    productName: { fontSize: 13, fontWeight: 'bold', color: '#222', lineHeight: 18, marginBottom: 2 },
+    productUnit: { fontSize: 11, color: '#999', marginBottom: 6 },
+    productFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+    productPrice: { fontSize: 13, fontWeight: 'bold', color: '#2E8B57' },
+    productStock: { fontSize: 10, color: '#777' },
+    stockLow: { color: '#F57C00' },
+    stockEmpty: { color: '#D32F2F' },
+
+    btnAddCart: {
+        backgroundColor: '#2E8B57',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 8,
+        paddingVertical: 7,
+        gap: 4,
+    },
+    btnAddCartDisabled: { backgroundColor: '#F0F0F0' },
+    btnAddCartText: { color: '#FFF', fontSize: 12, fontWeight: '600' },
+    btnAddCartTextDisabled: { color: '#AAA' },
+
+    // Loading & Empty States
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    loadingText: { marginTop: 12, fontSize: 14, color: '#888' },
+    loadingMore: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 16, gap: 8 },
+    loadingMoreText: { fontSize: 13, color: '#888' },
+    emptyContainer: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 40 },
+    emptyTitle: { fontSize: 18, fontWeight: 'bold', color: '#555', marginTop: 16, marginBottom: 8 },
+    emptySubtitle: { fontSize: 14, color: '#999', textAlign: 'center', lineHeight: 20 },
 });

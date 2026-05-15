@@ -1,27 +1,42 @@
+import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
+import axiosClient from '@/api/axiosClient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
-import React, { useState } from 'react';
-import { Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+    ActivityIndicator, 
+    Alert, 
+    Modal, 
+    Platform, 
+    SafeAreaView, 
+    ScrollView, 
+    StyleSheet, 
+    Text, 
+    TextInput, 
+    TouchableOpacity, 
+    View,
+    Image
+} from 'react-native';
 
 export default function CheckoutScreen() {
+    const { user } = useAuth();
+    const { items, totalPrice, refreshCart } = useCart();
+    
     const [metode, setMetode] = useState<'antar' | 'jemput'>('antar');
     const [jamJemput, setJamJemput] = useState('');
-    const [alamatLengkap, setAlamatLengkap] = useState('');
+    const [alamatLengkap, setAlamatLengkap] = useState(user?.address || '');
+    const [loading, setLoading] = useState(false);
 
     // State untuk Pembayaran
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedPayment, setSelectedPayment] = useState<{ id: string, label: string, icon: any, type: string } | null>(null);
 
-    // State untuk Daftar Pesanan Dinamis
-    const [items, setItems] = useState([
-        { id: 1, name: 'Paracetamol 500mg', price: 2500, qty: 1, icon: 'medical' },
-        { id: 2, name: 'Promag Tablet', price: 6000, qty: 2, icon: 'package' }
-    ]);
-
     const paymentOptions = [
         { id: '1', label: 'QRIS', icon: 'qr-code-outline', type: 'ionicon' },
         { id: '2', label: 'DANA', icon: 'wallet-outline', type: 'ionicon' },
         { id: '3', label: 'Bank Transfer', icon: 'home-outline', type: 'ionicon' },
+        { id: '4', label: 'Bayar di Apotek (COD)', icon: 'cash-outline', type: 'ionicon' },
     ];
 
     const handleSelectPayment = (option: any) => {
@@ -29,22 +44,61 @@ export default function CheckoutScreen() {
         setShowPaymentModal(false);
     };
 
-    // Fungsi Tambah/Kurang Qty
-    const updateQty = (id: number, delta: number) => {
-        setItems(items.map(item => {
-            if (item.id === id) {
-                const newQty = item.qty + delta;
-                return { ...item, qty: newQty > 0 ? newQty : 1 }; // Minimal 1
-            }
-            return item;
-        }));
-    };
-
     // Perhitungan Harga Dinamis
-    const subtotal = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const subtotal = totalPrice;
     const biayaLayanan = 2000;
     const ongkir = metode === 'antar' ? 10000 : 0;
     const total = subtotal + biayaLayanan + ongkir;
+
+    const handleBayar = async () => {
+        if (metode === 'antar' && !alamatLengkap) {
+            Alert.alert('Error', 'Silakan masukkan alamat pengantaran');
+            return;
+        }
+        if (metode === 'jemput' && !jamJemput) {
+            Alert.alert('Error', 'Silakan masukkan jam penjemputan');
+            return;
+        }
+        if (!selectedPayment) {
+            Alert.alert('Error', 'Silakan pilih metode pembayaran');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const res = await axiosClient.post('/api/orders', {
+                shipping_address: metode === 'antar' ? alamatLengkap : 'Ambil di Apotek',
+                notes: metode === 'jemput' ? `Jam Jemput: ${jamJemput}` : `Metode: ${selectedPayment.label}`,
+            });
+
+            if (res.data.status === 'success') {
+                await refreshCart(); // Kosongkan keranjang di state
+                Alert.alert('Berhasil', 'Pesanan Anda telah diterima!', [
+                    { text: 'Lihat Status', onPress: () => router.replace('/(tabs)' as any) }
+                ]);
+            }
+        } catch (e: any) {
+            console.error(e);
+            Alert.alert('Gagal', e.response?.data?.message || 'Terjadi kesalahan saat memproses pesanan');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (items.length === 0) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <Stack.Screen options={{ headerShown: false }} />
+                <View style={styles.centered}>
+                    <Ionicons name="cart-outline" size={80} color="#CCC" />
+                    <Text style={styles.emptyTitle}>Tidak ada item</Text>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.loginBtn}>
+                        <Text style={styles.loginBtnText}>Kembali ke Keranjang</Text>
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>
@@ -62,7 +116,7 @@ export default function CheckoutScreen() {
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled" // Ini yang memperbaiki error input tidak bisa diklik
+                keyboardShouldPersistTaps="handled"
             >
 
                 {/* Seksi Metode Pengambilan */}
@@ -91,20 +145,18 @@ export default function CheckoutScreen() {
                             <View style={styles.addressHeader}>
                                 <Feather name="map-pin" size={16} color="#2E8B57" />
                                 <Text style={styles.addressLabel}>Alamat Tujuan</Text>
-                                <TouchableOpacity><Text style={styles.changeText}>Pilih Map</Text></TouchableOpacity>
                             </View>
-                            <Text style={styles.addressName}>Holy Sola Fide Sianipar</Text>
-                            <Text style={styles.addressDetail}>Jl. Merdeka No.123, Kec. Tj. Morawa, Deli Serdang</Text>
+                            <Text style={styles.addressName}>{user?.name}</Text>
+                            <Text style={styles.addressDetail}>{user?.phone}</Text>
                             <View style={styles.inputWrapper}>
-                                <Text style={styles.inputSubLabel}>Detail Alamat (No. Rumah / Patokan):</Text>
+                                <Text style={styles.inputSubLabel}>Masukkan Alamat Lengkap Pengantaran:</Text>
                                 <TextInput
                                     style={styles.textInput}
-                                    placeholder="Masukan detail alamat lengkap..."
+                                    placeholder="Jl. Merdeka No.123..."
                                     placeholderTextColor="#999"
                                     value={alamatLengkap}
                                     onChangeText={setAlamatLengkap}
-                                    // @ts-ignore
-                                    outlineStyle="none"
+                                    multiline
                                 />
                             </View>
                         </View>
@@ -121,41 +173,26 @@ export default function CheckoutScreen() {
                                 placeholderTextColor="#999"
                                 value={jamJemput}
                                 onChangeText={setJamJemput}
-                                // @ts-ignore
-                                outlineStyle="none"
                             />
                         </View>
                     )}
                 </View>
 
-                {/* Ringkasan Pesanan (Dinamis) */}
+                {/* Ringkasan Pesanan (Data Asli) */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Ringkasan Pesanan</Text>
 
                     {items.map(item => (
                         <View key={item.id} style={styles.orderItem}>
-                            <View style={styles.itemImagePlaceholder}>
-                                {item.icon === 'medical' ? (
-                                    <Ionicons name="medical" size={20} color="#2E8B57" />
-                                ) : (
-                                    <Feather name="package" size={20} color="#2E8B57" />
-                                )}
-                            </View>
+                            <Image 
+                                source={{ uri: item.image_url || 'https://via.placeholder.com/150' }} 
+                                style={styles.itemImage} 
+                            />
                             <View style={styles.itemInfo}>
-                                <Text style={styles.itemName}>{item.name}</Text>
-                                <Text style={styles.itemPrice}>Rp {item.price.toLocaleString('id-ID')}</Text>
+                                <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+                                <Text style={styles.itemPrice}>{item.price_formatted} x {item.quantity}</Text>
                             </View>
-
-                            {/* Kontrol Jumlah Qty */}
-                            <View style={styles.qtyControl}>
-                                <TouchableOpacity onPress={() => updateQty(item.id, -1)} style={styles.qtyBtn}>
-                                    <Feather name="minus" size={14} color="#333" />
-                                </TouchableOpacity>
-                                <Text style={styles.qtyText}>{item.qty}</Text>
-                                <TouchableOpacity onPress={() => updateQty(item.id, 1)} style={styles.qtyBtn}>
-                                    <Feather name="plus" size={14} color="#2E8B57" />
-                                </TouchableOpacity>
-                            </View>
+                            <Text style={styles.itemSubtotal}>Rp {item.subtotal.toLocaleString('id-ID')}</Text>
                         </View>
                     ))}
                 </View>
@@ -174,7 +211,7 @@ export default function CheckoutScreen() {
                     </View>
                 </TouchableOpacity>
 
-                {/* Rincian Biaya (Dinamis) */}
+                {/* Rincian Biaya */}
                 <View style={styles.priceSection}>
                     <View style={styles.priceRow}>
                         <Text style={styles.priceLabel}>Subtotal</Text>
@@ -199,18 +236,22 @@ export default function CheckoutScreen() {
 
             </ScrollView>
 
-            {/* Footer Button (Dinamis) */}
+            {/* Footer Button */}
             <View style={styles.footer}>
                 <View style={styles.totalInfo}>
                     <Text style={styles.totalFooterLabel}>Total</Text>
                     <Text style={styles.totalFooterValue}>Rp {total.toLocaleString('id-ID')}</Text>
                 </View>
                 <TouchableOpacity
-                    style={[styles.btnPay, !selectedPayment && { backgroundColor: '#CCC' }]}
-                    disabled={!selectedPayment}
-                    onPress={() => router.push('/status-pembayaran' as any)}
+                    style={[styles.btnPay, (!selectedPayment || loading) && { backgroundColor: '#CCC' }]}
+                    disabled={!selectedPayment || loading}
+                    onPress={handleBayar}
                 >
-                    <Text style={styles.btnPayText}>Bayar Sekarang</Text>
+                    {loading ? (
+                        <ActivityIndicator color="#FFF" />
+                    ) : (
+                        <Text style={styles.btnPayText}>Bayar Sekarang</Text>
+                    )}
                 </TouchableOpacity>
             </View>
 
@@ -239,6 +280,10 @@ export default function CheckoutScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FBF8' },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+    emptyTitle: { fontSize: 18, fontWeight: 'bold', color: '#999', marginTop: 12 },
+    loginBtn: { marginTop: 20, backgroundColor: '#2E8B57', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
+    loginBtnText: { color: '#FFF', fontWeight: 'bold' },
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: Platform.OS === 'ios' ? 0 : 40, paddingBottom: 16, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#EEE' },
     backBtn: { width: 40, height: 40, justifyContent: 'center' },
     headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
@@ -253,29 +298,21 @@ const styles = StyleSheet.create({
     addressCard: { padding: 16, backgroundColor: '#FAFAFA', borderRadius: 12, borderWidth: 1, borderColor: '#EEE' },
     addressHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 6 },
     addressLabel: { fontSize: 14, fontWeight: 'bold', color: '#333', flex: 1 },
-    changeText: { fontSize: 12, color: '#2E8B57', fontWeight: 'bold' },
     addressName: { fontSize: 14, fontWeight: 'bold', color: '#444', marginBottom: 4 },
-    addressDetail: { fontSize: 13, color: '#666', lineHeight: 20, marginBottom: 12 },
+    addressDetail: { fontSize: 13, color: '#666', marginBottom: 12 },
     inputWrapper: { borderTopWidth: 1, borderTopColor: '#EEE', paddingTop: 12 },
     inputSubLabel: { fontSize: 12, color: '#888', marginBottom: 6 },
-    textInput: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 10, fontSize: 14, color: '#333', height: 44 },
+    textInput: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 10, fontSize: 14, color: '#333', minHeight: 60, textAlignVertical: 'top' },
     pickupCard: { padding: 16, backgroundColor: '#F0FAF4', borderRadius: 12, borderWidth: 1, borderColor: '#D0EDD8' },
     pickupHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 6 },
     pickupInstruction: { fontSize: 13, color: '#555', marginBottom: 12, lineHeight: 20 },
     timeInput: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#CCC', borderRadius: 8, paddingHorizontal: 12, height: 44, fontSize: 14, color: '#333' },
-
-    /* Order Item Styles */
     orderItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-    itemImagePlaceholder: { width: 48, height: 48, backgroundColor: '#F0F4F0', borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+    itemImage: { width: 50, height: 50, borderRadius: 8, backgroundColor: '#F5F5F5', marginRight: 12 },
     itemInfo: { flex: 1 },
     itemName: { fontSize: 14, fontWeight: '500', color: '#333', marginBottom: 4 },
-    itemPrice: { fontSize: 14, fontWeight: 'bold', color: '#2E8B57' },
-
-    /* Qty Control */
-    qtyControl: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, backgroundColor: '#FFF' },
-    qtyBtn: { padding: 8 },
-    qtyText: { fontSize: 14, fontWeight: 'bold', color: '#333', paddingHorizontal: 8 },
-
+    itemPrice: { fontSize: 13, color: '#777' },
+    itemSubtotal: { fontSize: 14, fontWeight: 'bold', color: '#333' },
     paymentSelector: { backgroundColor: '#FFF', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, marginBottom: 8 },
     paymentLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     paymentLabelText: { fontSize: 14, fontWeight: '500', color: '#333' },
@@ -293,10 +330,8 @@ const styles = StyleSheet.create({
     totalInfo: { flex: 1 },
     totalFooterLabel: { fontSize: 12, color: '#888' },
     totalFooterValue: { fontSize: 18, fontWeight: 'bold', color: '#2E8B57' },
-    btnPay: { backgroundColor: '#2E8B57', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12 },
+    btnPay: { backgroundColor: '#2E8B57', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12, minWidth: 150, alignItems: 'center' },
     btnPayText: { color: '#FFF', fontSize: 15, fontWeight: 'bold' },
-
-    /* Modal Styles */
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },

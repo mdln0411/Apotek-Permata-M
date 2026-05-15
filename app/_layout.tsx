@@ -1,17 +1,15 @@
 import { Stack } from 'expo-router';
+import { AuthProvider } from '../context/AuthContext';
+import { CartProvider } from '../context/CartContext';
 
 export default function RootLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      {/* Baris ini sangat penting. 
-         Ini memberitahu aplikasi bahwa folder (tabs) adalah 
-         halaman utama yang harus dimuat pertama kali.
-      */}
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-
-      {/* Halaman lain yang tidak punya tab bar (seperti status pembayaran) 
-         tetap didaftarkan di sini secara otomatis oleh Expo Router.
-      */}
-    </Stack>
+    <AuthProvider>
+      <CartProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
+      </CartProvider>
+    </AuthProvider>
   );
 }
