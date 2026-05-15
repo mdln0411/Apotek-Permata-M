@@ -1,0 +1,11 @@
+/*
+  Global CSS override untuk Expo Web
+  Menghilangkan default browser focus outline pada semua input
+*/
+
+input:focus,
+textarea:focus,
+[contenteditable]:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
