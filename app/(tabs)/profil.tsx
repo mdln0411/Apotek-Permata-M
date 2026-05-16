@@ -17,19 +17,28 @@ import {
 export default function ProfilScreen() {
     const { user, logout } = useAuth();
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
         Alert.alert('Logout', 'Apakah Anda yakin ingin keluar?', [
             { text: 'Batal', style: 'cancel' },
-            { text: 'Ya, Keluar', style: 'destructive', onPress: async () => {
-                try {
-                    await logout();
-                    // Gunakan router.replace ke '/login' dan pastikan path sesuai root
-                    router.replace('/login');
-                } catch (error) {
-                    console.error('Logout error:', error);
-                    Alert.alert('Error', 'Gagal keluar akun. Silakan coba lagi.');
-                }
-            }}
+            { 
+                text: 'Ya, Keluar', 
+                style: 'destructive', 
+                onPress: async () => {
+                    try {
+                        // 1. Jalankan logout dari context (hapus token/data)
+                        await logout();
+                        
+                        // 2. Gunakan setTimeout agar transisi Alert selesai dulu baru navigasi
+                        setTimeout(() => {
+                            router.replace('/login');
+                        }, 100);
+                    } catch (error) {
+                        console.error('Logout error:', error);
+                        // Jika context logout gagal (jarang), paksa redirect
+                        router.replace('/login');
+                    }
+                } 
+            }
         ]);
     };
 
