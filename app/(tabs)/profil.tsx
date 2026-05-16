@@ -18,7 +18,20 @@ export default function ProfilScreen() {
     const { user, logout } = useAuth();
 
     const handleLogout = async () => {
-        // Gunakan timeout agar UI tidak freeze saat Alert muncul
+        if (Platform.OS === 'web') {
+            const confirmLogout = window.confirm('Apakah Anda yakin ingin keluar?');
+            if (confirmLogout) {
+                try {
+                    await logout();
+                    router.replace('/login');
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    router.replace('/login');
+                }
+            }
+            return;
+        }
+
         setTimeout(() => {
             Alert.alert(
                 'Konfirmasi Keluar',
@@ -30,21 +43,15 @@ export default function ProfilScreen() {
                         style: 'destructive',
                         onPress: async () => {
                             try {
-                                console.log('Proses logout dimulai...');
                                 await logout();
-                                console.log('Data session dibersihkan.');
-                                
-                                // Reset navigasi sepenuhnya ke halaman login
                                 router.replace('/login');
                             } catch (error) {
                                 console.error('Logout error:', error);
-                                // Tetap paksa ke login jika terjadi error
                                 router.replace('/login');
                             }
                         }
                     }
-                ],
-                { cancelable: true }
+                ]
             );
         }, 100);
     };
