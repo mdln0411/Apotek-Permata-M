@@ -69,7 +69,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // --- Admin Only Routes ---
-    Route::prefix('admin')->group(function () {
+    Route::prefix('admin')->middleware('role:admin')->group(function () {
         Route::get('/users', [AuthController::class, 'allUsers']);
         Route::post('/users', [AuthController::class, 'storeUser']);
         Route::put('/users/{id}', [AuthController::class, 'updateUser']);

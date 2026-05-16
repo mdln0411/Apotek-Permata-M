@@ -73,7 +73,7 @@ class OrderController extends Controller
                 ]);
 
                 // Kurangi stok obat
-                $item->medicine->decrement('stock', $item->quantity);
+
             }
 
             // Kosongkan keranjang

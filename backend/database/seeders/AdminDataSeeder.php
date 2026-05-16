@@ -44,6 +44,6 @@ class AdminDataSeeder extends Seeder
             'role' => 'apoteker'
         ]);
 
-        echo "Data dummy Admin, User, dan Obat berhasil ditambahkan!\n";
+        echo "Data dummy Admin, User, dan Medicines berhasil ditambahkan!\n";
     }
 }

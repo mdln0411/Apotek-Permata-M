@@ -75,10 +75,19 @@ export default function CheckoutScreen() {
                 console.log('Order created successfully:', res.data.data);
                 await refreshCart(); 
                 
-                // Langsung pindah ke riwayat pesanan
-                router.replace('/(tabs)/pesanan');
-                
-                Alert.alert('Berhasil', 'Pesanan Anda telah diterima!');
+                // Pindah ke success screen dengan dua pilihan
+                router.replace({
+                    pathname: '/success-action',
+                    params: {
+                        title: 'Pesanan Sudah Dipesan!',
+                        message: 'Pesanan Anda telah berhasil dibuat. Apoteker kami akan segera menyiapkan obat Anda.',
+                        target: '/(tabs)',
+                        buttonText: 'Ke Beranda',
+                        secondaryTarget: '/(tabs)/pesanan',
+                        secondaryButtonText: 'Lihat Pesanan Saya'
+                    }
+                } as any);
+
             }
         } catch (e: any) {
             console.error('Checkout error detail:', e.response?.data || e.message);

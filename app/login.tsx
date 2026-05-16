@@ -36,17 +36,18 @@ export default function LoginScreen() {
             // Simpan ke context
             await login(res.data, res.access_token);
             
-            alert('Login Berhasil sebagai ' + res.data.role);
-
-            setTimeout(() => {
-                if (res.data.role === 'admin') {
-                    router.replace('/admin/dashboard' as any);
-                } else if (res.data.role === 'apoteker') {
-                    router.replace('/apoteker' as any);
-                } else {
-                    router.replace('/(tabs)' as any);
+            const target = res.data.role === 'admin' ? '/admin/dashboard' : (res.data.role === 'apoteker' ? '/apoteker' : '/(tabs)');
+            
+            router.replace({
+                pathname: '/success-action',
+                params: {
+                    title: 'Login Berhasil!',
+                    message: `Selamat datang kembali, ${res.data.name}. Anda telah berhasil masuk sebagai ${res.data.role}.`,
+                    target: target,
+                    buttonText: 'Masuk ke Dashboard'
                 }
-            }, 500);
+            } as any);
+
 
         } catch (e: any) {
             console.error('Error Login Detail:', e);

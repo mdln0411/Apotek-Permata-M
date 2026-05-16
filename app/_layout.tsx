@@ -16,11 +16,22 @@ function InitialLayout() {
     if (!user && inAuthGroup) {
       // Jika tidak login tapi mencoba akses halaman terproteksi
       router.replace('/login');
-    } else if (user && segments[0] === 'login') {
-      // Jika sudah login tapi di halaman login, arahkan sesuai role
-      if (user.role === 'admin') router.replace('/admin/dashboard');
-      else if (user.role === 'apoteker') router.replace('/apoteker');
-      else router.replace('/(tabs)');
+    } else if (user) {
+      // Role Guard: Cegah akses ke folder yang tidak sesuai role
+      const isAccessingAdmin = segments[0] === 'admin';
+      const isAccessingApoteker = segments[0] === 'apoteker';
+      const isAccessingMember = segments[0] === '(tabs)';
+
+      if (isAccessingAdmin && user.role !== 'admin') {
+        router.replace('/(tabs)');
+      } else if (isAccessingApoteker && user.role !== 'apoteker' && user.role !== 'admin') {
+        router.replace('/(tabs)');
+      } else if (user && segments[0] === 'login') {
+        // Jika sudah login tapi di halaman login, arahkan sesuai role
+        if (user.role === 'admin') router.replace('/admin/dashboard');
+        else if (user.role === 'apoteker') router.replace('/apoteker');
+        else router.replace('/(tabs)');
+      }
     }
   }, [user, loading, segments]);
 

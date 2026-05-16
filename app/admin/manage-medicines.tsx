@@ -151,13 +151,30 @@ export default function ManageMedicines() {
                 await axiosClient.post(`/api/medicines/${currentId}`, data, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
-                alert('Data obat berhasil diperbarui');
+                
+                router.push({
+                    pathname: '/success-action',
+                    params: {
+                        title: 'Berhasil Diperbarui',
+                        message: `Data obat "${formData.name}" telah berhasil diperbarui di sistem.`,
+                        target: '/admin/manage-medicines'
+                    }
+                } as any);
             } else {
                 await axiosClient.post('/api/medicines', data, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
-                alert('Obat baru berhasil ditambahkan');
+                
+                router.push({
+                    pathname: '/success-action',
+                    params: {
+                        title: 'Berhasil Ditambahkan',
+                        message: `Obat baru "${formData.name}" telah berhasil diterbitkan ke katalog.`,
+                        target: '/admin/manage-medicines'
+                    }
+                } as any);
             }
+
             
             setModalVisible(false);
             fetchMedicines();
