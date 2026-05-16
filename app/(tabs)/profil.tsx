@@ -18,28 +18,35 @@ export default function ProfilScreen() {
     const { user, logout } = useAuth();
 
     const handleLogout = async () => {
-        Alert.alert('Logout', 'Apakah Anda yakin ingin keluar?', [
-            { text: 'Batal', style: 'cancel' },
-            { 
-                text: 'Ya, Keluar', 
-                style: 'destructive', 
-                onPress: async () => {
-                    try {
-                        // 1. Jalankan logout dari context (hapus token/data)
-                        await logout();
-                        
-                        // 2. Gunakan setTimeout agar transisi Alert selesai dulu baru navigasi
-                        setTimeout(() => {
-                            router.replace('/login');
-                        }, 100);
-                    } catch (error) {
-                        console.error('Logout error:', error);
-                        // Jika context logout gagal (jarang), paksa redirect
-                        router.replace('/login');
+        // Gunakan timeout agar UI tidak freeze saat Alert muncul
+        setTimeout(() => {
+            Alert.alert(
+                'Konfirmasi Keluar',
+                'Apakah Anda yakin ingin keluar dari akun?',
+                [
+                    { text: 'Batal', style: 'cancel' },
+                    { 
+                        text: 'Keluar', 
+                        style: 'destructive',
+                        onPress: async () => {
+                            try {
+                                console.log('Proses logout dimulai...');
+                                await logout();
+                                console.log('Data session dibersihkan.');
+                                
+                                // Reset navigasi sepenuhnya ke halaman login
+                                router.replace('/login');
+                            } catch (error) {
+                                console.error('Logout error:', error);
+                                // Tetap paksa ke login jika terjadi error
+                                router.replace('/login');
+                            }
+                        }
                     }
-                } 
-            }
-        ]);
+                ],
+                { cancelable: true }
+            );
+        }, 100);
     };
 
     if (!user) {
