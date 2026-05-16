@@ -16,6 +16,8 @@ import {
     Platform
 } from 'react-native';
 
+import { Colors } from '@/constants/theme';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function HomeScreen() {
@@ -115,7 +117,7 @@ export default function HomeScreen() {
 
                 {/* Banner Promo */}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} pagingEnabled style={styles.bannerContainer}>
-                    <View style={[styles.banner, { backgroundColor: '#2E8B57' }]}>
+                    <View style={[styles.banner, { backgroundColor: Colors.light.primary }]}>
                         <View style={styles.bannerContent}>
                             <Text style={styles.bannerTitle}>Gratis Ongkir!</Text>
                             <Text style={styles.bannerSub}>Khusus wilayah Tanjung Morawa dengan min. belanja Rp 50rb.</Text>
@@ -228,9 +230,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FBF8' },
+    container: { flex: 1, backgroundColor: Colors.light.background },
     header: { 
-        backgroundColor: '#2E8B57', 
+        backgroundColor: Colors.light.primary, 
         paddingTop: Platform.OS === 'ios' ? 20 : 50, 
         paddingBottom: 40, 
         paddingHorizontal: 20,
@@ -238,13 +240,13 @@ const styles = StyleSheet.create({
         borderBottomRightRadius: 30,
     },
     headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-    greetingText: { color: '#E8F5E9', fontSize: 14 },
+    greetingText: { color: Colors.light.onPrimary, fontSize: 14 },
     userName: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
     cartBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
-    badge: { position: 'absolute', top: -5, right: -5, backgroundColor: '#FF5252', borderRadius: 10, minWidth: 20, height: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#2E8B57' },
+    badge: { position: 'absolute', top: -5, right: -5, backgroundColor: Colors.light.error, borderRadius: 10, minWidth: 20, height: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: Colors.light.primary },
     badgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
     balanceCard: { 
-        backgroundColor: '#FFF', 
+        backgroundColor: Colors.light.surface, 
         borderRadius: 16, 
         padding: 16, 
         flexDirection: 'row', 
@@ -264,34 +266,34 @@ const styles = StyleSheet.create({
     balanceValue: { fontSize: 18, fontWeight: 'bold', color: '#333' },
     dividerVertical: { width: 1, height: 30, backgroundColor: '#EEE', marginHorizontal: 15 },
     promoBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    promoText: { fontSize: 14, fontWeight: 'bold', color: '#2E8B57' },
+    promoText: { fontSize: 14, fontWeight: 'bold', color: Colors.light.primary },
     scrollContent: { paddingTop: 40, paddingBottom: 40 },
     menuGrid: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 24 },
     menuItem: { alignItems: 'center', width: (SCREEN_WIDTH - 80) / 4 },
     menuIconWrapper: { width: 56, height: 56, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-    menuLabel: { fontSize: 12, color: '#555', fontWeight: '500', textAlign: 'center' },
+    menuLabel: { fontSize: 12, color: Colors.light.muted, fontWeight: '500', textAlign: 'center' },
     bannerContainer: { paddingHorizontal: 20, marginBottom: 24 },
     banner: { width: SCREEN_WIDTH - 40, height: 120, borderRadius: 20, padding: 20, flexDirection: 'row', overflow: 'hidden' },
     bannerContent: { flex: 1, justifyContent: 'center' },
     bannerTitle: { color: '#FFF', fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
-    bannerSub: { color: 'rgba(255,255,255,0.8)', fontSize: 12, lineHeight: 18 },
+    bannerSub: { color: 'rgba(255,255,255,0.9)', fontSize: 12, lineHeight: 18 },
     bannerIcon: { position: 'absolute', right: -10, bottom: -10 },
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 16 },
     sectionTitle: { fontSize: 17, fontWeight: 'bold', color: '#333' },
-    seeAll: { fontSize: 13, color: '#2E8B57', fontWeight: 'bold' },
+    seeAll: { fontSize: 13, color: Colors.light.primary, fontWeight: 'bold' },
     rekContainer: { paddingLeft: 20, marginBottom: 24 },
-    rekCard: { width: 140, backgroundColor: '#FFF', borderRadius: 16, padding: 12, marginRight: 15, borderWidth: 1, borderColor: '#EEE' },
+    rekCard: { width: 140, backgroundColor: Colors.light.surface, borderRadius: 16, padding: 12, marginRight: 15, borderWidth: 1, borderColor: '#EEE' },
     rekImageBg: { width: '100%', height: 100, backgroundColor: '#F5F5F5', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 10, overflow: 'hidden' },
     rekImage: { width: '100%', height: '100%', resizeMode: 'cover' },
     rekName: { fontSize: 14, fontWeight: '500', color: '#333', marginBottom: 4 },
-    rekPrice: { fontSize: 14, fontWeight: 'bold', color: '#2E8B57' },
-    eduCard: { backgroundColor: '#E3F2FD', marginHorizontal: 20, borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+    rekPrice: { fontSize: 14, fontWeight: 'bold', color: Colors.light.primary },
+    eduCard: { backgroundColor: Colors.light.info, marginHorizontal: 20, borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
     eduInfo: { flex: 1 },
-    eduBadge: { backgroundColor: '#1976D2', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginBottom: 8 },
+    eduBadge: { backgroundColor: Colors.light.accent, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginBottom: 8 },
     eduBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
     eduTitle: { fontSize: 15, fontWeight: 'bold', color: '#333', marginBottom: 6 },
     eduDate: { fontSize: 12, color: '#777' },
     eduIcon: { marginLeft: 15 },
-    menuBadge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#FF5252', borderRadius: 9, width: 18, height: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#FFF' },
+    menuBadge: { position: 'absolute', top: -4, right: -4, backgroundColor: Colors.light.error, borderRadius: 9, width: 18, height: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#FFF' },
     menuBadgeText: { color: '#FFF', fontSize: 9, fontWeight: 'bold' }
 });
