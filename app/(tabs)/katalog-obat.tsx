@@ -26,8 +26,17 @@ export default function KatalogObatScreen() {
     const [medicines, setMedicines] = useState<MedicineListItem[]>([]);
     const [categories, setCategories] = useState<string[]>(['Semua']);
     const [selectedCategory, setSelectedCategory] = useState('Semua');
-    const [searchQuery, setSearchQuery] = useState(search || '');
+    const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
+
+    // Sinkronisasi searchQuery dengan parameter URL saat masuk/berubah
+    useEffect(() => {
+        if (search) {
+            setSearchQuery(search);
+        } else {
+            setSearchQuery('');
+        }
+    }, [search]);
     const [refreshing, setRefreshing] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
