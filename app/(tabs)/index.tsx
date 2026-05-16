@@ -77,9 +77,9 @@ export default function HomeScreen() {
 
     const categories = [
         { id: 'c1', name: 'Batuk Dan Flu', icon: 'weather-windy' },
-        { id: 'c2', name: 'Batuk Dan Pilek', icon: 'thermometer' },
-        { id: 'c3', name: 'Flu', icon: 'pill' },
-        { id: 'c4', name: 'Batuk', icon: 'medical-bag' },
+        { id: 'c2', name: 'Demam', icon: 'thermometer' },
+        { id: 'c3', name: 'Vitamin', icon: 'pill' },
+        { id: 'c4', name: 'P3K', icon: 'medical-bag' },
         { id: 'c5', name: 'Lainnya', icon: 'dots-grid' },
     ];
 
