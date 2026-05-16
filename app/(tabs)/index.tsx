@@ -1,443 +1,571 @@
-import React from 'react';
+import axiosClient from '@/api/axiosClient';
+import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { router, Stack } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  FlatList,
-  StatusBar,
-  SafeAreaView,
-  ImageBackground,
+    Dimensions,
+    Image,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
-// ── Tipe data ──────────────────────────────────────────────────────────────
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  stock: number;
-  image: string;
-  requiresPrescription?: boolean;
-}
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// ── Data dummy produk ───────────────────────────────────────────────────────
-const FEATURED_PRODUCTS: Product[] = [
-  {
-    id: '1',
-    name: 'Paracetamol 500mg',
-    category: 'Pain Relief',
-    price: 15000,
-    stock: 150,
-    image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400',
-  },
-  {
-    id: '2',
-    name: 'Amoxicillin 500mg',
-    category: 'Antibiotics',
-    price: 45000,
-    stock: 80,
-    image: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=400',
-    requiresPrescription: true,
-  },
-  {
-    id: '3',
-    name: 'Vitamin C 1000mg',
-    category: 'Vitamins',
-    price: 35000,
-    stock: 200,
-    image: 'https://images.unsplash.com/photo-1550572017-edd951b55104?w=400',
-  },
-  {
-    id: '4',
-    name: 'Ibuprofen 400mg',
-    category: 'Pain Relief',
-    price: 25000,
-    stock: 120,
-    image: 'https://images.unsplash.com/photo-1626716929369-8c7fccac7376?w=400',
-  },
-];
+// Colors Palette based on typical pharmacy apps (Halodoc/Alodokter style)
+const THEME = {
+    primary: '#2E8B57', // Sea Green / Pharmacy Green
+    primaryLight: '#E8F5E9',
+    secondary: '#1976D2', // Trust Blue
+    accent: '#FF7043', // Modern Orange for focus
+    background: '#F0F4F7', // Soft background
+    white: '#FFFFFF',
+    textDark: '#2C3E50',
+    textMuted: '#7F8C8D',
+    border: '#E0E6ED',
+    success: '#4CAF50',
+    warning: '#FFC107',
+    error: '#E74C3C',
+};
 
-// ── Helper format harga ────────────────────────────────────────────────────
-const formatRupiah = (amount: number): string =>
-  `Rp ${amount.toLocaleString('id-ID')}`;
-
-// ── Komponen kartu produk ──────────────────────────────────────────────────
-const ProductCard: React.FC<{ item: Product }> = ({ item }) => (
-  <TouchableOpacity style={styles.productCard} activeOpacity={0.85}>
-    <View style={styles.productImageWrapper}>
-      <Image
-        source={{ uri: item.image }}
-        style={styles.productImage}
-        resizeMode="cover"
-      />
-      {item.requiresPrescription && (
-        <View style={styles.prescriptionBadge}>
-          <Text style={styles.prescriptionText}>Resep</Text>
-        </View>
-      )}
-    </View>
-    <View style={styles.productInfo}>
-      <Text style={styles.productName} numberOfLines={2}>
-        {item.name}
-      </Text>
-      <Text style={styles.productCategory}>{item.category}</Text>
-      <View style={styles.productFooter}>
-        <Text style={styles.productPrice}>{formatRupiah(item.price)}</Text>
-        <Text style={styles.productStock}>Stok: {item.stock}</Text>
-      </View>
-    </View>
-  </TouchableOpacity>
-);
-
-// ── Komponen utama ─────────────────────────────────────────────────────────
 export default function HomeScreen() {
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar backgroundColor="#2E7D32" barStyle="light-content" />
+    const { user, unreadChatCount } = useAuth();
+    const { itemCount } = useCart();
+    const [medicines, setMedicines] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
 
-      {/* ── Header / Navbar ── */}
-      <View style={styles.navbar}>
-        <View style={styles.navBrand}>
-          {/* Ikon apotek sederhana */}
-          <View style={styles.navIcon}>
-            <Text style={styles.navIconText}>✚</Text>
-          </View>
-          <Text style={styles.navTitle}>Apotek Permata</Text>
-        </View>
-        <TouchableOpacity>
-          <Text style={styles.navLogin}>Masuk</Text>
-        </TouchableOpacity>
-      </View>
+    useEffect(() => {
+        fetchMedicines();
+    }, []);
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
-        {/* ── Hero Banner ── */}
-        <ImageBackground
-          source={{
-            uri: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=800',
-          }}
-          style={styles.heroBanner}
-          imageStyle={styles.heroImage}
-        >
-          <View style={styles.heroOverlay} />
-          <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>
-              Solusi Obat Terpercaya{'\n'}untuk KePermataan Anda
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              Apotek online terpercaya dengan berbagai pilihan obat berkualitas
-              dan layanan profesional
-            </Text>
-            <View style={styles.heroButtons}>
-              <TouchableOpacity style={styles.btnPrimary} activeOpacity={0.85}>
-                <Text style={styles.btnPrimaryText}>Lihat Obat</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.btnOutline} activeOpacity={0.85}>
-                <Text style={styles.btnOutlineText}>Pesan Sekarang</Text>
-              </TouchableOpacity>
+    const fetchMedicines = async () => {
+        try {
+            const response = await axiosClient.get('/api/medicines');
+            if (response.data && response.data.data) {
+                setMedicines(response.data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching medicines:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const formatPrice = (price: number) => {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+        }).format(price);
+    };
+
+    const mainMenus = [
+        { id: '1', name: 'Konsultasi', icon: 'chat-processing-outline', color: '#E3F2FD', iconColor: '#1976D2', route: '/konsultasi' },
+        { id: '2', name: 'Unggah Resep', icon: 'camera-outline', color: '#FFF3E0', iconColor: '#F57C00', route: '/upload-resep' },
+        { id: '3', name: 'Pengingat', icon: 'bell-outline', color: '#F3E5F5', iconColor: '#7B1FA2', route: '/pengingat' },
+        { id: '4', name: 'Cek Alergi', icon: 'shield-check-outline', color: '#E8F5E9', iconColor: '#2E8B57', route: '/alergi-obat' },
+    ];
+
+    const categories = [
+        { id: 'c1', name: 'Batuk Dan Flu', icon: 'weather-windy' },
+        { id: 'c2', name: 'Demam', icon: 'thermometer' },
+        { id: 'c3', name: 'Vitamin', icon: 'pill' },
+        { id: 'c4', name: 'P3K', icon: 'medical-bag' },
+        { id: 'c5', name: 'Lainnya', icon: 'dots-grid' },
+    ];
+
+    const handleSearch = () => {
+        if (searchQuery.trim()) {
+            router.push({
+                pathname: '/(tabs)/katalog-obat',
+                params: { search: searchQuery.trim() }
+            } as any);
+        }
+    };
+
+    return (
+        <SafeAreaView style={styles.container}>
+            <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+            <Stack.Screen options={{ headerShown: false }} />
+
+            {/* Sticky Header Top */}
+            <View style={styles.topHeader}>
+                <View style={styles.userInfoSide}>
+                    <View style={styles.logoCircle}>
+                        <MaterialCommunityIcons name="plus-box" size={28} color={THEME.white} />
+                    </View>
+                    <View style={styles.nameSection}>
+                        <Text style={styles.appName}>APOTEK PERMATA</Text>
+                        <Text style={styles.tagline}>Solusi Sehat Keluarga</Text>
+                    </View>
+                </View>
+                <View style={styles.headerIcons}>
+                    <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/notifikasi' as any)}>
+                        <Ionicons name="notifications-outline" size={24} color={THEME.white} />
+                        <View style={styles.badge}>
+                            <Text style={styles.badgeText}>3</Text>
+                        </View>
+                    </TouchableOpacity>
+                </View>
             </View>
-          </View>
-        </ImageBackground>
 
-        {/* ── Produk Unggulan ── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Produk Unggulan</Text>
-            <TouchableOpacity>
-              <Text style={styles.sectionLink}>Lihat Semua →</Text>
-            </TouchableOpacity>
-          </View>
+            <ScrollView 
+                showsVerticalScrollIndicator={false} 
+                contentContainerStyle={styles.scrollContent}
+            >
+                {/* Hero Section */}
+                <View style={styles.heroBackground}>
+                    <View style={styles.searchBarWrapper}>
+                        <View style={styles.searchBar}>
+                            <Feather name="search" size={20} color={THEME.textMuted} />
+                            <TextInput 
+                                placeholder="Cari obat, vitamin, atau gejala..."
+                                style={styles.searchInput}
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                onSubmitEditing={handleSearch}
+                                returnKeyType="search"
+                            />
+                            {searchQuery.length > 0 && (
+                                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                    <Feather name="x" size={18} color={THEME.textMuted} />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
+                </View>
 
-          {/* Grid 2 kolom */}
-          <View style={styles.productGrid}>
-            {FEATURED_PRODUCTS.map((item) => (
-              <ProductCard key={item.id} item={item} />
-            ))}
-          </View>
-        </View>
+                {/* Floating Member Welcome & Quote */}
+                <View style={styles.statsContainer}>
+                    <View style={styles.welcomeMemberCard}>
+                        <View style={styles.welcomeTop}>
+                            <MaterialCommunityIcons name="account-star" size={24} color={THEME.primary} />
+                            <View style={styles.welcomeInfo}>
+                                <Text style={styles.welcomeMemberText}>Selamat Datang, Member!</Text>
+                                <Text style={styles.memberUserName}>{user?.name || 'Tamu Setia'}</Text>
+                            </View>
+                        </View>
+                        <View style={styles.memberDivider} />
+                        <View style={styles.quoteBox}>
+                            <Text style={styles.healthQuote}>"Kesehatan bukanlah segalanya, tapi tanpa kesehatan, segalanya bukanlah apa-apa."</Text>
+                            <Text style={styles.quoteAuthor}>- Arthur Schopenhauer</Text>
+                        </View>
+                    </View>
+                </View>
 
-        {/* ── Tentang Apotek ── */}
-        <View style={styles.aboutSection}>
-          <Text style={styles.aboutTitle}>Tentang Apotek Permata</Text>
-          <Text style={styles.aboutDesc}>
-            Apotek Permata adalah apotek online terpercaya yang telah melayani
-            ribuan pelanggan di seluruh Indonesia. Kami menyediakan berbagai
-            macam obat-obatan berkualitas dengan harga terjangkau dan layanan
-            apoteker profesional.
-          </Text>
+                {/* Main Action Menus */}
+                <View style={styles.mainMenuGrid}>
+                    {mainMenus.map((menu) => (
+                        <TouchableOpacity 
+                            key={menu.id} 
+                            style={styles.mainMenuItem} 
+                            onPress={() => router.push(menu.route as any)}
+                        >
+                            <View style={[styles.mainMenuIcon, { backgroundColor: menu.color }]}>
+                                <MaterialCommunityIcons name={menu.icon as any} size={28} color={menu.iconColor} />
+                                {menu.name === 'Konsultasi' && (unreadChatCount ?? 0) > 0 && (
+                                    <View style={styles.notifBadge}>
+                                        <Text style={styles.notifBadgeText}>{unreadChatCount}</Text>
+                                    </View>
+                                )}
+                            </View>
+                            <Text style={styles.mainMenuLabel}>{menu.name}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
 
-          {[
-            'Produk Original & Terjamin',
-            'Apoteker Berpengalaman',
-            'Pengiriman Cepat & Aman',
-          ].map((feature) => (
-            <View key={feature} style={styles.featureRow}>
-              <View style={styles.featureIcon}>
-                <Text style={styles.featureCheck}>✓</Text>
-              </View>
-              <Text style={styles.featureText}>{feature}</Text>
-            </View>
-          ))}
-        </View>
+                {/* Banners */}
+                <View style={styles.sectionPadding}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} snapToInterval={SCREEN_WIDTH - 40} decelerationRate="fast">
+                        <View style={[styles.promoBanner, { backgroundColor: '#81C784' }]}>
+                            <View style={styles.bannerTextSide}>
+                                <Text style={styles.bannerTitle}>Gratis Ongkir</Text>
+                                <Text style={styles.bannerDesc}>Tanpa minimum belanja untuk pesanan pertama Anda!</Text>
+                                <TouchableOpacity style={styles.bannerBtn}>
+                                    <Text style={styles.bannerBtnText}>Klaim Sekarang</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <Image 
+                                source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2969/2969131.png' }} 
+                                style={styles.bannerImage} 
+                            />
+                        </View>
+                        <View style={[styles.promoBanner, { backgroundColor: '#64B5F6', marginLeft: 15 }]}>
+                            <View style={styles.bannerTextSide}>
+                                <Text style={styles.bannerTitle}>Tebus Resep</Text>
+                                <Text style={styles.bannerDesc}>Kirim foto resep Anda, kami siapkan obatnya.</Text>
+                                <TouchableOpacity style={[styles.bannerBtn, { backgroundColor: '#1976D2' }]}>
+                                    <Text style={styles.bannerBtnText}>Unggah Foto</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <Image 
+                                source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3028/3028573.png' }} 
+                                style={styles.bannerImage} 
+                            />
+                        </View>
+                    </ScrollView>
+                </View>
 
-        {/* Spacer bawah */}
-        <View style={{ height: 32 }} />
-      </ScrollView>
-    </SafeAreaView>
-  );
+                {/* Categories */}
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Kategori Populer</Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+                    {categories.map((cat) => (
+                        <TouchableOpacity 
+                            key={cat.id} 
+                            style={styles.categoryItem}
+                            onPress={() => {
+                                if (cat.name === 'Lainnya') {
+                                    router.push('/(tabs)/katalog-obat' as any);
+                                } else {
+                                    router.push({
+                                        pathname: '/(tabs)/katalog-obat',
+                                        params: { category: cat.name }
+                                    } as any);
+                                }
+                            }}
+                        >
+                            <View style={styles.categoryIconCircle}>
+                                <MaterialCommunityIcons name={cat.icon as any} size={24} color={THEME.primary} />
+                            </View>
+                            <Text style={styles.categoryLabel}>{cat.name}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+
+                {/* Recommendations */}
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Rekomendasi Untukmu</Text>
+                    <TouchableOpacity onPress={() => router.push('/(tabs)/katalog-obat' as any)}>
+                        <Text style={styles.seeMore}>Lihat Semua</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <View style={styles.productGrid}>
+                    {medicines.slice(0, 4).map((item) => (
+                        <TouchableOpacity 
+                            key={item.id} 
+                            style={styles.productCard}
+                            onPress={() => router.push({ pathname: '/detail-obat', params: { id: item.id } } as any)}
+                        >
+                            <View style={styles.productImageWrapper}>
+                                {item.image_url ? (
+                                    <Image 
+                                        source={{ 
+                                            uri: item.image_url.startsWith('http') 
+                                                ? item.image_url 
+                                                : `http://10.0.2.2:8000/storage/${item.image_url}` 
+                                        }} 
+                                        style={styles.productImage} 
+                                    />
+                                ) : (
+                                    <MaterialCommunityIcons name="pill" size={40} color="#BDC3C7" />
+                                )}
+                                {item.stock < 5 && (
+                                    <View style={styles.stockLabel}>
+                                        <Text style={styles.stockText}>Sisa {item.stock}</Text>
+                                    </View>
+                                )}
+                            </View>
+                            <View style={styles.productInfo}>
+                                <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+                                <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
+                                <TouchableOpacity style={styles.addBtnSmall}>
+                                    <Feather name="plus" size={16} color={THEME.white} />
+                                    <Text style={styles.addBtnText}>Beli</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </TouchableOpacity>
+                    ))}
+                    {loading && <Text style={styles.loadingText}>Memuat rekomendasi...</Text>}
+                </View>
+
+                {/* Edukasi / Artikel */}
+                <View style={[styles.sectionHeader, { marginTop: 10 }]}>
+                    <Text style={styles.sectionTitle}>Edukasi Kesehatan</Text>
+                </View>
+                <View style={styles.articleList}>
+                    <TouchableOpacity style={styles.articleCard}>
+                        <Image 
+                            source={{ uri: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?q=80&w=200&auto=format&fit=crop' }} 
+                            style={styles.articleImage} 
+                        />
+                        <View style={styles.articleContent}>
+                            <Text style={styles.articleTag}>TIPS KESEHATAN</Text>
+                            <Text style={styles.articleTitle}>Cara Alami Atasi Batuk Berdahak Tanpa Obat Kimia</Text>
+                            <Text style={styles.articleMeta}>Admin • 12 Mei 2026</Text>
+                        </View>
+                    </TouchableOpacity>
+                </View>
+
+                <View style={{ height: 40 }} />
+            </ScrollView>
+        </SafeAreaView>
+    );
 }
-
-// ── Styles ─────────────────────────────────────────────────────────────────
-const GREEN = '#2E7D32';
-const GREEN_LIGHT = '#4CAF50';
-const WHITE = '#FFFFFF';
-const GRAY_BG = '#F5F5F5';
-const GRAY_TEXT = '#757575';
-const DARK = '#1A1A1A';
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: WHITE,
-  },
-  scroll: {
-    flex: 1,
-  },
+    container: { flex: 1, backgroundColor: THEME.background },
+    topHeader: {
+        backgroundColor: THEME.primary,
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 10 : 40,
+        paddingBottom: 20,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    userInfoSide: { flexDirection: 'row', alignItems: 'center' },
+    logoCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.4)',
+    },
+    nameSection: { marginLeft: 12 },
+    appName: { color: THEME.white, fontSize: 16, fontWeight: '900', letterSpacing: 1 },
+    tagline: { color: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: '500' },
+    headerIcons: { flexDirection: 'row' },
+    iconButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+    badge: { 
+        position: 'absolute', 
+        top: 2, 
+        right: 2, 
+        backgroundColor: THEME.accent, 
+        borderRadius: 10, 
+        minWidth: 18, 
+        height: 18, 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        borderWidth: 1.5,
+        borderColor: THEME.primary
+    },
+    badgeText: { color: THEME.white, fontSize: 10, fontWeight: 'bold' },
+    
+    scrollContent: { flexGrow: 1 },
+    heroBackground: {
+        backgroundColor: THEME.primary,
+        height: 80,
+        paddingHorizontal: 20,
+        borderBottomLeftRadius: 25,
+        borderBottomRightRadius: 25,
+        marginBottom: 30,
+    },
+    searchBarWrapper: {
+        position: 'absolute',
+        bottom: -25,
+        left: 20,
+        right: 20,
+        zIndex: 10,
+    },
+    searchBar: {
+        backgroundColor: THEME.white,
+        borderRadius: 15,
+        paddingHorizontal: 15,
+        height: 50,
+        flexDirection: 'row',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 8,
+    },
+    searchInput: { flex: 1, marginLeft: 10, fontSize: 14, color: THEME.textDark },
+    
+    statsContainer: { paddingHorizontal: 20, marginTop: 10 },
+    welcomeMemberCard: {
+        backgroundColor: THEME.white,
+        borderRadius: 20,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: THEME.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    welcomeTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+    welcomeInfo: { marginLeft: 12 },
+    welcomeMemberText: { fontSize: 12, color: THEME.textMuted, fontWeight: '500' },
+    memberUserName: { fontSize: 16, fontWeight: 'bold', color: THEME.textDark },
+    memberDivider: { height: 1, backgroundColor: '#F0F0F0', marginBottom: 12 },
+    quoteBox: { fontStyle: 'italic' },
+    healthQuote: { fontSize: 12, color: THEME.textDark, lineHeight: 18, textAlign: 'center', fontWeight: '500' },
+    quoteAuthor: { fontSize: 10, color: THEME.primary, textAlign: 'right', marginTop: 4, fontWeight: 'bold' },
 
-  // ── Navbar ──
-  navbar: {
-    backgroundColor: GREEN,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  navBrand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  navIcon: {
-    backgroundColor: WHITE,
-    borderRadius: 20,
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navIconText: {
-    color: GREEN,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  navTitle: {
-    color: WHITE,
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  navLogin: {
-    color: WHITE,
-    fontSize: 15,
-    fontWeight: '600',
-  },
+    mainMenuGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        marginTop: 25,
+    },
+    mainMenuItem: {
+        width: (SCREEN_WIDTH - 60) / 4,
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    mainMenuIcon: {
+        width: 55,
+        height: 55,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+        elevation: 2,
+    },
+    mainMenuLabel: { fontSize: 12, color: THEME.textDark, textAlign: 'center', fontWeight: '500' },
+    notifBadge: {
+        position: 'absolute',
+        top: -5,
+        right: -5,
+        backgroundColor: THEME.error,
+        borderRadius: 10,
+        width: 20,
+        height: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: THEME.white,
+    },
+    notifBadgeText: { color: THEME.white, fontSize: 10, fontWeight: 'bold' },
 
-  // ── Hero ──
-  heroBanner: {
-    height: 280,
-    justifyContent: 'flex-end',
-  },
-  heroImage: {
-    opacity: 0.75,
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  heroContent: {
-    padding: 20,
-    paddingBottom: 28,
-  },
-  heroTitle: {
-    color: WHITE,
-    fontSize: 24,
-    fontWeight: '800',
-    lineHeight: 32,
-    marginBottom: 10,
-  },
-  heroSubtitle: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 13,
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  heroButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  btnPrimary: {
-    backgroundColor: GREEN_LIGHT,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  btnPrimaryText: {
-    color: WHITE,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  btnOutline: {
-    borderWidth: 1.5,
-    borderColor: WHITE,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  btnOutlineText: {
-    color: WHITE,
-    fontWeight: '700',
-    fontSize: 14,
-  },
+    sectionPadding: { paddingHorizontal: 20, marginVertical: 10 },
+    promoBanner: {
+        width: SCREEN_WIDTH - 40,
+        height: 110,
+        borderRadius: 20,
+        padding: 15,
+        flexDirection: 'row',
+        alignItems: 'center',
+        overflow: 'hidden',
+    },
+    bannerTextSide: { flex: 1, zIndex: 1 },
+    bannerTitle: { color: THEME.white, fontSize: 18, fontWeight: 'bold' },
+    bannerDesc: { color: 'rgba(255,255,255,0.9)', fontSize: 11, marginVertical: 5 },
+    bannerBtn: {
+        backgroundColor: THEME.white,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 8,
+        alignSelf: 'flex-start',
+    },
+    bannerBtnText: { color: '#81C784', fontSize: 11, fontWeight: 'bold' },
+    bannerImage: { width: 80, height: 80, position: 'absolute', right: -5, bottom: -5, opacity: 0.6 },
 
-  // ── Section ──
-  section: {
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 8,
-    backgroundColor: WHITE,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: DARK,
-  },
-  sectionLink: {
-    fontSize: 14,
-    color: GREEN_LIGHT,
-    fontWeight: '600',
-  },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        marginTop: 20,
+        marginBottom: 15,
+    },
+    sectionTitle: { fontSize: 18, fontWeight: '700', color: THEME.textDark },
+    seeMore: { fontSize: 13, color: THEME.primary, fontWeight: 'bold' },
 
-  // ── Product Grid ──
-  productGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  productCard: {
-    width: '47.5%',
-    backgroundColor: WHITE,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  productImageWrapper: {
-    position: 'relative',
-  },
-  productImage: {
-    width: '100%',
-    height: 120,
-    backgroundColor: GRAY_BG,
-  },
-  prescriptionBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: GREEN_LIGHT,
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  prescriptionText: {
-    color: WHITE,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  productInfo: {
-    padding: 10,
-  },
-  productName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: DARK,
-    marginBottom: 2,
-  },
-  productCategory: {
-    fontSize: 12,
-    color: GRAY_TEXT,
-    marginBottom: 8,
-  },
-  productFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  productPrice: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: GREEN_LIGHT,
-  },
-  productStock: {
-    fontSize: 11,
-    color: GRAY_TEXT,
-  },
+    categoryScroll: { paddingLeft: 20, marginBottom: 10 },
+    categoryItem: { alignItems: 'center', marginRight: 20 },
+    categoryIconCircle: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: THEME.white,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: THEME.border,
+    },
+    categoryLabel: { fontSize: 12, color: THEME.textDark, marginTop: 8 },
 
-  // ── About ──
-  aboutSection: {
-    margin: 16,
-    marginTop: 20,
-    backgroundColor: GRAY_BG,
-    borderRadius: 16,
-    padding: 20,
-  },
-  aboutTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: DARK,
-    marginBottom: 12,
-  },
-  aboutDesc: {
-    fontSize: 13,
-    color: '#555',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
-  },
-  featureIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: GREEN_LIGHT,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featureCheck: {
-    color: WHITE,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  featureText: {
-    fontSize: 14,
-    color: DARK,
-    fontWeight: '500',
-  },
+    productGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        paddingHorizontal: 15,
+        justifyContent: 'space-between',
+    },
+    productCard: {
+        width: (SCREEN_WIDTH - 45) / 2,
+        backgroundColor: THEME.white,
+        borderRadius: 15,
+        marginBottom: 15,
+        padding: 10,
+        borderWidth: 1,
+        borderColor: THEME.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.03,
+        shadowRadius: 5,
+        elevation: 2,
+    },
+    productImageWrapper: {
+        width: '100%',
+        height: 120,
+        backgroundColor: '#F9FAFB',
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        overflow: 'hidden',
+    },
+    productImage: { width: '100%', height: '100%', resizeMode: 'contain' },
+    stockLabel: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderBottomRightRadius: 10,
+    },
+    stockText: { color: THEME.white, fontSize: 10, fontWeight: 'bold' },
+    productInfo: { marginTop: 10 },
+    productName: { fontSize: 14, fontWeight: '500', color: THEME.textDark, height: 40 },
+    productPrice: { fontSize: 15, fontWeight: 'bold', color: THEME.primary, marginVertical: 5 },
+    addBtnSmall: {
+        backgroundColor: THEME.primary,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 8,
+        paddingVertical: 6,
+        marginTop: 5,
+    },
+    addBtnText: { color: THEME.white, fontSize: 12, fontWeight: 'bold', marginLeft: 4 },
+    
+    loadingText: { padding: 20, color: THEME.textMuted, textAlign: 'center', width: '100%' },
+
+    articleList: { paddingHorizontal: 20 },
+    articleCard: {
+        flexDirection: 'row',
+        backgroundColor: THEME.white,
+        borderRadius: 15,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: THEME.border,
+    },
+    articleImage: { width: 80, height: 80, borderRadius: 12 },
+    articleContent: { flex: 1, marginLeft: 15, justifyContent: 'center' },
+    articleTag: { fontSize: 10, fontWeight: 'bold', color: THEME.secondary, marginBottom: 4 },
+    articleTitle: { fontSize: 14, fontWeight: 'bold', color: THEME.textDark, lineHeight: 20 },
+    articleMeta: { fontSize: 10, color: THEME.textMuted, marginTop: 6 },
 });
