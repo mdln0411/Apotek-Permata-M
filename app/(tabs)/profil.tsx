@@ -21,8 +21,14 @@ export default function ProfilScreen() {
         Alert.alert('Logout', 'Apakah Anda yakin ingin keluar?', [
             { text: 'Batal', style: 'cancel' },
             { text: 'Ya, Keluar', style: 'destructive', onPress: async () => {
-                await logout();
-                router.replace('/login' as any);
+                try {
+                    await logout();
+                    // Gunakan router.replace ke '/login' dan pastikan path sesuai root
+                    router.replace('/login');
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    Alert.alert('Error', 'Gagal keluar akun. Silakan coba lagi.');
+                }
             }}
         ]);
     };
