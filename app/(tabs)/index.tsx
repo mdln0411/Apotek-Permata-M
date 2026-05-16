@@ -221,7 +221,14 @@ export default function HomeScreen() {
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
                     {categories.map((cat) => (
-                        <TouchableOpacity key={cat.id} style={styles.categoryItem}>
+                        <TouchableOpacity 
+                            key={cat.id} 
+                            style={styles.categoryItem}
+                            onPress={() => router.push({
+                                pathname: '/(tabs)/katalog-obat',
+                                params: { category: cat.name }
+                            } as any)}
+                        >
                             <View style={styles.categoryIconCircle}>
                                 <MaterialCommunityIcons name={cat.icon as any} size={24} color={THEME.primary} />
                             </View>
@@ -440,25 +447,25 @@ const styles = StyleSheet.create({
     sectionPadding: { paddingHorizontal: 20, marginVertical: 10 },
     promoBanner: {
         width: SCREEN_WIDTH - 40,
-        height: 140,
+        height: 110,
         borderRadius: 20,
-        padding: 20,
+        padding: 15,
         flexDirection: 'row',
         alignItems: 'center',
         overflow: 'hidden',
     },
     bannerTextSide: { flex: 1, zIndex: 1 },
-    bannerTitle: { color: THEME.white, fontSize: 22, fontWeight: 'bold' },
-    bannerDesc: { color: 'rgba(255,255,255,0.9)', fontSize: 12, marginVertical: 8 },
+    bannerTitle: { color: THEME.white, fontSize: 18, fontWeight: 'bold' },
+    bannerDesc: { color: 'rgba(255,255,255,0.9)', fontSize: 11, marginVertical: 5 },
     bannerBtn: {
         backgroundColor: THEME.white,
-        paddingHorizontal: 15,
-        paddingVertical: 8,
-        borderRadius: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 8,
         alignSelf: 'flex-start',
     },
-    bannerBtnText: { color: '#81C784', fontSize: 12, fontWeight: 'bold' },
-    bannerImage: { width: 100, height: 100, position: 'absolute', right: -10, bottom: -10, opacity: 0.6 },
+    bannerBtnText: { color: '#81C784', fontSize: 11, fontWeight: 'bold' },
+    bannerImage: { width: 80, height: 80, position: 'absolute', right: -5, bottom: -5, opacity: 0.6 },
 
     sectionHeader: {
         flexDirection: 'row',

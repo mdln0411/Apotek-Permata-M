@@ -21,7 +21,7 @@ import {
 
 export default function KatalogObatScreen() {
     const { user } = useAuth();
-    const { search } = useLocalSearchParams<{ search?: string }>();
+    const { search, category } = useLocalSearchParams<{ search?: string; category?: string }>();
     const { addToCart, itemCount } = useCart();
     const [medicines, setMedicines] = useState<MedicineListItem[]>([]);
     const [categories, setCategories] = useState<string[]>(['Semua']);
@@ -29,14 +29,20 @@ export default function KatalogObatScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
 
-    // Sinkronisasi searchQuery dengan parameter URL saat masuk/berubah
+    // Sinkronisasi searchQuery & Category dengan parameter URL saat masuk/berubah
     useEffect(() => {
         if (search) {
             setSearchQuery(search);
         } else {
             setSearchQuery('');
         }
-    }, [search]);
+
+        if (category) {
+            setSelectedCategory(category);
+        } else {
+            setSelectedCategory('Semua');
+        }
+    }, [search, category]);
     const [refreshing, setRefreshing] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
