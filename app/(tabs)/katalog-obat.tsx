@@ -2,7 +2,7 @@ import { getMedicineCategories, getMedicines, MedicineListItem } from '@/api/med
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { QuantityModal } from '@/components/QuantityModal';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -214,35 +214,27 @@ export default function KatalogObatScreen() {
         <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
 
-            {/* Header */}
+            {/* Header Mirroring Home Screen */}
             <View style={styles.header}>
                 <View style={styles.logoContainer}>
                     <View style={styles.logoIcon}>
-                        <Ionicons name="medical" size={18} color="#FFF" />
+                        <MaterialCommunityIcons name="plus-box" size={24} color="#FFF" />
                     </View>
                     <View>
-                        <Text style={styles.headerTitle}>Apotek Permata</Text>
-                        {user && <Text style={styles.headerUser}>Halo, {user.name}</Text>}
+                        <Text style={styles.headerTitle}>APOTEK PERMATA</Text>
+                        <Text style={styles.tagline}>Solusi Sehat Keluarga</Text>
                     </View>
                 </View>
                 <View style={styles.headerRight}>
-                    {user ? (
-                        <TouchableOpacity 
-                            style={styles.cartIconBtn} 
-                            onPress={() => router.push('/keranjang' as any)}
-                        >
-                            <Feather name="shopping-cart" size={20} color="#FFF" />
-                            {itemCount > 0 && (
-                                <View style={styles.badgeCount}>
-                                    <Text style={styles.badgeCountText}>{itemCount}</Text>
-                                </View>
-                            )}
-                        </TouchableOpacity>
-                    ) : (
-                        <TouchableOpacity onPress={() => router.push('/login' as any)}>
-                            <Text style={styles.loginText}>Masuk</Text>
-                        </TouchableOpacity>
-                    )}
+                    <TouchableOpacity 
+                        style={styles.iconButton} 
+                        onPress={() => router.push('/notifikasi' as any)}
+                    >
+                        <Ionicons name="notifications-outline" size={24} color="#FFF" />
+                        <View style={styles.badgeCount}>
+                            <Text style={styles.badgeCountText}>3</Text>
+                        </View>
+                    </TouchableOpacity>
                 </View>
             </View>
 
@@ -351,19 +343,21 @@ const styles = StyleSheet.create({
     },
     logoContainer: { flexDirection: 'row', alignItems: 'center' },
     logoIcon: {
-        width: 32,
-        height: 32,
-        borderRadius: 8,
+        width: 36,
+        height: 36,
+        borderRadius: 10,
         backgroundColor: 'rgba(255,255,255,0.2)',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 8,
+        marginRight: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.4)',
     },
-    headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFF' },
-    headerUser: { fontSize: 11, color: '#E8F5E9', marginTop: -2 },
+    headerTitle: { fontSize: 16, fontWeight: '900', color: '#FFF', letterSpacing: 1 },
+    tagline: { fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: '500' },
     headerRight: { flexDirection: 'row', alignItems: 'center' },
-    cartIconBtn: { padding: 8, position: 'relative' },
-    badgeCount: { position: 'absolute', top: 0, right: 0, backgroundColor: '#FF5252', borderRadius: 10, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#2E8B57' },
+    iconButton: { padding: 8, position: 'relative' },
+    badgeCount: { position: 'absolute', top: 2, right: 2, backgroundColor: '#FF7043', borderRadius: 10, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#2E8B57' },
     badgeCountText: { color: '#FFF', fontSize: 9, fontWeight: 'bold' },
     loginText: { color: '#FFF', fontSize: 14, fontWeight: '600', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
 
