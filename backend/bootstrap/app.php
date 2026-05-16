@@ -12,6 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Mengizinkan CORS secara otomatis untuk API
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);

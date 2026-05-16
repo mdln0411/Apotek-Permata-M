@@ -42,6 +42,7 @@ function InitialLayout() {
       <Stack.Screen name="apoteker" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="chat-room" options={{ headerShown: false }} />
+      <Stack.Screen name="notifikasi" options={{ headerShown: true }} />
     </Stack>
   );
 }
