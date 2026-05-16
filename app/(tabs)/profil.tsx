@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
         padding: 20
     },
     modalContent: {
-        width: '100%',
+        width: '90%',
         maxWidth: 340,
         backgroundColor: '#FFF',
         borderRadius: 25,
@@ -242,10 +242,13 @@ const styles = StyleSheet.create({
     },
     modalActionRow: {
         flexDirection: 'row',
-        gap: 12
+        gap: 12,
+        width: '100%',
+        justifyContent: 'center'
     },
     modalBtn: {
         flex: 1,
+        minWidth: 100,
         height: 48,
         borderRadius: 12,
         justifyContent: 'center',
