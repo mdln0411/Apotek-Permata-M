@@ -91,22 +91,20 @@ export default function HomeScreen() {
             {/* Sticky Header Top */}
             <View style={styles.topHeader}>
                 <View style={styles.userInfoSide}>
-                    <View style={styles.avatarPlaceholder}>
-                        <Text style={styles.avatarText}>{user?.name?.charAt(0) || 'T'}</Text>
+                    <View style={styles.logoCircle}>
+                        <MaterialCommunityIcons name="plus-box" size={28} color={THEME.white} />
                     </View>
                     <View style={styles.nameSection}>
-                        <Text style={styles.welcomeText}>Halo, Selamat Siang</Text>
-                        <Text style={styles.userName} numberOfLines={1}>{user ? user.name : 'Tamu'}</Text>
+                        <Text style={styles.appName}>APOTEK PERMATA</Text>
+                        <Text style={styles.tagline}>Solusi Sehat Keluarga</Text>
                     </View>
                 </View>
                 <View style={styles.headerIcons}>
-                    <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/keranjang' as any)}>
-                        <Feather name="shopping-cart" size={24} color={THEME.white} />
-                        {itemCount > 0 && (
-                            <View style={styles.badge}>
-                                <Text style={styles.badgeText}>{itemCount}</Text>
-                            </View>
-                        )}
+                    <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/notifikasi' as any)}>
+                        <Ionicons name="notifications-outline" size={24} color={THEME.white} />
+                        <View style={styles.badge}>
+                            <Text style={styles.badgeText}>3</Text>
+                        </View>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -125,24 +123,21 @@ export default function HomeScreen() {
                     </View>
                 </View>
 
-                {/* Floating Stats / Wallet */}
+                {/* Floating Member Welcome & Quote */}
                 <View style={styles.statsContainer}>
-                    <View style={styles.statsCard}>
-                        <TouchableOpacity style={styles.statItem}>
-                            <MaterialCommunityIcons name="wallet-outline" size={22} color={THEME.primary} />
-                            <View style={styles.statInfo}>
-                                <Text style={styles.statLabel}>Saldo</Text>
-                                <Text style={styles.statValue}>Rp 0</Text>
+                    <View style={styles.welcomeMemberCard}>
+                        <View style={styles.welcomeTop}>
+                            <MaterialCommunityIcons name="account-star" size={24} color={THEME.primary} />
+                            <View style={styles.welcomeInfo}>
+                                <Text style={styles.welcomeMemberText}>Selamat Datang, Member!</Text>
+                                <Text style={styles.memberUserName}>{user?.name || 'Tamu Setia'}</Text>
                             </View>
-                        </TouchableOpacity>
-                        <View style={styles.statDivider} />
-                        <TouchableOpacity style={styles.statItem}>
-                            <MaterialCommunityIcons name="ticket-percent-outline" size={22} color={THEME.accent} />
-                            <View style={styles.statInfo}>
-                                <Text style={styles.statLabel}>Promo</Text>
-                                <Text style={styles.statValue}>12 Kupon</Text>
-                            </View>
-                        </TouchableOpacity>
+                        </View>
+                        <View style={styles.memberDivider} />
+                        <View style={styles.quoteBox}>
+                            <Text style={styles.healthQuote}>"Kesehatan bukanlah segalanya, tapi tanpa kesehatan, segalanya bukanlah apa-apa."</Text>
+                            <Text style={styles.quoteAuthor}>- Arthur Schopenhauer</Text>
+                        </View>
                     </View>
                 </View>
 
@@ -297,20 +292,19 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     userInfoSide: { flexDirection: 'row', alignItems: 'center' },
-    avatarPlaceholder: {
+    logoCircle: {
         width: 40,
         height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.3)',
+        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.2)',
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 1.5,
-        borderColor: THEME.white,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.4)',
     },
-    avatarText: { color: THEME.white, fontWeight: 'bold', fontSize: 18 },
     nameSection: { marginLeft: 12 },
-    welcomeText: { color: 'rgba(255,255,255,0.8)', fontSize: 12 },
-    userName: { color: THEME.white, fontSize: 16, fontWeight: 'bold', maxWidth: 180 },
+    appName: { color: THEME.white, fontSize: 16, fontWeight: '900', letterSpacing: 1 },
+    tagline: { color: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: '500' },
     headerIcons: { flexDirection: 'row' },
     iconButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
     badge: { 
@@ -360,20 +354,26 @@ const styles = StyleSheet.create({
     searchPlaceholder: { flex: 1, marginLeft: 10, fontSize: 14, color: THEME.textMuted },
     
     statsContainer: { paddingHorizontal: 20, marginTop: 10 },
-    statsCard: {
+    welcomeMemberCard: {
         backgroundColor: THEME.white,
-        borderRadius: 15,
-        padding: 15,
-        flexDirection: 'row',
-        alignItems: 'center',
+        borderRadius: 20,
+        padding: 16,
         borderWidth: 1,
         borderColor: THEME.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 3,
     },
-    statItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-    statInfo: { marginLeft: 10 },
-    statLabel: { fontSize: 11, color: THEME.textMuted },
-    statValue: { fontSize: 14, fontWeight: 'bold', color: THEME.textDark },
-    statDivider: { width: 1, height: 30, backgroundColor: THEME.border },
+    welcomeTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+    welcomeInfo: { marginLeft: 12 },
+    welcomeMemberText: { fontSize: 12, color: THEME.textMuted, fontWeight: '500' },
+    memberUserName: { fontSize: 16, fontWeight: 'bold', color: THEME.textDark },
+    memberDivider: { height: 1, backgroundColor: '#F0F0F0', marginBottom: 12 },
+    quoteBox: { fontStyle: 'italic' },
+    healthQuote: { fontSize: 12, color: THEME.textDark, lineHeight: 18, textAlign: 'center', fontWeight: '500' },
+    quoteAuthor: { fontSize: 10, color: THEME.primary, textAlign: 'right', marginTop: 4, fontWeight: 'bold' },
 
     mainMenuGrid: {
         flexDirection: 'row',
