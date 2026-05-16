@@ -66,6 +66,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [OrderController::class, 'index']);
         Route::post('/', [OrderController::class, 'store']);
         Route::get('/{id}', [OrderController::class, 'show']);
+        Route::post('/{id}/confirm-received', [OrderController::class, 'confirmReceived']);
+        Route::post('/{id}/report', [OrderController::class, 'reportIssue']);
+    });
+
+
+    // --- Shared Admin/Apoteker Routes ---
+    Route::middleware('role:admin,apoteker')->group(function () {
+        Route::get('/admin/orders', [OrderController::class, 'allOrders']);
+        Route::put('/admin/orders/{id}/status', [OrderController::class, 'updateStatus']);
     });
 
     // --- Admin Only Routes ---
@@ -74,10 +83,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users', [AuthController::class, 'storeUser']);
         Route::put('/users/{id}', [AuthController::class, 'updateUser']);
         Route::delete('/users/{id}', [AuthController::class, 'destroyUser']);
-        
-        Route::get('/orders', [OrderController::class, 'allOrders']);
-        Route::put('/orders/{id}/status', [OrderController::class, 'updateStatus']);
     });
+
 
     // --- Shared Routes (Patient & Pharmacist) ---
     // Prescription Routes
@@ -88,6 +95,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Consultation Routes
     Route::get('/consultations', [ConsultationController::class, 'index']);
     Route::post('/consultations', [ConsultationController::class, 'store']);
+    Route::post('/consultations/start', [ConsultationController::class, 'startChatWithUser']);
     Route::get('/consultations/{id}', [ConsultationController::class, 'show']);
     Route::post('/consultations/{id}/messages', [ConsultationController::class, 'sendMessage']);
+    Route::post('/consultations/{id}/read', [ConsultationController::class, 'markAsRead']);
+
+
 });

@@ -18,7 +18,8 @@ import {
 
 export default function ApotekerChatRoom() {
     const { id } = useLocalSearchParams();
-    const { user } = useAuth();
+    const { user, refreshUnreadCount } = useAuth();
+
     const [messages, setMessages] = useState<any[]>([]);
     const [patient, setPatient] = useState<any>(null);
     const [inputText, setInputText] = useState('');
@@ -26,10 +27,21 @@ export default function ApotekerChatRoom() {
     const flatListRef = useRef<FlatList>(null);
 
     useEffect(() => {
+        markAsRead();
         fetchChatData();
         const interval = setInterval(fetchChatData, 3000);
         return () => clearInterval(interval);
     }, [id]);
+
+    const markAsRead = async () => {
+        try {
+            await axiosClient.post(`/api/consultations/${id}/read`);
+            refreshUnreadCount();
+        } catch (e) {
+            console.error('Failed to mark as read', e);
+        }
+    };
+
 
     const fetchChatData = async () => {
         try {

@@ -1,10 +1,14 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Text } from 'react-native';
+import { useAuth } from '../../context/AuthContext';
 
 export default function TabLayout() {
+  const { unreadChatCount } = useAuth();
+
   return (
+
 
 
     <Tabs
@@ -27,9 +31,14 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Beranda',
-          tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <View>
+              <Ionicons name="home-outline" size={24} color={color} />
+            </View>
+          ),
         }}
       />
+
       <Tabs.Screen
         name="katalog-obat"
         options={{
@@ -61,9 +70,15 @@ export default function TabLayout() {
         name="profil"
         options={{
           title: 'Akun',
-          tabBarIcon: ({ color }) => <Ionicons name="person-outline" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <View>
+              <Ionicons name="person-outline" size={24} color={color} />
+            </View>
+          ),
         }}
       />
+
+
     </Tabs>
   );
 }
@@ -85,4 +100,22 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 5,
   },
-});
+  tabBadge: {
+    position: 'absolute',
+    right: -6,
+    top: -3,
+    backgroundColor: '#FF5252',
+    borderRadius: 9,
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFF',
+  },
+  tabBadgeText: {
+    color: '#FFF',
+    fontSize: 9,
+    fontWeight: 'bold',
+  }
+});

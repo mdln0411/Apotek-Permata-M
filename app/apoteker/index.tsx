@@ -63,10 +63,17 @@ export default function PesananMasuk() {
         if (activeTab === 'diproses') {
             return status === 'diproses' || status === 'processing';
         }
+        if (activeTab === 'dikirim') {
+            return status === 'dikirim' || status === 'shipped';
+        }
         if (activeTab === 'selesai') {
             return status === 'selesai' || status === 'completed';
         }
+        if (activeTab === 'dilaporkan') {
+            return status === 'dilaporkan' || status === 'reported';
+        }
         return false;
+
     });
 
     const TabButton = ({ title, id }: { title: string, id: string }) => (
@@ -96,10 +103,15 @@ export default function PesananMasuk() {
 
             {/* Tabs */}
             <View style={styles.tabContainer}>
-                <TabButton title="Menunggu" id="menunggu" />
-                <TabButton title="Diproses" id="diproses" />
-                <TabButton title="Selesai" id="selesai" />
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5, paddingRight: 20 }}>
+                    <TabButton title="Menunggu" id="menunggu" />
+                    <TabButton title="Diproses" id="diproses" />
+                    <TabButton title="Dikirim" id="dikirim" />
+                    <TabButton title="Selesai" id="selesai" />
+                    <TabButton title="Laporan" id="dilaporkan" />
+                </ScrollView>
             </View>
+
 
             <ScrollView 
                 showsVerticalScrollIndicator={false} 
@@ -146,12 +158,29 @@ export default function PesananMasuk() {
                                 )}
                                 {activeTab === 'diproses' && (
                                     <TouchableOpacity 
+                                        style={[styles.btnTerima, { backgroundColor: '#EF6C00' }]}
+                                        onPress={() => handleUpdateStatus(item.id, 'dikirim')}
+                                    >
+                                        <Text style={styles.btnTerimaText}>Kirim</Text>
+                                    </TouchableOpacity>
+                                )}
+                                {activeTab === 'dikirim' && (
+                                    <TouchableOpacity 
                                         style={styles.btnTerima}
                                         onPress={() => handleUpdateStatus(item.id, 'selesai')}
                                     >
                                         <Text style={styles.btnTerimaText}>Selesaikan</Text>
                                     </TouchableOpacity>
                                 )}
+                                {activeTab === 'dilaporkan' && (
+                                    <TouchableOpacity 
+                                        style={[styles.btnTerima, { backgroundColor: '#FF5252' }]}
+                                        onPress={() => router.push({ pathname: '/detail-pesanan', params: { id: item.id } } as any)}
+                                    >
+                                        <Text style={styles.btnTerimaText}>Cek Masalah</Text>
+                                    </TouchableOpacity>
+                                )}
+
                                 <TouchableOpacity 
                                     style={styles.btnDetail}
                                     onPress={() => router.push({ pathname: '/detail-pesanan', params: { id: item.id } } as any)}

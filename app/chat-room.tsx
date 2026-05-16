@@ -18,17 +18,29 @@ import {
 
 export default function ChatRoom() {
     const { id } = useLocalSearchParams();
-    const { user } = useAuth();
+    const { user, refreshUnreadCount } = useAuth();
+
     const [messages, setMessages] = useState<any[]>([]);
     const [inputText, setInputText] = useState('');
     const [loading, setLoading] = useState(true);
     const flatListRef = useRef<FlatList>(null);
 
     useEffect(() => {
+        markAsRead();
         fetchMessages();
         const interval = setInterval(fetchMessages, 3000); // Polling setiap 3 detik
         return () => clearInterval(interval);
     }, [id]);
+
+    const markAsRead = async () => {
+        try {
+            await axiosClient.post(`/api/consultations/${id}/read`);
+            refreshUnreadCount();
+        } catch (e) {
+            console.error('Failed to mark as read', e);
+        }
+    };
+
 
     const fetchMessages = async () => {
         try {

@@ -54,12 +54,15 @@ export default function ManageTransactions() {
         switch (status.toLowerCase()) {
             case 'diproses': 
             case 'processing': return { bg: '#FFF9C4', text: '#F57C00' };
+            case 'dikirim': return { bg: '#E3F2FD', text: '#1976D2' };
             case 'selesai': 
             case 'completed': return { bg: '#E8F5E9', text: '#2E8B57' };
             case 'menunggu': 
             case 'pending': return { bg: '#E3F2FD', text: '#1976D2' };
             case 'dibatalkan': return { bg: '#FFEBEE', text: '#D32F2F' };
+            case 'dilaporkan': return { bg: '#FFFDE7', text: '#FBC02D' };
             default: return { bg: '#F5F5F5', text: '#999' };
+
         }
     };
 
@@ -129,10 +132,22 @@ export default function ManageTransactions() {
                                             <Text style={{ color: '#F57C00' }}>Diproses</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity 
+                                            style={[styles.statusBtn, { borderColor: '#1976D2' }]} 
+                                            onPress={() => updateStatus(selectedOrder.id, 'dikirim')}
+                                        >
+                                            <Text style={{ color: '#1976D2' }}>Kirim</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
                                             style={[styles.statusBtn, { borderColor: '#2E8B57' }]} 
                                             onPress={() => updateStatus(selectedOrder.id, 'selesai')}
                                         >
                                             <Text style={{ color: '#2E8B57' }}>Selesai</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={[styles.statusBtn, { borderColor: '#FBC02D' }]} 
+                                            onPress={() => updateStatus(selectedOrder.id, 'dilaporkan')}
+                                        >
+                                            <Text style={{ color: '#FBC02D' }}>Dilaporkan</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity 
                                             style={[styles.statusBtn, { borderColor: '#D32F2F' }]} 
@@ -140,6 +155,7 @@ export default function ManageTransactions() {
                                         >
                                             <Text style={{ color: '#D32F2F' }}>Batal</Text>
                                         </TouchableOpacity>
+
                                     </View>
                                 </View>
                             </ScrollView>

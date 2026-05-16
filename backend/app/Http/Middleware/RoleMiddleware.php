@@ -21,15 +21,16 @@ class RoleMiddleware
      * @param  string  $role
      * @return \Symfony\Component\HttpFoundation\Response
      */
-    public function handle(Request $request, Closure $next, string $role): Response
+    public function handle(Request $request, Closure $next, ...$roles): Response
     {
-        if (!$request->user() || $request->user()->role !== $role) {
+        if (!$request->user() || !in_array($request->user()->role, $roles)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Forbidden: You do not have the required role (' . $role . ')'
+                'message' => 'Forbidden: You do not have the required role (' . implode(', ', $roles) . ')'
             ], 403);
         }
 
         return $next($request);
     }
+
 }

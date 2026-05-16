@@ -15,12 +15,15 @@ import {
 } from 'react-native';
 
 export default function ApotekerDashboard() {
-    const { user, logout } = useAuth();
+    const { user, logout, unreadChatCount } = useAuth();
+
     const [stats, setStats] = useState({
         pendingOrders: 0,
+        reportedOrders: 0,
         lowStock: 0,
         totalConsultations: 0
     });
+
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -34,14 +37,17 @@ export default function ApotekerDashboard() {
             const orderRes = await axiosClient.get('/api/admin/orders');
             const medRes = await axiosClient.get('/api/medicines?per_page=500');
             
-            const pending = orderRes.data.data.filter((o: any) => o.status === 'pending').length;
+            const pending = orderRes.data.data.filter((o: any) => o.status === 'pending' || o.status === 'menunggu').length;
+            const reported = orderRes.data.data.filter((o: any) => o.status === 'dilaporkan').length;
             const low = medRes.data.data.filter((m: any) => m.stock < 10).length;
 
             setStats({
                 pendingOrders: pending,
+                reportedOrders: reported,
                 lowStock: low,
-                totalConsultations: 0 // Fitur mendatang
+                totalConsultations: 0 
             });
+
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
         } finally {
@@ -82,13 +88,14 @@ export default function ApotekerDashboard() {
                     </TouchableOpacity>
 
                     <TouchableOpacity 
-                        style={[styles.statCard, { borderLeftColor: '#F57C00' }]}
-                        onPress={() => router.push('/apoteker/manage-stock')}
+                        style={[styles.statCard, { borderLeftColor: '#FF5252' }]}
+                        onPress={() => router.push('/apoteker')}
                     >
-                        <Text style={styles.statLabel}>Stok Menipis</Text>
-                        <Text style={[styles.statValue, { color: '#F57C00' }]}>{stats.lowStock}</Text>
+                        <Text style={styles.statLabel}>Laporan Baru</Text>
+                        <Text style={[styles.statValue, { color: '#FF5252' }]}>{stats.reportedOrders}</Text>
                     </TouchableOpacity>
                 </View>
+
 
                 {/* Quick Actions */}
                 <Text style={styles.sectionTitle}>Menu Utama Apoteker</Text>
@@ -135,7 +142,13 @@ export default function ApotekerDashboard() {
                             <Text style={styles.menuTitle}>Konsultasi Online</Text>
                             <Text style={styles.menuDesc}>Tanya jawab dengan pasien</Text>
                         </View>
+                        {unreadChatCount > 0 && (
+                            <View style={styles.badgeCount}>
+                                <Text style={styles.badgeCountText}>{unreadChatCount}</Text>
+                            </View>
+                        )}
                         <Feather name="chevron-right" size={20} color="#CCC" />
+
                     </TouchableOpacity>
                 </View>
 
@@ -172,4 +185,7 @@ const styles = StyleSheet.create({
     menuInfo: { flex: 1, marginLeft: 16 },
     menuTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
     menuDesc: { fontSize: 12, color: '#999', marginTop: 2 },
+    badgeCount: { backgroundColor: '#FF5252', borderRadius: 10, minWidth: 20, height: 20, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 6, marginRight: 8 },
+    badgeCountText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' }
 });
+

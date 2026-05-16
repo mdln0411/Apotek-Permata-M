@@ -19,7 +19,8 @@ import {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function HomeScreen() {
-    const { user } = useAuth();
+    const { user, unreadChatCount } = useAuth();
+
     const { itemCount } = useCart();
     const [medicines, setMedicines] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -100,9 +101,15 @@ export default function HomeScreen() {
                         <TouchableOpacity key={menu.id} style={styles.menuItem} onPress={() => router.push(menu.route as any)}>
                             <View style={[styles.menuIconWrapper, { backgroundColor: menu.color }]}>
                                 <Feather name={menu.icon as any} size={24} color={menu.iconColor} />
+                                {menu.name === 'Konsultasi' && unreadChatCount > 0 && (
+                                    <View style={styles.menuBadge}>
+                                        <Text style={styles.menuBadgeText}>{unreadChatCount}</Text>
+                                    </View>
+                                )}
                             </View>
                             <Text style={styles.menuLabel}>{menu.name}</Text>
                         </TouchableOpacity>
+
                     ))}
                 </View>
 
@@ -284,5 +291,7 @@ const styles = StyleSheet.create({
     eduBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
     eduTitle: { fontSize: 15, fontWeight: 'bold', color: '#333', marginBottom: 6 },
     eduDate: { fontSize: 12, color: '#777' },
-    eduIcon: { marginLeft: 15 }
+    eduIcon: { marginLeft: 15 },
+    menuBadge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#FF5252', borderRadius: 9, width: 18, height: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#FFF' },
+    menuBadgeText: { color: '#FFF', fontSize: 9, fontWeight: 'bold' }
 });

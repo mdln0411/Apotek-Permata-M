@@ -89,7 +89,8 @@ class OrderController extends Controller
 
     public function show(Request $request, $id)
     {
-        $order = Order::with('items')->findOrFail($id);
+        $order = Order::with(['items', 'user'])->findOrFail($id);
+
 
         if ($order->user_id !== $request->user()->id && $request->user()->role === 'member') {
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
@@ -124,7 +125,7 @@ class OrderController extends Controller
         }
 
         $request->validate([
-            'status' => 'required|in:pending,diproses,selesai,dibatalkan'
+            'status' => 'required|in:pending,diproses,dikirim,selesai,dibatalkan,dilaporkan'
         ]);
 
         $order = Order::findOrFail($id);
@@ -136,4 +137,45 @@ class OrderController extends Controller
             'data' => $order
         ]);
     }
+
+    public function confirmReceived(Request $request, $id)
+    {
+        $order = Order::where('user_id', $request->user()->id)->findOrFail($id);
+        
+        if ($order->status !== 'dikirim' && $order->status !== 'selesai') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pesanan belum dikirim atau sudah selesai'
+            ], 400);
+        }
+
+        $order->update(['status' => 'selesai']);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Terima kasih! Pesanan telah selesai.',
+            'data' => $order
+        ]);
+    }
+
+    public function reportIssue(Request $request, $id)
+    {
+        $order = Order::where('user_id', $request->user()->id)->findOrFail($id);
+        
+        $request->validate([
+            'reason' => 'required|string|max:500'
+        ]);
+
+        $order->update([
+            'status' => 'dilaporkan',
+            'notes' => $order->notes . "\n[LAPORAN USER]: " . $request->reason
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Laporan Anda telah terkirim. Apoteker akan segera meninjau.',
+            'data' => $order
+        ]);
+    }
 }
+
