@@ -1,9 +1,10 @@
 import { getMedicineCategories, getMedicines, MedicineListItem } from '@/api/medicineService';
+import { QuantityModal } from '@/components/QuantityModal';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
-import { QuantityModal } from '@/components/QuantityModal';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router, Stack } from 'expo-router';
+import { Image } from 'expo-image'; // Gunakan expo-image untuk performa lebih baik
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -17,15 +18,15 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Image } from 'expo-image'; // Gunakan expo-image untuk performa lebih baik
 
 export default function KatalogObatScreen() {
     const { user } = useAuth();
+    const { search } = useLocalSearchParams<{ search?: string }>();
     const { addToCart, itemCount } = useCart();
     const [medicines, setMedicines] = useState<MedicineListItem[]>([]);
     const [categories, setCategories] = useState<string[]>(['Semua']);
     const [selectedCategory, setSelectedCategory] = useState('Semua');
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(search || '');
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);

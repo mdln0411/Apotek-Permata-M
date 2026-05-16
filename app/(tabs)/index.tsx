@@ -4,18 +4,17 @@ import { useCart } from '@/context/CartContext';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { 
-    Image, 
-    SafeAreaView, 
-    ScrollView, 
-    StyleSheet, 
-    Text, 
-    TouchableOpacity, 
-    View,
+import {
     Dimensions,
+    Image,
     Platform,
-    TextInput,
-    StatusBar
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -83,6 +82,15 @@ export default function HomeScreen() {
         { id: 'c5', name: 'Lainnya', icon: 'dots-grid' },
     ];
 
+    const handleSearch = () => {
+        if (searchQuery.trim()) {
+            router.push({
+                pathname: '/(tabs)/katalog-obat',
+                params: { search: searchQuery.trim() }
+            } as any);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
@@ -116,10 +124,22 @@ export default function HomeScreen() {
                 {/* Hero Section */}
                 <View style={styles.heroBackground}>
                     <View style={styles.searchBarWrapper}>
-                        <TouchableOpacity style={styles.searchBar} onPress={() => router.push('/search' as any)}>
+                        <View style={styles.searchBar}>
                             <Feather name="search" size={20} color={THEME.textMuted} />
-                            <Text style={styles.searchPlaceholder}>Cari obat, vitamin, atau gejala...</Text>
-                        </TouchableOpacity>
+                            <TextInput 
+                                placeholder="Cari obat, vitamin, atau gejala..."
+                                style={styles.searchInput}
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                onSubmitEditing={handleSearch}
+                                returnKeyType="search"
+                            />
+                            {searchQuery.length > 0 && (
+                                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                    <Feather name="x" size={18} color={THEME.textMuted} />
+                                </TouchableOpacity>
+                            )}
+                        </View>
                     </View>
                 </View>
 
@@ -351,7 +371,7 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         elevation: 8,
     },
-    searchPlaceholder: { flex: 1, marginLeft: 10, fontSize: 14, color: THEME.textMuted },
+    searchInput: { flex: 1, marginLeft: 10, fontSize: 14, color: THEME.textDark },
     
     statsContainer: { paddingHorizontal: 20, marginTop: 10 },
     welcomeMemberCard: {
