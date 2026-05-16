@@ -3,17 +3,17 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router, Stack } from 'expo-router';
 import React, { useState } from 'react';
-import { 
-    SafeAreaView, 
-    ScrollView, 
-    StyleSheet, 
-    Text, 
-    TouchableOpacity, 
-    View,
-    Platform,
+import {
+    ActivityIndicator,
     Alert,
     Image,
-    ActivityIndicator
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 export default function UploadResepScreen() {
@@ -64,7 +64,7 @@ export default function UploadResepScreen() {
         try {
             setLoading(true);
             const formData = new FormData();
-            
+
             if (Platform.OS === 'web') {
                 const response = await fetch(image);
                 const blob = await response.blob();
@@ -107,7 +107,7 @@ export default function UploadResepScreen() {
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                
+
                 <View style={styles.infoBanner}>
                     <View style={styles.infoTextWrapper}>
                         <Text style={styles.infoTitle}>Beli Obat Jadi Lebih Mudah!</Text>
@@ -161,8 +161,8 @@ export default function UploadResepScreen() {
                 </View>
 
                 {/* Submit Button */}
-                <TouchableOpacity 
-                    style={[styles.submitBtn, loading && { opacity: 0.7 }]} 
+                <TouchableOpacity
+                    style={[styles.submitBtn, loading && { opacity: 0.7 }]}
                     onPress={handleUpload}
                     disabled={loading}
                 >
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     uploadSub: { fontSize: 13, color: '#888' },
     changeBtn: { alignSelf: 'center', marginBottom: 20 },
     changeBtnText: { color: '#FF5252', fontWeight: 'bold', fontSize: 13 },
-    guideSection: { marginBottom: 30, backgroundColor: '#FFF', padding: 20, borderRadius: 20, borderSize: 1, borderColor: '#EEE', borderWidth: 1 },
+    guideSection: { marginBottom: 30, backgroundColor: '#FFF', padding: 20, borderRadius: 20, borderColor: '#EEE', borderWidth: 1 },
     guideTitle: { fontSize: 15, fontWeight: 'bold', color: '#333', marginBottom: 16 },
     guideItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
     numCircle: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#2E8B57', justifyContent: 'center', alignItems: 'center', marginRight: 12 },

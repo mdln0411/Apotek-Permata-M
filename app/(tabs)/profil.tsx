@@ -84,12 +84,6 @@ export default function ProfilScreen() {
                 {/* Pengaturan & Lainnya */}
                 <Text style={styles.sectionTitle}>Layanan & Keamanan</Text>
                 <View style={styles.card}>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/alergi-obat' as any)}>
-                        <Feather name="shield" size={18} color="#D32F2F" />
-                        <Text style={styles.menuText}>Riwayat Alergi Obat</Text>
-                        <Feather name="chevron-right" size={18} color="#CCC" />
-                    </TouchableOpacity>
-                    <View style={styles.divider} />
                     <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/pengingat' as any)}>
                         <Feather name="bell" size={18} color="#F57C00" />
                         <Text style={styles.menuText}>Pengingat Minum Obat</Text>

@@ -72,7 +72,7 @@ export default function HomeScreen() {
         { id: '1', name: 'Konsultasi', icon: 'chat-processing-outline', color: '#E3F2FD', iconColor: '#1976D2', route: '/konsultasi' },
         { id: '2', name: 'Unggah Resep', icon: 'camera-outline', color: '#FFF3E0', iconColor: '#F57C00', route: '/upload-resep' },
         { id: '3', name: 'Pengingat', icon: 'bell-outline', color: '#F3E5F5', iconColor: '#7B1FA2', route: '/pengingat' },
-        { id: '4', name: 'Cek Alergi', icon: 'shield-check-outline', color: '#E8F5E9', iconColor: '#2E8B57', route: '/alergi-obat' },
+        { id: '4', name: 'Edukasi', icon: 'book-open-variant', color: '#E8F5E9', iconColor: '#2E8B57', route: '/(tabs)/index' }, // Links to the section below or specific page
     ];
 
     const categories = [
@@ -405,8 +405,8 @@ const styles = StyleSheet.create({
     welcomeMemberText: { fontSize: 12, color: THEME.textMuted, fontWeight: '500' },
     memberUserName: { fontSize: 16, fontWeight: 'bold', color: THEME.textDark },
     memberDivider: { height: 1, backgroundColor: '#F0F0F0', marginBottom: 12 },
-    quoteBox: { fontStyle: 'italic' },
-    healthQuote: { fontSize: 12, color: THEME.textDark, lineHeight: 18, textAlign: 'center', fontWeight: '500' },
+    quoteBox: { },
+    healthQuote: { fontSize: 12, color: THEME.textDark, lineHeight: 18, textAlign: 'center', fontWeight: '500', fontStyle: 'italic' },
     quoteAuthor: { fontSize: 10, color: THEME.primary, textAlign: 'right', marginTop: 4, fontWeight: 'bold' },
 
     mainMenuGrid: {

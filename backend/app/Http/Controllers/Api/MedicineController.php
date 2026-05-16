@@ -18,7 +18,10 @@ class MedicineController extends Controller
 
         // --- SEARCH berdasarkan nama obat ---
         if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
+            $query->where(function($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->search . '%')
+                  ->orWhere('category', 'like', '%' . $request->search . '%');
+            });
         }
 
         // --- FILTER berdasarkan kategori ---
@@ -32,34 +35,34 @@ class MedicineController extends Controller
         }
 
         // --- PAGINATION (default 10 per halaman) ---
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->input('per_page', 10);
         $medicines = $query
             ->orderBy('name')
             ->paginate($perPage);
 
         // --- Format response ringkas untuk halaman katalog ---
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Data obat berhasil diambil',
-            'data'    => $medicines->getCollection()->map(function ($medicine) {
+            'data' => $medicines->getCollection()->map(function ($medicine) {
                 return [
-                    'id'                   => $medicine->id,
-                    'name'                 => $medicine->name,
-                    'category'             => $medicine->category,
-                    'unit'                 => $medicine->unit,
-                    'price'                => $medicine->price,
-                    'price_formatted'      => 'Rp ' . number_format($medicine->price, 0, ',', '.'),
-                    'stock'                => $medicine->stock,
-                    'image_url'            => $medicine->image_url,
+                    'id' => $medicine->id,
+                    'name' => $medicine->name,
+                    'category' => $medicine->category,
+                    'unit' => $medicine->unit,
+                    'price' => $medicine->price,
+                    'price_formatted' => 'Rp ' . number_format($medicine->price, 0, ',', '.'),
+                    'stock' => $medicine->stock,
+                    'image_url' => $medicine->image_url,
                     'prescription_required' => $medicine->prescription_required,
                 ];
             }),
             'pagination' => [
                 'current_page' => $medicines->currentPage(),
-                'last_page'    => $medicines->lastPage(),
-                'per_page'     => $medicines->perPage(),
-                'total'        => $medicines->total(),
-                'has_more'     => $medicines->hasMorePages(),
+                'last_page' => $medicines->lastPage(),
+                'per_page' => $medicines->perPage(),
+                'total' => $medicines->total(),
+                'has_more' => $medicines->hasMorePages(),
             ],
         ]);
     }
@@ -74,35 +77,35 @@ class MedicineController extends Controller
 
         if (!$medicine) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Obat tidak ditemukan',
             ], 404);
         }
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Detail obat berhasil diambil',
-            'data'    => [
-                'id'                    => $medicine->id,
-                'name'                  => $medicine->name,
-                'category'              => $medicine->category,
-                'indication'            => $medicine->indication,
-                'unit'                  => $medicine->unit,
-                'price'                 => $medicine->price,
-                'price_formatted'       => 'Rp ' . number_format($medicine->price, 0, ',', '.'),
-                'price_detail'          => $medicine->price_detail,
-                'stock'                 => $medicine->stock,
-                'usage_rules'           => $medicine->usage_rules,
-                'dosage'                => $medicine->dosage,
-                'side_effects'          => $medicine->side_effects,
-                'interactions'          => $medicine->interactions,
-                'usage_duration'        => $medicine->usage_duration,
-                'composition'           => $medicine->composition,
-                'contraindications'     => $medicine->contraindications,
-                'image_url'             => $medicine->image_url,
+            'data' => [
+                'id' => $medicine->id,
+                'name' => $medicine->name,
+                'category' => $medicine->category,
+                'indication' => $medicine->indication,
+                'unit' => $medicine->unit,
+                'price' => $medicine->price,
+                'price_formatted' => 'Rp ' . number_format($medicine->price, 0, ',', '.'),
+                'price_detail' => $medicine->price_detail,
+                'stock' => $medicine->stock,
+                'usage_rules' => $medicine->usage_rules,
+                'dosage' => $medicine->dosage,
+                'side_effects' => $medicine->side_effects,
+                'interactions' => $medicine->interactions,
+                'usage_duration' => $medicine->usage_duration,
+                'composition' => $medicine->composition,
+                'contraindications' => $medicine->contraindications,
+                'image_url' => $medicine->image_url,
                 'prescription_required' => $medicine->prescription_required,
-                'created_at'            => $medicine->created_at,
-                'updated_at'            => $medicine->updated_at,
+                'created_at' => $medicine->created_at,
+                'updated_at' => $medicine->updated_at,
             ],
         ]);
     }
@@ -119,9 +122,9 @@ class MedicineController extends Controller
             ->pluck('category');
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Kategori berhasil diambil',
-            'data'    => $categories,
+            'data' => $categories,
         ]);
     }
 
