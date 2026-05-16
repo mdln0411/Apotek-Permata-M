@@ -35,9 +35,21 @@ export default function RegisterScreen() {
                     <Text style={styles.inputLabel}>Konfirmasi Password</Text>
                     <TextInput style={styles.textInput} placeholder="••••••••" placeholderTextColor="#999" secureTextEntry />
 
-                    <TouchableOpacity style={styles.primaryButton}>
+                    <TouchableOpacity 
+                        style={styles.primaryButton}
+                        onPress={() => router.replace({
+                            pathname: '/success-action',
+                            params: {
+                                title: 'Akun Berhasil Dibuat!',
+                                message: 'Selamat! Akun Anda telah terdaftar di Apotek Permata. Silakan masuk untuk mulai berbelanja.',
+                                target: '/login',
+                                buttonText: 'Masuk Sekarang'
+                            }
+                        } as any)}
+                    >
                         <Text style={styles.primaryButtonText}>Daftar</Text>
                     </TouchableOpacity>
+
 
                     <View style={styles.loginRow}>
                         <Text style={styles.loginText}>Sudah punya akun? </Text>

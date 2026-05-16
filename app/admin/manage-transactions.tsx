@@ -1,7 +1,8 @@
+import axiosClient from '@/api/axiosClient';
 import AdminSidebar from '@/components/AdminSidebar';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
     SafeAreaView, 
     ScrollView, 
@@ -9,23 +10,59 @@ import {
     Text, 
     TouchableOpacity, 
     View, 
-    Platform
+    Platform,
+    ActivityIndicator,
+    Modal,
+    Alert
 } from 'react-native';
 
 export default function ManageTransactions() {
     const [sidebarVisible, setSidebarVisible] = useState(false);
-    const transactions = [
-        { id: 'ORD-003', user: 'Medelain', date: '8/4/2026', items: '2 Item', payment: 'Transfer Bank', amount: 'Rp 75.000', status: 'Diproses' },
-        { id: 'ORD-002', user: 'Yarlin Khun', date: '7/4/2026', items: '1 Item', payment: 'COD', amount: 'Rp 45.000', status: 'Selesai' },
-        { id: 'ORD-001', user: 'Hizkia Chan', date: '6/4/2026', items: '3 Item', payment: 'E-Wallet', amount: 'Rp 120.000', status: 'Menunggu' },
-    ];
+    const [orders, setOrders] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedOrder, setSelectedOrder] = useState<any>(null);
+    const [detailVisible, setDetailVisible] = useState(false);
+
+    useEffect(() => {
+        fetchOrders();
+    }, []);
+
+    const fetchOrders = async () => {
+        try {
+            setLoading(true);
+            const response = await axiosClient.get('/api/admin/orders');
+            setOrders(response.data.data);
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const updateStatus = async (id: number, newStatus: string) => {
+        try {
+            await axiosClient.put(`/api/admin/orders/${id}/status`, { status: newStatus });
+            alert(`Status berhasil diubah ke ${newStatus}`);
+            setDetailVisible(false);
+            fetchOrders();
+        } catch (error) {
+            alert('Gagal memperbarui status');
+        }
+    };
 
     const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'Diproses': return { bg: '#FFF9C4', text: '#F57C00' };
-            case 'Selesai': return { bg: '#E8F5E9', text: '#2E8B57' };
-            case 'Menunggu': return { bg: '#E3F2FD', text: '#1976D2' };
+        switch (status.toLowerCase()) {
+            case 'diproses': 
+            case 'processing': return { bg: '#FFF9C4', text: '#F57C00' };
+            case 'dikirim': return { bg: '#E3F2FD', text: '#1976D2' };
+            case 'selesai': 
+            case 'completed': return { bg: '#E8F5E9', text: '#2E8B57' };
+            case 'menunggu': 
+            case 'pending': return { bg: '#E3F2FD', text: '#1976D2' };
+            case 'dibatalkan': return { bg: '#FFEBEE', text: '#D32F2F' };
+            case 'dilaporkan': return { bg: '#FFFDE7', text: '#FBC02D' };
             default: return { bg: '#F5F5F5', text: '#999' };
+
         }
     };
 
@@ -39,6 +76,94 @@ export default function ManageTransactions() {
                 activePage="transactions" 
             />
 
+            {/* Modal Detail & Update Status */}
+            <Modal
+                visible={detailVisible}
+                animationType="fade"
+                transparent={true}
+                onRequestClose={() => setDetailVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Detail Transaksi</Text>
+                            <TouchableOpacity onPress={() => setDetailVisible(false)}>
+                                <Ionicons name="close" size={24} color="#333" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {selectedOrder && (
+                            <ScrollView showsVerticalScrollIndicator={false}>
+                                <View style={styles.section}>
+                                    <Text style={styles.sectionTitle}>Informasi Pesanan</Text>
+                                    <Text style={styles.label}>Order ID: <Text style={styles.value}>{selectedOrder.order_number}</Text></Text>
+                                    <Text style={styles.label}>Pelanggan: <Text style={styles.value}>{selectedOrder.user?.name}</Text></Text>
+                                    <Text style={styles.label}>Alamat: <Text style={styles.value}>{selectedOrder.shipping_address}</Text></Text>
+                                    <Text style={styles.label}>Catatan: <Text style={styles.value}>{selectedOrder.notes || '-'}</Text></Text>
+                                </View>
+
+                                <View style={styles.section}>
+                                    <Text style={styles.sectionTitle}>Item Pesanan</Text>
+                                    {selectedOrder.items?.map((item: any, index: number) => (
+                                        <View key={index} style={styles.itemRow}>
+                                            <Text style={styles.itemName}>{item.name} x {item.quantity}</Text>
+                                            <Text style={styles.itemPrice}>Rp {item.subtotal.toLocaleString('id-ID')}</Text>
+                                        </View>
+                                    ))}
+                                    <View style={styles.totalRow}>
+                                        <Text style={styles.totalLabel}>Total Pembayaran</Text>
+                                        <Text style={styles.totalValue}>Rp {selectedOrder.total_price.toLocaleString('id-ID')}</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.section}>
+                                    <Text style={styles.sectionTitle}>Ubah Status</Text>
+                                    <View style={styles.statusButtons}>
+                                        <TouchableOpacity 
+                                            style={[styles.statusBtn, { borderColor: '#1976D2' }]} 
+                                            onPress={() => updateStatus(selectedOrder.id, 'pending')}
+                                        >
+                                            <Text style={{ color: '#1976D2' }}>Menunggu</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={[styles.statusBtn, { borderColor: '#F57C00' }]} 
+                                            onPress={() => updateStatus(selectedOrder.id, 'diproses')}
+                                        >
+                                            <Text style={{ color: '#F57C00' }}>Diproses</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={[styles.statusBtn, { borderColor: '#1976D2' }]} 
+                                            onPress={() => updateStatus(selectedOrder.id, 'dikirim')}
+                                        >
+                                            <Text style={{ color: '#1976D2' }}>Kirim</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={[styles.statusBtn, { borderColor: '#2E8B57' }]} 
+                                            onPress={() => updateStatus(selectedOrder.id, 'selesai')}
+                                        >
+                                            <Text style={{ color: '#2E8B57' }}>Selesai</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={[styles.statusBtn, { borderColor: '#FBC02D' }]} 
+                                            onPress={() => updateStatus(selectedOrder.id, 'dilaporkan')}
+                                        >
+                                            <Text style={{ color: '#FBC02D' }}>Dilaporkan</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={[styles.statusBtn, { borderColor: '#D32F2F' }]} 
+                                            onPress={() => updateStatus(selectedOrder.id, 'dibatalkan')}
+                                        >
+                                            <Text style={{ color: '#D32F2F' }}>Batal</Text>
+                                        </TouchableOpacity>
+
+                                    </View>
+                                </View>
+                            </ScrollView>
+                        )}
+                    </View>
+                </View>
+            </Modal>
+
             {/* Header */}
             <View style={styles.topBar}>
                 <View style={styles.headerLeft}>
@@ -50,55 +175,51 @@ export default function ManageTransactions() {
                         <Text style={styles.backText}>Kembali</Text>
                     </TouchableOpacity>
                 </View>
-                <TouchableOpacity style={styles.profileCircle}>
-                    <Ionicons name="person-outline" size={20} color="#FFF" />
-                </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                 
                 <View style={styles.headerTitleRow}>
                     <Text style={styles.pageTitle}>Manajemen Transaksi</Text>
-                    <Text style={styles.pageSub}>{transactions.length} transaksi</Text>
-                </View>
-
-                {/* Filter Status */}
-                <View style={styles.filterCard}>
-                    <Text style={styles.filterLabel}>Filter Status</Text>
-                    <TouchableOpacity style={styles.dropdown}>
-                        <Text style={styles.dropdownText}>Semua Status</Text>
-                        <Ionicons name="chevron-down" size={18} color="#999" />
-                    </TouchableOpacity>
+                    <Text style={styles.pageSub}>{orders.length} transaksi</Text>
                 </View>
 
                 {/* Transaction List */}
                 <View style={styles.listContainer}>
-                    {transactions.map((item) => {
+                    {loading ? (
+                        <ActivityIndicator size="large" color="#2E8B57" style={{ marginTop: 20 }} />
+                    ) : orders.map((item) => {
                         const statusColor = getStatusColor(item.status);
                         return (
-                            <View key={item.id} style={styles.transCard}>
+                            <TouchableOpacity 
+                                key={item.id} 
+                                style={styles.transCard}
+                                onPress={() => {
+                                    setSelectedOrder(item);
+                                    setDetailVisible(true);
+                                }}
+                            >
                                 <View style={styles.cardHeader}>
                                     <View>
-                                        <Text style={styles.orderId}>{item.id}</Text>
-                                        <Text style={styles.customerName}>{item.user}</Text>
-                                        <Text style={styles.orderDate}>{item.date}</Text>
+                                        <Text style={styles.orderId}>{item.order_number}</Text>
+                                        <Text style={styles.customerName}>{item.user?.name || 'User'}</Text>
+                                        <Text style={styles.orderDate}>{new Date(item.created_at).toLocaleDateString('id-ID')}</Text>
                                     </View>
                                     <View style={[styles.statusBadge, { backgroundColor: statusColor.bg }]}>
-                                        <Text style={[styles.statusText, { color: statusColor.text }]}>{item.status}</Text>
+                                        <Text style={[styles.statusText, { color: statusColor.text }]}>{(item.status || 'pending').toUpperCase()}</Text>
                                     </View>
                                 </View>
                                 
                                 <View style={styles.divider} />
                                 
                                 <View style={styles.cardFooter}>
-                                    <Text style={styles.itemDetail}>{item.items} • {item.payment}</Text>
-                                    <Text style={styles.totalAmount}>{item.amount}</Text>
+                                    <Text style={styles.itemDetail}>{item.items?.length || 0} Item • {item.notes || 'Reguler'}</Text>
+                                    <Text style={styles.totalAmount}>Rp {item.total_price.toLocaleString('id-ID')}</Text>
                                 </View>
-                            </View>
+                            </TouchableOpacity>
                         );
                     })}
                 </View>
-
             </ScrollView>
         </SafeAreaView>
     );
@@ -108,7 +229,6 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FBF8' },
     topBar: { 
         flexDirection: 'row', 
-        justifyContent: 'space-between', 
         alignItems: 'center', 
         paddingHorizontal: 16, 
         paddingTop: Platform.OS === 'ios' ? 20 : 50, 
@@ -119,15 +239,10 @@ const styles = StyleSheet.create({
     menuIcon: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
     backRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     backText: { color: '#FFF', fontSize: 14, fontWeight: '500' },
-    profileCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
     scrollContent: { padding: 20 },
     headerTitleRow: { marginBottom: 20 },
     pageTitle: { fontSize: 22, fontWeight: 'bold', color: '#333' },
     pageSub: { fontSize: 13, color: '#999', marginTop: 2 },
-    filterCard: { backgroundColor: '#FFF', borderRadius: 12, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#EEE' },
-    filterLabel: { fontSize: 12, color: '#999', fontWeight: 'bold', marginBottom: 10, textTransform: 'uppercase' },
-    dropdown: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9F9F9', borderRadius: 8, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: '#EEE' },
-    dropdownText: { fontSize: 14, color: '#333' },
     listContainer: { gap: 16 },
     transCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#EEE' },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
@@ -139,5 +254,23 @@ const styles = StyleSheet.create({
     divider: { height: 1, backgroundColor: '#F5F5F5', marginBottom: 16 },
     cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     itemDetail: { fontSize: 12, color: '#777' },
-    totalAmount: { fontSize: 15, fontWeight: 'bold', color: '#2E8B57' }
+    totalAmount: { fontSize: 15, fontWeight: 'bold', color: '#2E8B57' },
+    
+    // Modal
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+    modalContent: { backgroundColor: '#FFF', borderRadius: 24, padding: 24, maxHeight: '80%' },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
+    section: { marginBottom: 20 },
+    sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#2E8B57', marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#EEE', paddingBottom: 4 },
+    label: { fontSize: 13, color: '#777', marginBottom: 4 },
+    value: { color: '#333', fontWeight: '500' },
+    itemRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+    itemName: { fontSize: 13, color: '#555' },
+    itemPrice: { fontSize: 13, fontWeight: '500' },
+    totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#EEE' },
+    totalLabel: { fontWeight: 'bold', fontSize: 14 },
+    totalValue: { fontWeight: 'bold', fontSize: 16, color: '#2E8B57' },
+    statusButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+    statusBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, minWidth: 80, alignItems: 'center' }
 });

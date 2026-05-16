@@ -46,6 +46,7 @@ export default function AdminSidebar({ visible, onClose, activePage }: AdminSide
         { name: 'Manajemen Obat', icon: 'box', route: '/admin/manage-medicines', key: 'medicines' },
         { name: 'Daftar Transaksi', icon: 'shopping-cart', route: '/admin/manage-transactions', key: 'transactions' },
         { name: 'Data Pengguna', icon: 'users', route: '/admin/manage-users', key: 'users' },
+        { name: 'Kelola Edukasi', icon: 'book-open', route: '/admin/manage-education', key: 'education' },
         { name: 'Laporan Penjualan', icon: 'bar-chart-2', route: '/admin/reports', key: 'reports' },
     ];
 

@@ -124,4 +124,77 @@ class MedicineController extends Controller
             'data'    => $categories,
         ]);
     }
+
+    /**
+     * POST /api/medicines
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'category' => 'required|string',
+            'price' => 'required|numeric|min:0',
+            'stock' => 'required|integer|min:0',
+            'unit' => 'nullable|string',
+            'prescription_required' => 'boolean',
+            'indication' => 'nullable|string',
+            'usage_rules' => 'nullable|string',
+            'dosage' => 'nullable|string',
+            'composition' => 'nullable|string',
+            'image_url' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // Max 2MB
+        ]);
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('medicines', 'public');
+            $validated['image_url'] = $path;
+        }
+
+        $medicine = Medicine::create($validated);
+
+        return response()->json(['status' => 'success', 'message' => 'Obat berhasil ditambahkan', 'data' => $medicine], 201);
+    }
+
+    /**
+     * PUT /api/medicines/{id}
+     */
+    public function update(Request $request, $id)
+    {
+        $medicine = Medicine::findOrFail($id);
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'category' => 'sometimes|required|string',
+            'price' => 'sometimes|required|numeric|min:0',
+            'stock' => 'sometimes|required|integer|min:0',
+            'unit' => 'nullable|string',
+            'prescription_required' => 'boolean',
+            'indication' => 'nullable|string',
+            'usage_rules' => 'nullable|string',
+            'dosage' => 'nullable|string',
+            'composition' => 'nullable|string',
+            'image_url' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        if ($request->hasFile('image')) {
+            // Hapus gambar lama jika ada dan bukan URL eksternal
+            if ($medicine->image_url && !str_starts_with($medicine->image_url, 'http')) {
+                \Storage::disk('public')->delete($medicine->image_url);
+            }
+            $path = $request->file('image')->store('medicines', 'public');
+            $validated['image_url'] = $path;
+        }
+
+        $medicine->update($validated);
+        return response()->json(['status' => 'success', 'message' => 'Obat berhasil diperbarui', 'data' => $medicine]);
+    }
+
+    /**
+     * DELETE /api/medicines/{id}
+     */
+    public function destroy($id)
+    {
+        Medicine::findOrFail($id)->delete();
+        return response()->json(['status' => 'success', 'message' => 'Obat berhasil dihapus']);
+    }
 }

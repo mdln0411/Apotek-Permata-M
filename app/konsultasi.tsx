@@ -1,6 +1,7 @@
+import axiosClient from '@/api/axiosClient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { 
     SafeAreaView, 
     ScrollView, 
@@ -9,10 +10,35 @@ import {
     TouchableOpacity, 
     View,
     Platform,
-    Image
+    ActivityIndicator,
+    Alert
 } from 'react-native';
 
 export default function KonsultasiScreen() {
+    const [loading, setLoading] = useState(false);
+
+    const startConsultation = async () => {
+        try {
+            setLoading(true);
+            // Cek apakah sudah ada konsultasi aktif
+            const checkRes = await axiosClient.get('/api/consultations');
+            const activeConsultation = checkRes.data.data.find((c: any) => c.status === 'active');
+
+            if (activeConsultation) {
+                router.push(`/chat-room?id=${activeConsultation.id}`);
+            } else {
+                // Buat baru
+                const createRes = await axiosClient.post('/api/consultations');
+                router.push(`/chat-room?id=${createRes.data.data.id}`);
+            }
+        } catch (error) {
+            console.error('Consultation error:', error);
+            Alert.alert('Gagal', 'Terjadi kesalahan saat memulai konsultasi.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
@@ -33,7 +59,7 @@ export default function KonsultasiScreen() {
                 {/* Opsi 1: Asisten Virtual (AI) */}
                 <TouchableOpacity 
                     style={styles.aiCard} 
-                    onPress={() => router.push({ pathname: '/asisten-virtual', params: { type: 'ai' } } as any)}
+                    onPress={() => alert('Fitur AI sedang dalam pemeliharaan. Silakan hubungi Apoteker kami.')}
                 >
                     <View style={styles.aiIconWrapper}>
                         <Ionicons name="sparkles" size={30} color="#FFF" />
@@ -59,7 +85,8 @@ export default function KonsultasiScreen() {
                 
                 <TouchableOpacity 
                     style={styles.aptCard}
-                    onPress={() => router.push({ pathname: '/asisten-virtual', params: { type: 'human' } } as any)}
+                    onPress={startConsultation}
+                    disabled={loading}
                 >
                     <View style={styles.avatarWrapper}>
                         <View style={styles.avatar}>
@@ -68,16 +95,22 @@ export default function KonsultasiScreen() {
                         <View style={styles.onlineDot} />
                     </View>
                     <View style={styles.cardInfo}>
-                        <Text style={styles.aptName}>apt. Sarah Angelica, S.Farm</Text>
+                        <Text style={styles.aptName}>Apoteker Permata</Text>
                         <Text style={styles.aptSpecialized}>Obat Umum & Penyakit Dalam</Text>
                         <View style={styles.metaRow}>
                             <Ionicons name="star" size={14} color="#FFB300" />
-                            <Text style={styles.metaText}>4.9 (500+ Konsultasi)</Text>
+                            <Text style={styles.metaText}>5.0 (1000+ Konsultasi)</Text>
                         </View>
                     </View>
                     <View style={styles.chatAction}>
-                        <Ionicons name="chatbubble-ellipses" size={24} color="#2E8B57" />
-                        <Text style={styles.chatActionText}>Hubungi</Text>
+                        {loading ? (
+                            <ActivityIndicator color="#2E8B57" />
+                        ) : (
+                            <>
+                                <Ionicons name="chatbubble-ellipses" size={24} color="#2E8B57" />
+                                <Text style={styles.chatActionText}>Hubungi</Text>
+                            </>
+                        )}
                     </View>
                 </TouchableOpacity>
 
@@ -85,7 +118,7 @@ export default function KonsultasiScreen() {
                 <View style={styles.infoBox}>
                     <Ionicons name="information-circle-outline" size={20} color="#1976D2" />
                     <Text style={styles.infoBoxText}>
-                        Gunakan Asisten Virtual jika Anda butuh jawaban cepat. Untuk resep dokter yang kompleks, silakan hubungi Apoteker kami.
+                        Konsultasi dengan apoteker kami bersifat rahasia dan aman. Jangan ragu untuk menanyakan dosis atau efek samping obat.
                     </Text>
                 </View>
 
@@ -120,7 +153,7 @@ const styles = StyleSheet.create({
     aptSpecialized: { fontSize: 12, color: '#777', marginBottom: 6 },
     metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     metaText: { fontSize: 11, color: '#555', fontWeight: '500' },
-    chatAction: { alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#F0F0F0', paddingLeft: 16, marginLeft: 10 },
+    chatAction: { alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#F0F0F0', paddingLeft: 16, marginLeft: 10, minWidth: 60 },
     chatActionText: { fontSize: 11, fontWeight: 'bold', color: '#2E8B57', marginTop: 4 },
     infoBox: { backgroundColor: '#E3F2FD', borderRadius: 16, padding: 16, flexDirection: 'row', gap: 12, marginTop: 30 },
     infoBoxText: { flex: 1, fontSize: 12, color: '#1976D2', lineHeight: 18 }

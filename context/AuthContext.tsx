@@ -11,7 +11,10 @@ interface AuthContextType {
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   updateUser: (userData: User) => Promise<void>;
+  unreadChatCount: number;
+  refreshUnreadCount: () => Promise<void>;
 }
+
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -19,6 +22,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
 
   useEffect(() => {
     loadStoredAuth();
@@ -33,17 +38,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
         
-        // Set default axios header
         axiosClient.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
         
-        // Verifikasi token ke API
         try {
           const res = await getMe();
           setUser(res.data);
           await AsyncStorage.setItem('auth_user', JSON.stringify(res.data));
         } catch (e) {
-          // Token expired atau invalid
-          await logout();
+          // Token expired, logout instan
+          setToken(null);
+          setUser(null);
+          await AsyncStorage.removeItem('auth_token');
+          await AsyncStorage.removeItem('auth_user');
         }
       }
     } catch (e) {
@@ -63,12 +69,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    // 1. Simpan token sementara untuk API call
+    const currentToken = token;
+
+    // 2. Hapus data lokal secara INSTAN (UI langsung berubah)
     setToken(null);
     setUser(null);
     delete axiosClient.defaults.headers.common['Authorization'];
-    
     await AsyncStorage.removeItem('auth_token');
     await AsyncStorage.removeItem('auth_user');
+
+    // 3. Beritahu server di latar belakang (tidak ditunggu/await agar tidak hang)
+    if (currentToken) {
+      axiosClient.post('/api/logout').catch(err => {
+        console.log('Server logout failed, but local session is cleared', err);
+      });
+    }
   };
 
   const checkAuth = async () => {
@@ -80,8 +96,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await AsyncStorage.setItem('auth_user', JSON.stringify(userData));
   };
 
+  const refreshUnreadCount = async () => {
+    if (!token) return;
+    try {
+      const res = await axiosClient.get('/api/consultations');
+      const totalUnread = res.data.data.reduce((acc: number, curr: any) => acc + (curr.unread_count || 0), 0);
+      setUnreadChatCount(totalUnread);
+    } catch (e) {
+      console.error('Failed to fetch unread count', e);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      refreshUnreadCount();
+      const interval = setInterval(refreshUnreadCount, 10000); // Polling every 10s
+      return () => clearInterval(interval);
+    }
+  }, [token]);
+
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, checkAuth, updateUser }}>
+    <AuthContext.Provider value={{ 
+      user, token, loading, login, logout, checkAuth, updateUser, 
+      unreadChatCount, refreshUnreadCount 
+    }}>
+
       {children}
     </AuthContext.Provider>
   );

@@ -35,12 +35,19 @@ export default function LoginScreen() {
             
             // Simpan ke context
             await login(res.data, res.access_token);
+            
+            const target = res.data.role === 'admin' ? '/admin/dashboard' : (res.data.role === 'apoteker' ? '/apoteker' : '/(tabs)');
+            
+            router.replace({
+                pathname: '/success-action',
+                params: {
+                    title: 'Login Berhasil!',
+                    message: `Selamat datang kembali, ${res.data.name}. Anda telah berhasil masuk sebagai ${res.data.role}.`,
+                    target: target,
+                    buttonText: 'Masuk ke Dashboard'
+                }
+            } as any);
 
-            if (res.data.role === 'admin') {
-                router.replace('/admin/dashboard' as any);
-            } else {
-                router.replace('/(tabs)' as any);
-            }
 
         } catch (e: any) {
             console.error('Error Login Detail:', e);
@@ -56,8 +63,9 @@ export default function LoginScreen() {
     // Fungsi helper untuk demo login
     const fillDemo = (e: string) => {
         setEmail(e);
-        setPassword('password123');
+        setPassword('password');
     };
+
 
     return (
         <SafeAreaView style={styles.container}>
@@ -142,17 +150,18 @@ export default function LoginScreen() {
                 {/* Demo Info Card */}
                 <View style={styles.card}>
                     <Text style={styles.demoTitle}>Coba login sebagai:</Text>
-                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('member@apotek.com')}>
-                        <Text style={styles.demoItem}>• Member: member@apotek.com</Text>
+                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('member@test.com')}>
+                        <Text style={styles.demoItem}>• Member: member@test.com</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('apoteker@apotek.com')}>
-                        <Text style={styles.demoItem}>• Apoteker: apoteker@apotek.com</Text>
+                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('apoteker@test.com')}>
+                        <Text style={styles.demoItem}>• Apoteker: apoteker@test.com</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('admin@apotek.com')}>
-                        <Text style={styles.demoItem}>• Admin: admin@apotek.com</Text>
+                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('admin@permata.com')}>
+                        <Text style={styles.demoItem}>• Admin: admin@permata.com</Text>
                     </TouchableOpacity>
-                    <Text style={styles.demoNote}>Password: password123</Text>
+                    <Text style={styles.demoNote}>Password: password</Text>
                 </View>
+
 
             </ScrollView>
         </SafeAreaView>

@@ -1,8 +1,8 @@
 import { useAuth } from '@/context/AuthContext';
 import axiosClient from '@/api/axiosClient';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { router, Stack } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, Stack, useFocusEffect } from 'expo-router';
+import React, { useEffect, useState, useCallback } from 'react';
 import { 
     ActivityIndicator, 
     Platform, 
@@ -45,9 +45,11 @@ export default function PesananScreen() {
         }
     };
 
-    useEffect(() => {
-        fetchOrders();
-    }, [user]);
+    useFocusEffect(
+        useCallback(() => {
+            fetchOrders();
+        }, [user])
+    );
 
     const onRefresh = () => {
         setRefreshing(true);

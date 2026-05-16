@@ -11,13 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('orders', function (Blueprint $table) {
+        Schema::create('prescriptions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('order_number')->unique();
-            $table->enum('status', ['pending', 'processing', 'completed', 'cancelled', 'diproses', 'selesai', 'dibatalkan'])->default('pending');
-            $table->decimal('total_price', 15, 2);
-            $table->text('shipping_address');
+            $table->string('image_url');
+            $table->enum('status', ['pending', 'valid', 'rejected'])->default('pending');
             $table->text('notes')->nullable();
             $table->timestamps();
         });
@@ -28,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('orders');
+        Schema::dropIfExists('prescriptions');
     }
 };

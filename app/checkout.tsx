@@ -72,13 +72,25 @@ export default function CheckoutScreen() {
             });
 
             if (res.data.status === 'success') {
-                await refreshCart(); // Kosongkan keranjang di state
-                Alert.alert('Berhasil', 'Pesanan Anda telah diterima!', [
-                    { text: 'Lihat Status', onPress: () => router.replace('/(tabs)' as any) }
-                ]);
+                console.log('Order created successfully:', res.data.data);
+                await refreshCart(); 
+                
+                // Pindah ke success screen dengan dua pilihan
+                router.replace({
+                    pathname: '/success-action',
+                    params: {
+                        title: 'Pesanan Sudah Dipesan!',
+                        message: 'Pesanan Anda telah berhasil dibuat. Apoteker kami akan segera menyiapkan obat Anda.',
+                        target: '/(tabs)',
+                        buttonText: 'Ke Beranda',
+                        secondaryTarget: '/(tabs)/pesanan',
+                        secondaryButtonText: 'Lihat Pesanan Saya'
+                    }
+                } as any);
+
             }
         } catch (e: any) {
-            console.error(e);
+            console.error('Checkout error detail:', e.response?.data || e.message);
             Alert.alert('Gagal', e.response?.data?.message || 'Terjadi kesalahan saat memproses pesanan');
         } finally {
             setLoading(false);
