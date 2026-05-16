@@ -1,6 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import {
     SafeAreaView,
     ScrollView,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 const THEME = {
-    primary: '#2E8B57',
+    primary: '#2E8B57', // Hijau Apotek
     background: '#F0F4F7',
     white: '#FFFFFF',
     textDark: '#2C3E50',
@@ -20,7 +20,7 @@ const THEME = {
     border: '#E0E6ED',
 };
 
-const notifications = [
+const INITIAL_NOTIFICATIONS = [
     {
         id: '1',
         title: 'Pesanan Dikirim',
@@ -64,33 +64,45 @@ const notifications = [
 ];
 
 export default function NotificationScreen() {
+    const [notifs, setNotifs] = useState(INITIAL_NOTIFICATIONS);
+
+    const markAllAsRead = () => {
+        setNotifs(prevNotifs => 
+            prevNotifs.map(notif => ({ ...notif, isRead: true }))
+        );
+    };
+
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" />
+            <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
             <Stack.Screen 
                 options={{ 
                     headerTitle: 'Notifikasi',
-                    headerTitleStyle: { fontWeight: 'bold', color: THEME.textDark },
+                    headerTintColor: THEME.white,
+                    headerTitleStyle: { fontWeight: 'bold' },
                     headerLeft: () => (
                         <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={{ marginLeft: 10 }}>
-                            <Ionicons name="close" size={28} color={THEME.textDark} />
+                            <Ionicons name="close" size={28} color={THEME.white} />
                         </TouchableOpacity>
                     ),
                     headerRight: () => (
-                        <TouchableOpacity style={{ marginRight: 15 }}>
-                            <Text style={{ color: THEME.primary, fontWeight: 'bold' }}>Baca Semua</Text>
+                        <TouchableOpacity onPress={markAllAsRead} style={{ marginRight: 15 }}>
+                            <Text style={{ color: THEME.white, fontWeight: 'bold' }}>Baca Semua</Text>
                         </TouchableOpacity>
                     ),
-                    headerShadowVisible: true,
-                    headerStyle: { backgroundColor: THEME.white }
+                    headerShadowVisible: false,
+                    headerStyle: { backgroundColor: THEME.primary }
                 }} 
             />
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                {notifications.map((item) => (
+                {notifs.map((item) => (
                     <TouchableOpacity 
                         key={item.id} 
                         style={[styles.notifItem, !item.isRead && styles.unreadItem]}
+                        onPress={() => {
+                            setNotifs(prev => prev.map(n => n.id === item.id ? {...n, isRead: true} : n))
+                        }}
                     >
                         <View style={[styles.iconBox, { backgroundColor: item.color }]}>
                             <MaterialCommunityIcons name={item.icon as any} size={24} color={item.iconColor} />
