@@ -1,15 +1,15 @@
-import React from 'react';
-import { 
-    View, 
-    Text, 
-    StyleSheet, 
-    SafeAreaView, 
-    ScrollView, 
-    TouchableOpacity, 
-    StatusBar 
-} from 'react-native';
-import { Stack, router } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Stack, router } from 'expo-router';
+import React from 'react';
+import {
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 
 const THEME = {
     primary: '#2E8B57',
@@ -72,8 +72,8 @@ export default function NotificationScreen() {
                     headerTitle: 'Notifikasi',
                     headerTitleStyle: { fontWeight: 'bold', color: THEME.textDark },
                     headerLeft: () => (
-                        <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 10 }}>
-                            <Ionicons name="arrow-back" size={24} color={THEME.textDark} />
+                        <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={{ marginLeft: 10 }}>
+                            <Ionicons name="close" size={28} color={THEME.textDark} />
                         </TouchableOpacity>
                     ),
                     headerRight: () => (
@@ -81,7 +81,7 @@ export default function NotificationScreen() {
                             <Text style={{ color: THEME.primary, fontWeight: 'bold' }}>Baca Semua</Text>
                         </TouchableOpacity>
                     ),
-                    headerShadowVisible: false,
+                    headerShadowVisible: true,
                     headerStyle: { backgroundColor: THEME.white }
                 }} 
             />
