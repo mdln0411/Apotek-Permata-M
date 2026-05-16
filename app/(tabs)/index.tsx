@@ -13,6 +13,7 @@ import {
     StatusBar,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
@@ -171,7 +172,7 @@ export default function HomeScreen() {
                         >
                             <View style={[styles.mainMenuIcon, { backgroundColor: menu.color }]}>
                                 <MaterialCommunityIcons name={menu.icon as any} size={28} color={menu.iconColor} />
-                                {menu.name === 'Konsultasi' && unreadChatCount > 0 && (
+                                {menu.name === 'Konsultasi' && (unreadChatCount ?? 0) > 0 && (
                                     <View style={styles.notifBadge}>
                                         <Text style={styles.notifBadgeText}>{unreadChatCount}</Text>
                                     </View>
