@@ -224,10 +224,16 @@ export default function HomeScreen() {
                         <TouchableOpacity 
                             key={cat.id} 
                             style={styles.categoryItem}
-                            onPress={() => router.push({
-                                pathname: '/(tabs)/katalog-obat',
-                                params: { category: cat.name }
-                            } as any)}
+                            onPress={() => {
+                                if (cat.name === 'Lainnya') {
+                                    router.push('/(tabs)/katalog-obat' as any);
+                                } else {
+                                    router.push({
+                                        pathname: '/(tabs)/katalog-obat',
+                                        params: { category: cat.name }
+                                    } as any);
+                                }
+                            }}
                         >
                             <View style={styles.categoryIconCircle}>
                                 <MaterialCommunityIcons name={cat.icon as any} size={24} color={THEME.primary} />
