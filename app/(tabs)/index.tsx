@@ -32,7 +32,9 @@ export default function HomeScreen() {
         try {
             const response = await axiosClient.get('/api/medicines');
             // Ambil 4 obat saja untuk rekomendasi di home
-            setMedicines(response.data.slice(0, 4));
+            if (response.data && response.data.data) {
+                setMedicines(response.data.data);
+            }
         } catch (error) {
             console.error('Error fetching medicines:', error);
         } finally {
@@ -131,8 +133,15 @@ export default function HomeScreen() {
                             onPress={() => router.push({ pathname: '/detail-obat', params: { id: item.id } } as any)}
                         >
                             <View style={styles.rekImageBg}>
-                                {item.image ? (
-                                    <Image source={{ uri: `http://10.0.2.2:8000/storage/${item.image}` }} style={styles.rekImage} />
+                                {item.image_url ? (
+                                    <Image 
+                                        source={{ 
+                                            uri: item.image_url.startsWith('http') 
+                                                ? item.image_url 
+                                                : `http://10.0.2.2:8000/storage/${item.image_url}` 
+                                        }} 
+                                        style={styles.rekImage} 
+                                    />
                                 ) : (
                                     <Ionicons name="medical-outline" size={40} color="#2E8B57" />
                                 )}
@@ -157,8 +166,15 @@ export default function HomeScreen() {
                             onPress={() => router.push({ pathname: '/detail-obat', params: { id: item.id } } as any)}
                         >
                             <View style={styles.rekImageBg}>
-                                {item.image ? (
-                                    <Image source={{ uri: `http://10.0.2.2:8000/storage/${item.image}` }} style={styles.rekImage} />
+                                {item.image_url ? (
+                                    <Image 
+                                        source={{ 
+                                            uri: item.image_url.startsWith('http') 
+                                                ? item.image_url 
+                                                : `http://10.0.2.2:8000/storage/${item.image_url}` 
+                                        }} 
+                                        style={styles.rekImage} 
+                                    />
                                 ) : (
                                     <Ionicons name="star" size={40} color="#FFB300" />
                                 )}

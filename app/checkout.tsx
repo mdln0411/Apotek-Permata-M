@@ -72,13 +72,16 @@ export default function CheckoutScreen() {
             });
 
             if (res.data.status === 'success') {
-                await refreshCart(); // Kosongkan keranjang di state
-                Alert.alert('Berhasil', 'Pesanan Anda telah diterima!', [
-                    { text: 'Lihat Status', onPress: () => router.replace('/(tabs)' as any) }
-                ]);
+                console.log('Order created successfully:', res.data.data);
+                await refreshCart(); 
+                
+                // Langsung pindah ke riwayat pesanan
+                router.replace('/(tabs)/pesanan');
+                
+                Alert.alert('Berhasil', 'Pesanan Anda telah diterima!');
             }
         } catch (e: any) {
-            console.error(e);
+            console.error('Checkout error detail:', e.response?.data || e.message);
             Alert.alert('Gagal', e.response?.data?.message || 'Terjadi kesalahan saat memproses pesanan');
         } finally {
             setLoading(false);

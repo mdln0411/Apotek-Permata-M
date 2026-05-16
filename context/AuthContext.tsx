@@ -33,17 +33,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
         
-        // Set default axios header
         axiosClient.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
         
-        // Verifikasi token ke API
         try {
           const res = await getMe();
           setUser(res.data);
           await AsyncStorage.setItem('auth_user', JSON.stringify(res.data));
         } catch (e) {
-          // Token expired atau invalid
-          await logout();
+          // Token expired, logout instan
+          setToken(null);
+          setUser(null);
+          await AsyncStorage.removeItem('auth_token');
+          await AsyncStorage.removeItem('auth_user');
         }
       }
     } catch (e) {
@@ -63,12 +64,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    // 1. Simpan token sementara untuk API call
+    const currentToken = token;
+
+    // 2. Hapus data lokal secara INSTAN (UI langsung berubah)
     setToken(null);
     setUser(null);
     delete axiosClient.defaults.headers.common['Authorization'];
-    
     await AsyncStorage.removeItem('auth_token');
     await AsyncStorage.removeItem('auth_user');
+
+    // 3. Beritahu server di latar belakang (tidak ditunggu/await agar tidak hang)
+    if (currentToken) {
+      axiosClient.post('/api/logout').catch(err => {
+        console.log('Server logout failed, but local session is cleared', err);
+      });
+    }
   };
 
   const checkAuth = async () => {

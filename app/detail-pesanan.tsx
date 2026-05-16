@@ -1,3 +1,4 @@
+import { useAuth } from '@/context/AuthContext';
 import axiosClient from '@/api/axiosClient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -11,7 +12,8 @@ import {
     TouchableOpacity,
     View,
     Image,
-    Platform
+    Platform,
+    Alert
 } from 'react-native';
 
 interface OrderItem {
@@ -38,8 +40,10 @@ interface OrderDetail {
 
 export default function DetailPesananScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
+    const { user } = useAuth();
     const [order, setOrder] = useState<OrderDetail | null>(null);
     const [loading, setLoading] = useState(true);
+    const [updating, setUpdating] = useState(false);
 
     const fetchOrderDetail = async () => {
         try {
@@ -49,6 +53,24 @@ export default function DetailPesananScreen() {
             console.error('Failed to fetch order detail', e);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const updateStatus = async (newStatus: string) => {
+        try {
+            setUpdating(true);
+            const response = await axiosClient.put(`/api/admin/orders/${id}/status`, { status: newStatus });
+            
+            if (response.data.status === 'success') {
+                // Langsung update state lokal agar UI berubah seketika
+                setOrder(prev => prev ? { ...prev, status: newStatus } : null);
+                Alert.alert('Sukses', `Status pesanan diubah menjadi ${newStatus}`);
+            }
+        } catch (e) {
+            console.error('Failed to update status', e);
+            Alert.alert('Gagal', 'Terjadi kesalahan saat memperbarui status');
+        } finally {
+            setUpdating(false);
         }
     };
 
@@ -115,8 +137,18 @@ export default function DetailPesananScreen() {
                             <Text style={styles.statusLabel}>No. Pesanan</Text>
                             <Text style={styles.statusValue}>{order.order_number}</Text>
                         </View>
-                        <View style={styles.badgeStatus}>
-                            <Text style={styles.badgeStatusText}>{order.status.toUpperCase()}</Text>
+                        <View style={[
+                            styles.badgeStatus, 
+                            order.status === 'diproses' && { backgroundColor: '#E3F2FD' },
+                            order.status === 'selesai' && { backgroundColor: '#E8F5E9' },
+                            order.status === 'dibatalkan' && { backgroundColor: '#FFEBEE' }
+                        ]}>
+                            <Text style={[
+                                styles.badgeStatusText,
+                                order.status === 'diproses' && { color: '#1976D2' },
+                                order.status === 'selesai' && { color: '#2E8B57' },
+                                order.status === 'dibatalkan' && { color: '#D32F2F' }
+                            ]}>{order.status.toUpperCase()}</Text>
                         </View>
                     </View>
                     <View style={styles.divider} />
@@ -185,6 +217,43 @@ export default function DetailPesananScreen() {
                     </View>
                 </View>
 
+                {/* Pharmacist Actions */}
+                {user?.role === 'apoteker' && (
+                    <View style={styles.pharmacistSection}>
+                        <Text style={styles.adminTitle}>Panel Apoteker</Text>
+                        <View style={styles.actionRow}>
+                            {order.status === 'pending' && (
+                                <TouchableOpacity 
+                                    style={[styles.btnAction, { backgroundColor: '#1976D2' }]} 
+                                    onPress={() => updateStatus('diproses')}
+                                    disabled={updating}
+                                >
+                                    <Text style={styles.btnActionText}>Proses Pesanan</Text>
+                                </TouchableOpacity>
+                            )}
+                            {(order.status === 'pending' || order.status === 'diproses') && (
+                                <TouchableOpacity 
+                                    style={[styles.btnAction, { backgroundColor: '#2E8B57' }]} 
+                                    onPress={() => updateStatus('selesai')}
+                                    disabled={updating}
+                                >
+                                    <Text style={styles.btnActionText}>Selesaikan</Text>
+                                </TouchableOpacity>
+                            )}
+                            {order.status !== 'selesai' && order.status !== 'dibatalkan' && (
+                                <TouchableOpacity 
+                                    style={[styles.btnAction, { backgroundColor: '#D32F2F' }]} 
+                                    onPress={() => updateStatus('dibatalkan')}
+                                    disabled={updating}
+                                >
+                                    <Text style={styles.btnActionText}>Batalkan</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                        {updating && <ActivityIndicator color="#2E8B57" style={{ marginTop: 10 }} />}
+                    </View>
+                )}
+
                 <TouchableOpacity style={styles.btnHelp}>
                     <Feather name="help-circle" size={18} color="#2E8B57" />
                     <Text style={styles.btnHelpText}>Butuh Bantuan?</Text>
@@ -234,6 +303,11 @@ const styles = StyleSheet.create({
     totalValue: { fontSize: 18, fontWeight: 'bold', color: '#2E8B57' },
     btnHelp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 10, paddingVertical: 12 },
     btnHelpText: { color: '#2E8B57', fontSize: 14, fontWeight: 'bold' },
+    pharmacistSection: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 2, borderColor: '#E3F2FD' },
+    adminTitle: { fontSize: 14, fontWeight: 'bold', color: '#1976D2', marginBottom: 12, textTransform: 'uppercase' },
+    actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    btnAction: { flex: 1, minWidth: 120, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+    btnActionText: { color: '#FFF', fontWeight: 'bold', fontSize: 13 },
     backLink: { marginTop: 20 },
     backLinkText: { color: '#2E8B57', fontWeight: 'bold' }
 });

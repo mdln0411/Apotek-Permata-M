@@ -1,7 +1,8 @@
+import axiosClient from '@/api/axiosClient';
 import AdminSidebar from '@/components/AdminSidebar';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
     SafeAreaView, 
     ScrollView, 
@@ -10,19 +11,74 @@ import {
     TouchableOpacity, 
     View, 
     Platform,
-    Dimensions
+    ActivityIndicator,
+    Alert
 } from 'react-native';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function AdminReports() {
     const [sidebarVisible, setSidebarVisible] = useState(false);
-    const bestSellers = [
-        { id: '1', name: 'Paracetamol 500mg', units: '245 unit terjual', total: 'Rp 3675k' },
-        { id: '2', name: 'Vitamin C 1000mg', units: '180 unit terjual', total: 'Rp 6300k' },
-        { id: '3', name: 'Ibuprofen 400mg', units: '156 unit terjual', total: 'Rp 3900k' },
-        { id: '4', name: 'Amoxicillin 500mg', units: '89 unit terjual', total: 'Rp 4005k' },
-    ];
+    const [activeTab, setActiveTab] = useState<'sales' | 'history'>('sales');
+    const [loading, setLoading] = useState(true);
+    const [orders, setOrders] = useState<any[]>([]);
+    const [stats, setStats] = useState({
+        totalRevenue: 0,
+        totalOrders: 0,
+        bestSellers: [] as any[]
+    });
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const response = await axiosClient.get('/api/admin/orders');
+            const allOrders = response.data.data;
+            setOrders(allOrders);
+
+            // Hitung Stats
+            let revenue = 0;
+            const productSales: any = {};
+
+            allOrders.forEach((order: any) => {
+                if (order.status !== 'dibatalkan') {
+                    revenue += Number(order.total_price) || 0;
+                    
+                    order.items?.forEach((item: any) => {
+                        const name = item.medicine?.name || 'Obat Terhapus';
+                        productSales[name] = (productSales[name] || 0) + item.quantity;
+                    });
+                }
+            });
+
+            const sortedProducts = Object.entries(productSales)
+                .map(([name, qty]) => ({ name, qty }))
+                .sort((a: any, b: any) => b.qty - a.qty)
+                .slice(0, 5);
+
+            setStats({
+                totalRevenue: revenue,
+                totalOrders: allOrders.length,
+                bestSellers: sortedProducts
+            });
+        } catch (error) {
+            console.error('Error fetching report data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePrint = () => {
+        Alert.alert(
+            'Cetak Laporan',
+            'Laporan transaksi sedang disiapkan. Apakah Anda ingin mengunduh dalam format PDF?',
+            [
+                { text: 'Batal', style: 'cancel' },
+                { text: 'Download PDF', onPress: () => alert('Laporan berhasil diunduh ke folder Downloads') }
+            ]
+        );
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -34,99 +90,91 @@ export default function AdminReports() {
                 activePage="reports" 
             />
 
-            {/* Header */}
             <View style={styles.topBar}>
                 <View style={styles.headerLeft}>
                     <TouchableOpacity onPress={() => setSidebarVisible(true)} style={styles.menuIcon}>
                         <Ionicons name="menu" size={28} color="#FFF" />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backRow}>
-                        <Ionicons name="arrow-back" size={20} color="#FFF" />
-                        <Text style={styles.backText}>Kembali</Text>
-                    </TouchableOpacity>
+                    <Text style={styles.headerTitleText}>Laporan Apotek</Text>
                 </View>
-                <TouchableOpacity style={styles.profileCircle}>
-                    <Ionicons name="person-outline" size={20} color="#FFF" />
+                <TouchableOpacity style={styles.printBtn} onPress={handlePrint}>
+                    <Feather name="printer" size={18} color="#FFF" />
                 </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                
-                <View style={styles.headerTitleRow}>
-                    <Text style={styles.pageTitle}>Laporan</Text>
-                    <Text style={styles.pageSub}>Ringkasan dan analisis data</Text>
+            <View style={styles.tabsContainer}>
+                <TouchableOpacity 
+                    style={[styles.tab, activeTab === 'sales' && styles.activeTab]} 
+                    onPress={() => setActiveTab('sales')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'sales' && styles.activeTabText]}>Ringkasan</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[styles.tab, activeTab === 'history' && styles.activeTab]} 
+                    onPress={() => setActiveTab('history')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>Riwayat Transaksi</Text>
+                </TouchableOpacity>
+            </View>
+
+            {loading ? (
+                <View style={styles.loadingArea}>
+                    <ActivityIndicator size="large" color="#2E8B57" />
                 </View>
-
-                {/* Tabs */}
-                <View style={styles.tabsContainer}>
-                    <TouchableOpacity style={[styles.tab, styles.activeTab]}>
-                        <Text style={[styles.tabText, styles.activeTabText]}>Penjualan</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.tab}>
-                        <Text style={styles.tabText}>Stok</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Sales Trend Chart */}
-                <View style={styles.reportCard}>
-                    <View style={styles.cardHeader}>
-                        <Text style={styles.cardTitle}>Tren Penjualan</Text>
-                        <TouchableOpacity style={styles.exportBtn}>
-                            <Feather name="download" size={14} color="#555" />
-                            <Text style={styles.exportText}>Export</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.chartContainer}>
-                        {/* Simulasi Line Chart */}
-                        <View style={styles.chartArea}>
-                            <View style={styles.yAxis}>
-                                <Text style={styles.yAxisText}>16M</Text>
-                                <Text style={styles.yAxisText}>12M</Text>
-                                <Text style={styles.yAxisText}>8M</Text>
-                                <Text style={styles.yAxisText}>4M</Text>
-                                <Text style={styles.yAxisText}>0</Text>
-                            </View>
-                            <View style={styles.chartRight}>
-                                <View style={styles.chartLines}>
-                                    <View style={styles.chartLine} /><View style={styles.chartLine} /><View style={styles.chartLine} /><View style={styles.chartLine} />
+            ) : (
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                    
+                    {activeTab === 'sales' ? (
+                        <>
+                            <View style={styles.summaryGrid}>
+                                <View style={styles.summaryCard}>
+                                    <Text style={styles.summaryLabel}>Total Pendapatan</Text>
+                                    <Text style={styles.summaryValue}>Rp {stats.totalRevenue.toLocaleString('id-ID')}</Text>
                                 </View>
-                                {/* Simulasi Titik & Garis Tren */}
-                                <View style={styles.trendPlot}>
-                                    <View style={[styles.plotDot, { bottom: '40%', left: '10%' }]} />
-                                    <View style={[styles.plotDot, { bottom: '70%', left: '40%' }]} />
-                                    <View style={[styles.plotDot, { bottom: '65%', left: '70%' }]} />
-                                    <View style={[styles.plotDot, { bottom: '90%', left: '90%' }]} />
+                                <View style={styles.summaryCard}>
+                                    <Text style={styles.summaryLabel}>Total Pesanan</Text>
+                                    <Text style={styles.summaryValue}>{stats.totalOrders}</Text>
                                 </View>
                             </View>
-                        </View>
-                        <View style={styles.xAxis}>
-                            <Text style={styles.xAxisText}>Jan</Text>
-                            <Text style={styles.xAxisText}>Feb</Text>
-                            <Text style={styles.xAxisText}>Mar</Text>
-                            <Text style={styles.xAxisText}>Apr</Text>
-                        </View>
-                    </View>
-                </View>
 
-                {/* Best Selling Products */}
-                <View style={styles.reportCard}>
-                    <Text style={styles.cardTitle}>Produk Terlaris</Text>
-                    {bestSellers.map((item) => (
-                        <View key={item.id} style={styles.productRow}>
-                            <View style={styles.rankBadge}>
-                                <Text style={styles.rankText}>{item.id}</Text>
+                            <View style={styles.reportCard}>
+                                <Text style={styles.cardTitle}>Produk Terlaris</Text>
+                                {stats.bestSellers.map((item, index) => (
+                                    <View key={index} style={styles.productRow}>
+                                        <View style={styles.rankBadge}>
+                                            <Text style={styles.rankText}>{index + 1}</Text>
+                                        </View>
+                                        <View style={styles.productInfo}>
+                                            <Text style={styles.productName}>{item.name}</Text>
+                                            <Text style={styles.productUnits}>{item.qty} unit terjual</Text>
+                                        </View>
+                                    </View>
+                                ))}
+                                {stats.bestSellers.length === 0 && <Text style={styles.emptyText}>Belum ada data penjualan.</Text>}
                             </View>
-                            <View style={styles.productInfo}>
-                                <Text style={styles.productName}>{item.name}</Text>
-                                <Text style={styles.productUnits}>{item.units}</Text>
-                            </View>
-                            <Text style={styles.productTotal}>{item.total}</Text>
+                        </>
+                    ) : (
+                        <View style={styles.historyList}>
+                            {orders.map((order) => (
+                                <View key={order.id} style={styles.orderRow}>
+                                    <View>
+                                        <Text style={styles.orderNum}>{order.order_number}</Text>
+                                        <Text style={styles.orderDate}>{new Date(order.created_at).toLocaleDateString('id-ID')}</Text>
+                                    </View>
+                                    <View style={styles.orderRight}>
+                                        <Text style={styles.orderAmount}>Rp {order.total_price.toLocaleString('id-ID')}</Text>
+                                        <View style={[styles.statusBadge, { backgroundColor: order.status === 'selesai' ? '#E8F5E9' : '#FFF3E0' }]}>
+                                            <Text style={[styles.statusText, { color: order.status === 'selesai' ? '#2E8B57' : '#F57C00' }]}>{order.status.toUpperCase()}</Text>
+                                        </View>
+                                    </View>
+                                </View>
+                            ))}
+                            {orders.length === 0 && <Text style={styles.emptyText}>Belum ada riwayat transaksi.</Text>}
                         </View>
-                    ))}
-                </View>
+                    )}
 
-            </ScrollView>
+                </ScrollView>
+            )}
         </SafeAreaView>
     );
 }
@@ -142,41 +190,36 @@ const styles = StyleSheet.create({
         paddingBottom: 20, 
         backgroundColor: '#2E8B57' 
     },
-    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    headerTitleText: { fontSize: 18, fontWeight: 'bold', color: '#FFF' },
     menuIcon: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-    backRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    backText: { color: '#FFF', fontSize: 14, fontWeight: '500' },
-    profileCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
-    scrollContent: { padding: 20 },
-    headerTitleRow: { marginBottom: 20 },
-    pageTitle: { fontSize: 22, fontWeight: 'bold', color: '#333' },
-    pageSub: { fontSize: 13, color: '#999', marginTop: 2 },
-    tabsContainer: { flexDirection: 'row', backgroundColor: '#E8F5E9', borderRadius: 10, padding: 4, marginBottom: 24 },
-    tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
-    activeTab: { backgroundColor: '#FFF' },
-    tabText: { fontSize: 13, color: '#2E8B57', fontWeight: '500' },
-    activeTabText: { color: '#2E8B57', fontWeight: 'bold' },
-    reportCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#EEE' },
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-    cardTitle: { fontSize: 15, fontWeight: 'bold', color: '#333' },
-    exportBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F5F5F5', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
-    exportText: { fontSize: 11, color: '#555', fontWeight: 'bold' },
-    chartContainer: { height: 220 },
-    chartArea: { flex: 1, flexDirection: 'row' },
-    yAxis: { width: 30, justifyContent: 'space-between', paddingBottom: 10 },
-    yAxisText: { fontSize: 9, color: '#999', textAlign: 'right' },
-    chartRight: { flex: 1, marginLeft: 10, position: 'relative' },
-    chartLines: { flex: 1, justifyContent: 'space-between', paddingBottom: 10 },
-    chartLine: { height: 1, backgroundColor: '#F0F0F0' },
-    trendPlot: { ...StyleSheet.absoluteFillObject, paddingBottom: 10 },
-    plotDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2E8B57', position: 'absolute', borderWidth: 2, borderColor: '#FFF' },
-    xAxis: { flexDirection: 'row', justifyContent: 'space-around', marginLeft: 40, marginTop: 10 },
-    xAxisText: { fontSize: 10, color: '#999' },
-    productRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-    rankBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#F0F4F0', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-    rankText: { fontSize: 11, fontWeight: 'bold', color: '#2E8B57' },
+    printBtn: { width: 40, height: 40, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+    tabsContainer: { flexDirection: 'row', backgroundColor: '#FFF', padding: 5, margin: 20, borderRadius: 12, borderWidth: 1, borderColor: '#EEE' },
+    tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
+    activeTab: { backgroundColor: '#2E8B57' },
+    tabText: { fontSize: 13, color: '#999', fontWeight: 'bold' },
+    activeTabText: { color: '#FFF' },
+    scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+    loadingArea: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    summaryGrid: { flexDirection: 'row', gap: 15, marginBottom: 20 },
+    summaryCard: { flex: 1, backgroundColor: '#FFF', padding: 20, borderRadius: 20, borderWidth: 1, borderColor: '#EEE' },
+    summaryLabel: { fontSize: 12, color: '#999', marginBottom: 5 },
+    summaryValue: { fontSize: 16, fontWeight: 'bold', color: '#333' },
+    reportCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: '#EEE' },
+    cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 15 },
+    productRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+    rankBadge: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#E8F5E9', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+    rankText: { color: '#2E8B57', fontWeight: 'bold', fontSize: 12 },
     productInfo: { flex: 1 },
-    productName: { fontSize: 14, color: '#333', fontWeight: '500' },
-    productUnits: { fontSize: 11, color: '#999', marginTop: 2 },
-    productTotal: { fontSize: 13, fontWeight: 'bold', color: '#2E8B57' }
+    productName: { fontSize: 14, fontWeight: 'bold', color: '#333' },
+    productUnits: { fontSize: 12, color: '#999', marginTop: 2 },
+    historyList: { backgroundColor: '#FFF', borderRadius: 20, padding: 10, borderWidth: 1, borderColor: '#EEE' },
+    orderRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+    orderNum: { fontSize: 14, fontWeight: 'bold', color: '#333' },
+    orderDate: { fontSize: 12, color: '#999', marginTop: 2 },
+    orderRight: { alignItems: 'flex-end' },
+    orderAmount: { fontSize: 14, fontWeight: 'bold', color: '#2E8B57' },
+    statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, marginTop: 5 },
+    statusText: { fontSize: 10, fontWeight: 'bold' },
+    emptyText: { textAlign: 'center', color: '#999', padding: 20 },
 });

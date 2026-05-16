@@ -35,12 +35,18 @@ export default function LoginScreen() {
             
             // Simpan ke context
             await login(res.data, res.access_token);
+            
+            alert('Login Berhasil sebagai ' + res.data.role);
 
-            if (res.data.role === 'admin') {
-                router.replace('/admin/dashboard' as any);
-            } else {
-                router.replace('/(tabs)' as any);
-            }
+            setTimeout(() => {
+                if (res.data.role === 'admin') {
+                    router.replace('/admin/dashboard' as any);
+                } else if (res.data.role === 'apoteker') {
+                    router.replace('/apoteker' as any);
+                } else {
+                    router.replace('/(tabs)' as any);
+                }
+            }, 500);
 
         } catch (e: any) {
             console.error('Error Login Detail:', e);

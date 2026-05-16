@@ -27,7 +27,7 @@ return new class extends Migration
             $table->text('usage_duration')->nullable();      // Jangka waktu penggunaan
             $table->text('composition')->nullable();         // Komposisi
             $table->text('contraindications')->nullable();   // Kontraindikasi
-            $table->string('image_url')->nullable();         // URL gambar obat
+            $table->text('image_url')->nullable();         // URL gambar obat
             $table->boolean('prescription_required')->default(false); // Perlu resep?
             $table->timestamps();
         });

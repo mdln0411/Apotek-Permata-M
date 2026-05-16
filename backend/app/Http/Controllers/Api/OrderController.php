@@ -100,4 +100,40 @@ class OrderController extends Controller
             'data' => $order
         ]);
     }
+
+    public function allOrders(Request $request)
+    {
+        if ($request->user()->role !== 'admin' && $request->user()->role !== 'apoteker') {
+            return response()->json(['status' => 'error', 'message' => 'Forbidden'], 403);
+        }
+
+        $orders = Order::with(['user', 'items'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $orders
+        ]);
+    }
+
+    public function updateStatus(Request $request, $id)
+    {
+        if ($request->user()->role !== 'admin' && $request->user()->role !== 'apoteker') {
+            return response()->json(['status' => 'error', 'message' => 'Forbidden'], 403);
+        }
+
+        $request->validate([
+            'status' => 'required|in:pending,diproses,selesai,dibatalkan'
+        ]);
+
+        $order = Order::findOrFail($id);
+        $order->update(['status' => $request->status]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Status pesanan berhasil diperbarui',
+            'data' => $order
+        ]);
+    }
 }
