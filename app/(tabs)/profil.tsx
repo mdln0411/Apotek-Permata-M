@@ -11,49 +11,27 @@ import {
     View,
     TextInput,
     Platform,
-    Alert
+    Alert,
+    Modal
 } from 'react-native';
 
 export default function ProfilScreen() {
     const { user, logout } = useAuth();
+    const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
     const handleLogout = async () => {
-        if (Platform.OS === 'web') {
-            const confirmLogout = window.confirm('Apakah Anda yakin ingin keluar?');
-            if (confirmLogout) {
-                try {
-                    await logout();
-                    router.replace('/login');
-                } catch (error) {
-                    console.error('Logout error:', error);
-                    router.replace('/login');
-                }
-            }
-            return;
-        }
+        setLogoutModalVisible(true);
+    };
 
-        setTimeout(() => {
-            Alert.alert(
-                'Konfirmasi Keluar',
-                'Apakah Anda yakin ingin keluar dari akun?',
-                [
-                    { text: 'Batal', style: 'cancel' },
-                    { 
-                        text: 'Keluar', 
-                        style: 'destructive',
-                        onPress: async () => {
-                            try {
-                                await logout();
-                                router.replace('/login');
-                            } catch (error) {
-                                console.error('Logout error:', error);
-                                router.replace('/login');
-                            }
-                        }
-                    }
-                ]
-            );
-        }, 100);
+    const confirmLogout = async () => {
+        try {
+            setLogoutModalVisible(false);
+            await logout();
+            router.replace('/login');
+        } catch (error) {
+            console.error('Logout error:', error);
+            router.replace('/login');
+        }
     };
 
     if (!user) {
@@ -140,6 +118,39 @@ export default function ProfilScreen() {
                 <Text style={styles.versionText}>Apotek Permata v1.0.0</Text>
 
             </ScrollView>
+
+            {/* Custom Logout Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={logoutModalVisible}
+                onRequestClose={() => setLogoutModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalIconBox}>
+                            <Feather name="log-out" size={30} color="#FF5252" />
+                        </View>
+                        <Text style={styles.modalTitle}>Konfirmasi Keluar</Text>
+                        <Text style={styles.modalMessage}>Apakah Anda yakin ingin keluar dari akun Apotek Permata?</Text>
+                        
+                        <View style={styles.modalActionRow}>
+                            <TouchableOpacity 
+                                style={[styles.modalBtn, styles.cancelBtn]} 
+                                onPress={() => setLogoutModalVisible(false)}
+                            >
+                                <Text style={styles.cancelBtnText}>Batal</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalBtn, styles.confirmBtn]} 
+                                onPress={confirmLogout}
+                            >
+                                <Text style={styles.confirmBtnText}>Keluar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -184,5 +195,76 @@ const styles = StyleSheet.create({
     menuText: { flex: 1, fontSize: 14, color: '#333' },
     logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 10, paddingVertical: 15 },
     logoutBtnText: { color: '#FF5252', fontSize: 15, fontWeight: 'bold' },
-    versionText: { textAlign: 'center', fontSize: 12, color: '#CCC', marginTop: 10 }
+    versionText: { textAlign: 'center', fontSize: 12, color: '#CCC', marginTop: 10 },
+    
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20
+    },
+    modalContent: {
+        width: '100%',
+        maxWidth: 340,
+        backgroundColor: '#FFF',
+        borderRadius: 25,
+        padding: 25,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10
+    },
+    modalIconBox: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#FFEBEE',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 10
+    },
+    modalMessage: {
+        fontSize: 14,
+        color: '#777',
+        textAlign: 'center',
+        lineHeight: 20,
+        marginBottom: 25
+    },
+    modalActionRow: {
+        flexDirection: 'row',
+        gap: 12
+    },
+    modalBtn: {
+        flex: 1,
+        height: 48,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    cancelBtn: {
+        backgroundColor: '#F5F5F5',
+    },
+    confirmBtn: {
+        backgroundColor: '#FF5252',
+    },
+    cancelBtnText: {
+        color: '#555',
+        fontWeight: 'bold',
+        fontSize: 14
+    },
+    confirmBtnText: {
+        color: '#FFF',
+        fontWeight: 'bold',
+        fontSize: 14
+    }
 });
