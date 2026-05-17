@@ -16,11 +16,31 @@ class MedicineController extends Controller
     {
         $query = Medicine::query();
 
-        // --- SEARCH berdasarkan nama obat ---
+        // --- SEARCH pintar berdasarkan kata kunci ---
         if ($request->filled('search')) {
-            $query->where(function($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('category', 'like', '%' . $request->search . '%');
+            $search = trim($request->search);
+            $words = preg_split('/\s+/', strtolower($search));
+            
+            // Kata-kata umum (stopwords) yang diabaikan agar pencarian lebih akurat dan tidak meluas
+            $stopwords = ['obat', 'dan', 'yang', 'untuk', 'dari', 'pada', 'dengan', 'ke', 'di', 'ini', 'itu', 'atau', 'ada', 'bisa', 'saya', 'dapat', 'mengatasi', 'meredakan', 'sakit'];
+            $filteredWords = array_filter($words, function($word) use ($stopwords) {
+                return strlen($word) >= 2 && !in_array($word, $stopwords);
+            });
+
+            if (empty($filteredWords)) {
+                $filteredWords = $words;
+            }
+
+            $query->where(function($q) use ($filteredWords) {
+                foreach ($filteredWords as $word) {
+                    $q->where(function($subQ) use ($word) {
+                        $subQ->orWhere('name', 'like', '%' . $word . '%')
+                             ->orWhere('category', 'like', '%' . $word . '%')
+                             ->orWhere('indication', 'like', '%' . $word . '%')
+                             ->orWhere('composition', 'like', '%' . $word . '%')
+                             ->orWhere('interactions', 'like', '%' . $word . '%');
+                    });
+                }
             });
         }
 

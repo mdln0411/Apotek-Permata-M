@@ -2,16 +2,31 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { CartProvider } from '../context/CartContext';
 import { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 
 function InitialLayout() {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
+  const protectedRoutes = [
+    'admin',
+    'apoteker',
+    'checkout',
+    'chat-room',
+    'edit-profil',
+    'detail-pesanan',
+    'ubah-kata-sandi',
+    'keamanan',
+    'upload-resep',
+    'pengingat',
+    'konsultasi',
+    'notifikasi'
+  ];
+  const inAuthGroup = protectedRoutes.includes(segments[0]);
+
   useEffect(() => {
     if (loading) return;
-
-    const inAuthGroup = segments[0] === '(tabs)' || segments[0] === 'admin' || segments[0] === 'apoteker';
 
     if (!user && inAuthGroup) {
       // Jika tidak login tapi mencoba akses halaman terproteksi
@@ -20,7 +35,6 @@ function InitialLayout() {
       // Role Guard: Cegah akses ke folder yang tidak sesuai role
       const isAccessingAdmin = segments[0] === 'admin';
       const isAccessingApoteker = segments[0] === 'apoteker';
-      const isAccessingMember = segments[0] === '(tabs)';
 
       if (isAccessingAdmin && user.role !== 'admin') {
         router.replace('/(tabs)');
@@ -35,6 +49,32 @@ function InitialLayout() {
     }
   }, [user, loading, segments]);
 
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' }}>
+        <ActivityIndicator size="large" color="#2E8B57" />
+      </View>
+    );
+  }
+
+  // Prevent rendering if the guest is attempting to access a protected route
+  if (!user && inAuthGroup) {
+    return null;
+  }
+
+  // Prevent rendering if the user has the wrong role
+  if (user) {
+    const isAccessingAdmin = segments[0] === 'admin';
+    const isAccessingApoteker = segments[0] === 'apoteker';
+
+    if (isAccessingAdmin && user.role !== 'admin') {
+      return null;
+    }
+    if (isAccessingApoteker && user.role !== 'apoteker' && user.role !== 'admin') {
+      return null;
+    }
+  }
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -42,6 +82,7 @@ function InitialLayout() {
       <Stack.Screen name="apoteker" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="chat-room" options={{ headerShown: false }} />
+      <Stack.Screen name="payment-qris" options={{ headerShown: false }} />
       <Stack.Screen name="notifikasi" options={{ headerShown: true }} />
     </Stack>
   );

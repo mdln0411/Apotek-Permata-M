@@ -4,7 +4,9 @@ import { useCart } from '@/context/CartContext';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { LoginPromptModal } from '@/components/LoginPromptModal';
 import {
+    Alert,
     Dimensions,
     Image,
     Platform,
@@ -38,10 +40,15 @@ const THEME = {
 
 export default function HomeScreen() {
     const { user, unreadChatCount } = useAuth();
-    const { itemCount } = useCart();
+    const { itemCount, addToCart } = useCart();
     const [medicines, setMedicines] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Modal state
+    const [loginModalVisible, setLoginModalVisible] = useState(false);
+    const [loginModalMessage, setLoginModalMessage] = useState('');
+    const [loginModalTitle, setLoginModalTitle] = useState('');
 
     useEffect(() => {
         fetchMedicines();
@@ -92,6 +99,40 @@ export default function HomeScreen() {
         }
     };
 
+    const handleMenuPress = (menu: typeof mainMenus[0]) => {
+        if (menu.name === 'Edukasi') {
+            // Halaman edukasi boleh diakses tamu
+            router.push(menu.route as any);
+            return;
+        }
+
+        if (!user) {
+            setLoginModalTitle('Login Diperlukan');
+            setLoginModalMessage(`Untuk menggunakan fitur ${menu.name}, silakan masuk ke akun Anda terlebih dahulu.`);
+            setLoginModalVisible(true);
+            return;
+        }
+
+        router.push(menu.route as any);
+    };
+
+    const handleBuyClick = async (item: any) => {
+        if (!user) {
+            setLoginModalTitle('Login Diperlukan');
+            setLoginModalMessage('Untuk menambahkan obat ke keranjang belanja, silakan masuk ke akun Anda terlebih dahulu.');
+            setLoginModalVisible(true);
+            return;
+        }
+
+        try {
+            await addToCart(item.id, 1);
+            Alert.alert('Berhasil', `${item.name} telah ditambahkan ke keranjang.`);
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            Alert.alert('Gagal', 'Terjadi kesalahan saat menambahkan obat ke keranjang.');
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
@@ -109,11 +150,22 @@ export default function HomeScreen() {
                     </View>
                 </View>
                 <View style={styles.headerIcons}>
-                    <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/notifikasi' as any)}>
+                    <TouchableOpacity 
+                        style={styles.iconButton} 
+                        onPress={() => {
+                            if (!user) {
+                                setLoginModalVisible(true);
+                            } else {
+                                router.push('/notifikasi' as any);
+                            }
+                        }}
+                    >
                         <Ionicons name="notifications-outline" size={24} color={THEME.white} />
-                        <View style={styles.badge}>
-                            <Text style={styles.badgeText}>3</Text>
-                        </View>
+                        {user && (
+                            <View style={styles.badge}>
+                                <Text style={styles.badgeText}>3</Text>
+                            </View>
+                        )}
                     </TouchableOpacity>
                 </View>
             </View>
@@ -168,7 +220,7 @@ export default function HomeScreen() {
                         <TouchableOpacity 
                             key={menu.id} 
                             style={styles.mainMenuItem} 
-                            onPress={() => router.push(menu.route as any)}
+                            onPress={() => handleMenuPress(menu)}
                         >
                             <View style={[styles.mainMenuIcon, { backgroundColor: menu.color }]}>
                                 <MaterialCommunityIcons name={menu.icon as any} size={28} color={menu.iconColor} />
@@ -203,7 +255,18 @@ export default function HomeScreen() {
                             <View style={styles.bannerTextSide}>
                                 <Text style={styles.bannerTitle}>Tebus Resep</Text>
                                 <Text style={styles.bannerDesc}>Kirim foto resep Anda, kami siapkan obatnya.</Text>
-                                <TouchableOpacity style={[styles.bannerBtn, { backgroundColor: '#1976D2' }]}>
+                                <TouchableOpacity 
+                                    style={[styles.bannerBtn, { backgroundColor: '#1976D2' }]}
+                                    onPress={() => {
+                                        if (!user) {
+                                            setLoginModalTitle('Login Diperlukan');
+                                            setLoginModalMessage('Untuk mengunggah resep obat, silakan masuk ke akun Anda terlebih dahulu.');
+                                            setLoginModalVisible(true);
+                                        } else {
+                                            router.push('/upload-resep' as any);
+                                        }
+                                    }}
+                                >
                                     <Text style={styles.bannerBtnText}>Unggah Foto</Text>
                                 </TouchableOpacity>
                             </View>
@@ -280,7 +343,10 @@ export default function HomeScreen() {
                             <View style={styles.productInfo}>
                                 <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                                 <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
-                                <TouchableOpacity style={styles.addBtnSmall}>
+                                <TouchableOpacity 
+                                    style={styles.addBtnSmall}
+                                    onPress={() => handleBuyClick(item)}
+                                >
                                     <Feather name="plus" size={16} color={THEME.white} />
                                     <Text style={styles.addBtnText}>Beli</Text>
                                 </TouchableOpacity>
@@ -310,6 +376,14 @@ export default function HomeScreen() {
 
                 <View style={{ height: 40 }} />
             </ScrollView>
+            {/* Custom Login Prompt Popup */}
+            <LoginPromptModal
+                visible={loginModalVisible}
+                onClose={() => setLoginModalVisible(false)}
+                onConfirm={() => router.push('/login' as any)}
+                title={loginModalTitle}
+                message={loginModalMessage}
+            />
         </SafeAreaView>
     );
 }
@@ -411,15 +485,14 @@ const styles = StyleSheet.create({
 
     mainMenuGrid: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
+        alignItems: 'flex-start',
+        paddingHorizontal: 15,
         marginTop: 25,
     },
     mainMenuItem: {
-        width: (SCREEN_WIDTH - 60) / 4,
+        flex: 1,
         alignItems: 'center',
-        marginBottom: 20,
     },
     mainMenuIcon: {
         width: 55,

@@ -68,6 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}', [OrderController::class, 'show']);
         Route::post('/{id}/confirm-received', [OrderController::class, 'confirmReceived']);
         Route::post('/{id}/report', [OrderController::class, 'reportIssue']);
+        Route::post('/{id}/pay', [OrderController::class, 'confirmPayment']);
     });
 
 

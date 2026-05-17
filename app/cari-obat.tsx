@@ -1,6 +1,4 @@
-import { Feather } from '@expo/vector-icons';
-import { router, Stack } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -9,42 +7,181 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { router, Stack } from 'expo-router';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { getMedicines, MedicineListItem } from '@/api/medicineService';
+import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
+import { LoginPromptModal } from '@/components/LoginPromptModal';
 
-const RECENT_SEARCHES_INITIAL = ['Paracetamol', 'Amoxicillin', 'Vitamin C', 'Obat Batuk'];
-const POPULAR_SEARCHES = ['Paracetamol 500mg', 'Amoxicillin', 'Vitamin D', 'Obat Flu', 'Antasida', 'Betadine'];
+const RECENT_SEARCHES_INITIAL = ['Paracetamol', 'Antasida', 'Vitamin C', 'Obat Batuk'];
+const POPULAR_SEARCHES = ['Paracetamol', 'Antasida', 'Vitamin D', 'Obat Flu', 'Amoxicillin', 'Betadine'];
 
-const MOCK_PRODUCTS = [
-  { id: 1, name: 'Paracetamol 500mg', category: 'Obat Bebas', price: 'Rp 15.000', rating: 4.8, emoji: '💊' },
-  { id: 2, name: 'Paracetamol Syrup 60ml', category: 'Obat Bebas', price: 'Rp 25.000', rating: 4.7, emoji: '🧴' },
-  { id: 3, name: 'Amoxicillin 500mg', category: 'Obat Keras', price: 'Rp 45.000', rating: 4.6, emoji: '💊' },
-  { id: 4, name: 'Vitamin C 1000mg', category: 'Vitamin & Suplemen', price: 'Rp 35.000', rating: 4.9, emoji: '🍊' },
-  { id: 5, name: 'Ibuprofen 400mg', category: 'Obat Bebas', price: 'Rp 20.000', rating: 4.5, emoji: '💊' },
-  { id: 6, name: 'Vitamin D 1000IU', category: 'Vitamin & Suplemen', price: 'Rp 55.000', rating: 4.8, emoji: '🌟' },
-  { id: 7, name: 'Antasida Tablet', category: 'Obat Bebas', price: 'Rp 12.000', rating: 4.3, emoji: '💊' },
-  { id: 8, name: 'Betadine 30ml', category: 'Obat Bebas', price: 'Rp 18.000', rating: 4.6, emoji: '🧴' },
-  { id: 9, name: 'Obat Flu Tablet', category: 'Obat Bebas', price: 'Rp 15.000', rating: 4.4, emoji: '💊' },
-  { id: 10, name: 'Obat Batuk Sirup', category: 'Obat Bebas', price: 'Rp 22.000', rating: 4.5, emoji: '🧴' },
+// Spelling Dictionary containing valid keywords
+const SEARCH_DICTIONARY = [
+  'paracetamol',
+  'amoxicillin',
+  'vitamin',
+  'ibuprofen',
+  'antasida',
+  'betadine',
+  'demam',
+  'batuk',
+  'flu',
+  'lambung',
+  'sakit kepala',
+  'sakit perut',
+  'pusing',
+  'maag',
+  'luka',
+  'mual',
+  'diare',
+  'sesak',
+  'alergi',
+  'kembung',
+  'perih',
+  'nyeri'
 ];
 
 export default function CariObatScreen() {
+  const { user } = useAuth();
+  const { addToCart } = useCart();
+  
   const [query, setQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState(RECENT_SEARCHES_INITIAL);
+  const [products, setProducts] = useState<MedicineListItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loginModalVisible, setLoginModalVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
+  // Debounced API call when query changes
+  useEffect(() => {
+    if (query.trim().length === 0) {
+      setProducts([]);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      try {
+        setLoading(true);
+        // Call backend API which searches name, category, and indication
+        const res = await getMedicines({ search: query.trim(), per_page: 50 });
+        setProducts(res.data);
+      } catch (e) {
+        console.error('Gagal memproses pencarian obat:', e);
+      } finally {
+        setLoading(false);
+      }
+    }, 400); // 400ms debounce to prevent excessive database queries
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [query]);
+
+  // Levenshtein Distance for spell-checking
+  const getLevenshteinDistance = (a: string, b: string): number => {
+    const tmp: number[][] = [];
+    let i, j;
+    for (i = 0; i <= a.length; i++) {
+      tmp[i] = [i];
+    }
+    for (j = 0; j <= b.length; j++) {
+      tmp[0][j] = j;
+    }
+    for (i = 1; i <= a.length; i++) {
+      for (j = 1; j <= b.length; j++) {
+        tmp[i][j] = Math.min(
+          tmp[i - 1][j] + 1,
+          tmp[i][j - 1] + 1,
+          tmp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+        );
+      }
+    }
+    return tmp[a.length][b.length];
+  };
+
+  // Google-style fuzzy "Did you mean" spelling suggestion generator
+  const getDidYouMean = (q: string): string => {
+    if (!q || q.length < 2) return '';
+    const words = q.toLowerCase().trim().split(/\s+/);
+    let corrected = false;
+
+    const correctedWords = words.map(word => {
+      if (word.length < 2) return word;
+      
+      // If word is already a perfect match or a substring of any word in dictionary, don't correct it
+      const hasPerfectMatch = SEARCH_DICTIONARY.some(dictWord => 
+        dictWord === word || dictWord.includes(word) || word.includes(dictWord)
+      );
+      if (hasPerfectMatch) return word;
+
+      // Find closest dictionary word
+      let bestMatch = word;
+      let minDistance = 999;
+
+      for (const dictWord of SEARCH_DICTIONARY) {
+        const dist = getLevenshteinDistance(word, dictWord);
+        if (dist < minDistance) {
+          minDistance = dist;
+          bestMatch = dictWord;
+        }
+      }
+
+      // Only suggest if distance is low (1 or 2 edits depending on word length)
+      const maxAllowedDist = word.length <= 4 ? 1 : 2;
+      if (minDistance > 0 && minDistance <= maxAllowedDist) {
+        corrected = true;
+        return bestMatch;
+      }
+
+      return word;
+    });
+
+    return corrected ? correctedWords.join(' ') : '';
+  };
+
+  const didYouMeanQuery = getDidYouMean(query);
+
   const isSearching = query.length > 0;
-  const filteredProducts = isSearching
-    ? MOCK_PRODUCTS.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
-    : [];
-  const hasResults = filteredProducts.length > 0;
+  const hasResults = products.length > 0;
 
   const removeRecent = (item: string) => {
     setRecentSearches(prev => prev.filter(s => s !== item));
   };
+  
   const clearAll = () => setRecentSearches([]);
+
   const handlePopularPress = (term: string) => {
     setQuery(term);
     inputRef.current?.focus();
+  };
+
+  const handleAddToCart = async (item: MedicineListItem) => {
+    if (!user) {
+      setLoginModalVisible(true);
+      return;
+    }
+    try {
+      if (item.stock === 0) {
+        Alert.alert('Habis', 'Stok obat ini sedang kosong.');
+        return;
+      }
+      await addToCart(item.id, 1);
+      Alert.alert('Sukses', `${item.name} berhasil ditambahkan ke keranjang.`);
+    } catch (e) {
+      console.error('Gagal tambah keranjang:', e);
+      Alert.alert('Error', 'Gagal menambahkan obat ke keranjang.');
+    }
+  };
+
+  const getFallbackEmoji = (category: string) => {
+    const cat = category?.toLowerCase() || '';
+    if (cat.includes('vitamin') || cat.includes('suplemen')) return '🍊';
+    if (cat.includes('keras')) return '🔴';
+    return '💊';
   };
 
   return (
@@ -67,7 +204,7 @@ export default function CariObatScreen() {
           <TextInput
             ref={inputRef}
             style={[styles.searchInput, { outline: 'none' } as any]}
-            placeholder="Cari obat, vitamin, suplemen..."
+            placeholder="Cari demam, lambung, sakit perut, mual..."
             placeholderTextColor="#BBB"
             value={query}
             onChangeText={setQuery}
@@ -86,7 +223,7 @@ export default function CariObatScreen() {
         {/* Result count + Filter */}
         <View style={styles.resultRow}>
           <Text style={styles.resultCount}>
-            {isSearching ? `${filteredProducts.length} hasil` : ''}
+            {isSearching ? (loading ? 'Mencari...' : `${products.length} hasil`) : ''}
           </Text>
           <TouchableOpacity
             style={styles.filterBtn}
@@ -98,47 +235,85 @@ export default function CariObatScreen() {
         </View>
       </View>
 
+      {/* Google-style "Mungkin maksud Anda" suggestion */}
+      {didYouMeanQuery ? (
+        <TouchableOpacity 
+          style={styles.didYouMeanContainer}
+          onPress={() => {
+            setQuery(didYouMeanQuery);
+            inputRef.current?.focus();
+          }}
+          activeOpacity={0.8}
+        >
+          <Feather name="alert-circle" size={16} color="#E65100" />
+          <Text style={styles.didYouMeanText}>
+            Mungkin maksud Anda:{' '}
+            <Text style={styles.didYouMeanLink}>
+              {didYouMeanQuery}
+            </Text>
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Loading Spinner */}
+        {loading && (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color="#2E8B57" />
+            <Text style={styles.loaderText}>Mencari obat terbaik untuk Anda...</Text>
+          </View>
+        )}
+
         {/* ── STATE: ADA HASIL ── */}
-        {isSearching && hasResults && (
+        {isSearching && !loading && hasResults && (
           <>
-            {filteredProducts.map(product => (
+            {products.map(product => (
               <TouchableOpacity
                 key={product.id}
                 style={styles.resultCard}
-                onPress={() => router.push('/detail-obat' as any)}
+                onPress={() => router.push({ pathname: '/detail-obat', params: { id: product.id } } as any)}
               >
                 <View style={styles.resultEmojiBox}>
-                  <Text style={styles.resultEmoji}>{product.emoji}</Text>
+                  {product.image_url ? (
+                    <Image 
+                      source={{ uri: product.image_url }} 
+                      style={styles.resultImage}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Text style={styles.resultEmoji}>{getFallbackEmoji(product.category)}</Text>
+                  )}
                 </View>
                 <View style={styles.resultInfo}>
-                  <Text style={styles.resultName}>{product.name}</Text>
+                  <Text style={styles.resultName} numberOfLines={2}>{product.name}</Text>
                   <View style={styles.resultMeta}>
                     <View style={styles.categoryBadge}>
                       <Text style={styles.categoryBadgeText}>{product.category}</Text>
                     </View>
-                    <Text style={styles.ratingText}>⭐ {product.rating}</Text>
+                    <Text style={styles.ratingText}>⭐ 4.8</Text>
                   </View>
-                  <Text style={styles.resultPrice}>{product.price}</Text>
+                  <Text style={styles.resultPrice}>{product.price_formatted}</Text>
                 </View>
                 <TouchableOpacity
-                  style={styles.addBtn}
-                  onPress={() => router.push('/keranjang' as any)}
+                  style={[styles.addBtn, product.stock === 0 && styles.addBtnDisabled]}
+                  onPress={() => handleAddToCart(product)}
+                  disabled={product.stock === 0}
                 >
-                  <Text style={styles.addBtnText}>+ Keranjang</Text>
+                  <Text style={styles.addBtnText}>
+                    {product.stock === 0 ? 'Habis' : '+ Keranjang'}
+                  </Text>
                 </TouchableOpacity>
               </TouchableOpacity>
             ))}
 
-
             {/* Pencarian Lain */}
             <View style={styles.pencLainCard}>
-              <Text style={styles.pencLainTitle}>🔍 Pencarian Lain:</Text>
+              <Text style={styles.pencLainTitle}>🔍 Rekomendasi Terkait:</Text>
               <View style={styles.pencLainTags}>
                 {POPULAR_SEARCHES
                   .filter(s => !s.toLowerCase().includes(query.toLowerCase()))
@@ -155,112 +330,98 @@ export default function CariObatScreen() {
               </View>
             </View>
           </>
-        )
-        }
+        )}
 
         {/* ── STATE: TIDAK ADA HASIL ── */}
-        {
-          isSearching && !hasResults && (
-            <>
-              <View style={styles.notFoundContainer}>
-                <View style={styles.notFoundIconBg}>
-                  <Feather name="search" size={40} color="#2E8B57" />
-                </View>
-                <Text style={styles.notFoundTitle}>Obat Tidak Ditemukan</Text>
-                <Text style={styles.notFoundSubtitle}>
-                  Maaf, kami tidak dapat menemukan obat{'\n'}yang Anda cari.
-                </Text>
+        {isSearching && !loading && !hasResults && (
+          <>
+            <View style={styles.notFoundContainer}>
+              <View style={styles.notFoundIconBg}>
+                <Feather name="search" size={40} color="#2E8B57" />
               </View>
+              <Text style={styles.notFoundTitle}>Obat Tidak Ditemukan</Text>
+              <Text style={styles.notFoundSubtitle}>
+                Maaf, kami tidak dapat menemukan obat dengan indikasi atau nama "{query}".
+              </Text>
+            </View>
 
-              <View style={styles.saranCard}>
-                <Text style={styles.saranTitle}>💡 Saran:</Text>
-                <Text style={styles.saranItem}>• Periksa ejaan kata kunci</Text>
-                <Text style={styles.saranItem}>• Gunakan kata kunci lebih umum</Text>
-                <Text style={styles.saranItem}>• Coba nama generik obat</Text>
-              </View>
+            <View style={styles.saranCard}>
+              <Text style={styles.saranTitle}>💡 Tips Pencarian Apotek Permata:</Text>
+              <Text style={styles.saranItem}>• Cari berdasarkan penyakit (contoh: "maag", "pusing", "pilek")</Text>
+              <Text style={styles.saranItem}>• Cari gejala keluhan Anda (contoh: "sakit kepala", "mual", "sakit perut")</Text>
+              <Text style={styles.saranItem}>• Coba nama kandungan obat (contoh: "Paracetamol", "Amoxicillin")</Text>
+            </View>
 
-              <Text style={styles.produkPopulerTitle}>🔥 Produk Populer:</Text>
-              <View style={styles.produkPopulerGrid}>
-                {MOCK_PRODUCTS.slice(0, 2).map(p => (
-                  <View key={p.id} style={styles.produkPopulerCard}>
-                    <Text style={styles.produkPopulerEmoji}>{p.emoji}</Text>
-                    <Text style={styles.produkPopulerName}>{p.name}</Text>
-                    <Text style={styles.produkPopulerPrice}>{p.price}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <TouchableOpacity style={styles.cariLagiBtn} onPress={() => setQuery('')}>
-                <Feather name="search" size={16} color="#FFF" />
-                <Text style={styles.cariLagiBtnText}>Cari Lagi</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.lihatSemuaBtn}
-                onPress={() => router.push('/katalog-obat' as any)}
-              >
-                <Feather name="grid" size={16} color="#2E8B57" />
-                <Text style={styles.lihatSemuaBtnText}>Lihat Semua</Text>
-              </TouchableOpacity>
-            </>
-          )
-        }
+            <TouchableOpacity style={styles.cariLagiBtn} onPress={() => setQuery('')}>
+              <Feather name="search" size={16} color="#FFF" />
+              <Text style={styles.cariLagiBtnText}>Bersihkan Pencarian</Text>
+            </TouchableOpacity>
+          </>
+        )}
 
         {/* ── STATE: DEFAULT (query kosong) ── */}
-        {
-          !isSearching && (
-            <>
-              {recentSearches.length > 0 && (
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <View style={styles.sectionTitleRow}>
-                      <Feather name="clock" size={16} color="#2E8B57" />
-                      <Text style={styles.sectionTitle}>Pencarian Terakhir</Text>
-                    </View>
-                    <TouchableOpacity onPress={clearAll}>
-                      <Text style={styles.hapusText}>Hapus Semua</Text>
-                    </TouchableOpacity>
-                  </View>
-                  {recentSearches.map(item => (
-                    <View key={item} style={styles.recentItem}>
-                      <Text style={styles.recentText}>{item}</Text>
-                      <TouchableOpacity onPress={() => removeRecent(item)}>
-                        <Feather name="x" size={16} color="#AAA" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
-
+        {!isSearching && (
+          <>
+            {recentSearches.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <View style={styles.sectionTitleRow}>
-                    <Feather name="trending-up" size={16} color="#2E8B57" />
-                    <Text style={styles.sectionTitle}>Pencarian Populer</Text>
+                    <Feather name="clock" size={16} color="#2E8B57" />
+                    <Text style={styles.sectionTitle}>Pencarian Terakhir</Text>
                   </View>
+                  <TouchableOpacity onPress={clearAll}>
+                    <Text style={styles.hapusText}>Hapus Semua</Text>
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.tagsContainer}>
-                  {POPULAR_SEARCHES.map(term => (
-                    <TouchableOpacity
-                      key={term}
-                      style={styles.tag}
-                      onPress={() => handlePopularPress(term)}
-                    >
-                      <Text style={styles.tagText}>{term}</Text>
+                {recentSearches.map(item => (
+                  <View key={item} style={styles.recentItem}>
+                    <TouchableOpacity style={{ flex: 1 }} onPress={() => handlePopularPress(item)}>
+                      <Text style={styles.recentText}>{item}</Text>
                     </TouchableOpacity>
-                  ))}
+                    <TouchableOpacity onPress={() => removeRecent(item)}>
+                      <Feather name="x" size={16} color="#AAA" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleRow}>
+                  <Feather name="trending-up" size={16} color="#2E8B57" />
+                  <Text style={styles.sectionTitle}>Pencarian Populer</Text>
                 </View>
               </View>
-
-              <View style={styles.tipsCard}>
-                <Text style={styles.tipsTitle}>💡 Tips Pencarian</Text>
-                <Text style={styles.tipItem}>• Gunakan nama obat yang spesifik</Text>
-                <Text style={styles.tipItem}>• Coba cari berdasarkan gejala atau penyakit</Text>
-                <Text style={styles.tipItem}>• Gunakan kata kunci seperti "obat sakit kepala"</Text>
+              <View style={styles.tagsContainer}>
+                {POPULAR_SEARCHES.map(term => (
+                  <TouchableOpacity
+                    key={term}
+                    style={styles.tag}
+                    onPress={() => handlePopularPress(term)}
+                  >
+                    <Text style={styles.tagText}>{term}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            </>
-          )
-        }
+            </View>
+
+            <View style={styles.tipsCard}>
+              <Text style={styles.tipsTitle}>💡 Tips Pencarian Pintar</Text>
+              <Text style={styles.tipItem}>• Ketik keluhan seperti "sakit kepala" atau "sakit perut".</Text>
+              <Text style={styles.tipItem}>• Sistem kami mendeteksi typo dan memberikan rekomendasi otomatis.</Text>
+              <Text style={styles.tipItem}>• Indikasi lengkap ditarik langsung dari database kami.</Text>
+            </View>
+          </>
+        )}
       </ScrollView >
+
+      {/* Guest Mode Modal Interceptor */}
+      <LoginPromptModal 
+        visible={loginModalVisible}
+        onClose={() => setLoginModalVisible(false)}
+        promptMessage="Silakan masuk akun terlebih dahulu untuk menambahkan produk obat ke keranjang belanja Anda."
+      />
     </SafeAreaView >
   );
 }
@@ -325,6 +486,18 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingTop: 16, paddingBottom: 40, paddingHorizontal: 16 },
 
+  /* Loader */
+  loaderContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 12,
+  },
+  loaderText: {
+    fontSize: 14,
+    color: '#666',
+  },
+
   /* ── HASIL DITEMUKAN ── */
   resultCard: {
     flexDirection: 'row',
@@ -349,8 +522,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    overflow: 'hidden',
   },
-  resultEmoji: { fontSize: 28 },
+  resultEmoji: { fontSize: 24 },
+  resultImage: {
+    width: '100%',
+    height: '100%',
+  },
   resultInfo: { flex: 1 },
   resultName: { fontSize: 14, fontWeight: 'bold', color: '#222', marginBottom: 4 },
   resultMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
@@ -368,6 +546,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  addBtnDisabled: {
+    backgroundColor: '#ECEFF1',
   },
   addBtnText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
 
@@ -403,7 +584,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   notFoundTitle: { fontSize: 20, fontWeight: 'bold', color: '#222', marginBottom: 8 },
-  notFoundSubtitle: { fontSize: 14, color: '#777', textAlign: 'center', lineHeight: 22 },
+  notFoundSubtitle: { fontSize: 14, color: '#777', textAlign: 'center', lineHeight: 22, paddingHorizontal: 20 },
 
   saranCard: {
     backgroundColor: '#FFF',
@@ -414,22 +595,7 @@ const styles = StyleSheet.create({
     borderColor: '#E8E8E8',
   },
   saranTitle: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 8 },
-  saranItem: { fontSize: 13, color: '#555', lineHeight: 22 },
-
-  produkPopulerTitle: { fontSize: 15, fontWeight: 'bold', color: '#222', marginBottom: 12 },
-  produkPopulerGrid: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  produkPopulerCard: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    borderRadius: 14,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-  },
-  produkPopulerEmoji: { fontSize: 36, marginBottom: 10 },
-  produkPopulerName: { fontSize: 13, fontWeight: 'bold', color: '#333', textAlign: 'center', marginBottom: 4 },
-  produkPopulerPrice: { fontSize: 13, color: '#2E8B57', fontWeight: '600' },
+  saranItem: { fontSize: 13, color: '#555', lineHeight: 22, marginBottom: 4 },
 
   cariLagiBtn: {
     backgroundColor: '#2E8B57',
@@ -442,18 +608,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cariLagiBtnText: { color: '#FFF', fontSize: 15, fontWeight: 'bold' },
-  lihatSemuaBtn: {
-    borderRadius: 14,
-    paddingVertical: 13,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1.5,
-    borderColor: '#2E8B57',
-    backgroundColor: '#FFF',
-  },
-  lihatSemuaBtnText: { color: '#2E8B57', fontSize: 15, fontWeight: '600' },
 
   /* ── DEFAULT STATE ── */
   section: { marginBottom: 24 },
@@ -503,4 +657,27 @@ const styles = StyleSheet.create({
   },
   tipsTitle: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 10 },
   tipItem: { fontSize: 13, color: '#555', lineHeight: 22 },
+
+  /* Spelling Correction styles */
+  didYouMeanContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFE0B2',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFD180',
+    gap: 8,
+  },
+  didYouMeanText: {
+    fontSize: 13,
+    color: '#E65100',
+    flex: 1,
+  },
+  didYouMeanLink: {
+    fontWeight: 'bold',
+    fontStyle: 'italic',
+    textDecorationLine: 'underline',
+    color: '#D84315',
+  },
 });
