@@ -62,23 +62,10 @@ export default function ChatRoom() {
             const response = await axiosClient.post(`/api/consultations/${id}/messages`, {
                 message: textToSend
             });
-            
-            // Tambahkan pesan baru ke list dan scroll ke bawah
-            if (response.data && response.data.data) {
-                setMessages(prev => [...prev, response.data.data]);
-                setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-            }
-        } catch (error: any) {
-            console.error('Send message error:', error?.response?.data || error.message);
-            
-            // Kembalikan teks ke input jika gagal
-            setInputText(textToSend);
-            
-            if (Platform.OS === 'web') {
-                window.alert('Gagal mengirim pesan. Silakan periksa koneksi atau coba lagi nanti.');
-            } else {
-                alert('Gagal mengirim pesan');
-            }
+            setMessages([...messages, response.data.data]);
+            setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
+        } catch (error) {
+            alert('Gagal mengirim pesan');
         }
     };
 

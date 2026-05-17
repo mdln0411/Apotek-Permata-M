@@ -1,7 +1,7 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { CartProvider } from '../context/CartContext';
-import { useEffect } from 'react';
 
 function InitialLayout() {
   const { user, loading } = useAuth();
