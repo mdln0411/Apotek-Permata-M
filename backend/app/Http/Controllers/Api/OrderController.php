@@ -177,5 +177,25 @@ class OrderController extends Controller
             'data' => $order
         ]);
     }
+
+    public function confirmPayment(Request $request, $id)
+    {
+        $order = Order::where('user_id', $request->user()->id)->findOrFail($id);
+        
+        if ($order->status !== 'pending') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pesanan ini sudah dibayar atau tidak berstatus pending.'
+            ], 400);
+        }
+
+        $order->update(['status' => 'diproses']);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Pembayaran berhasil dikonfirmasi! Pesanan Anda sedang diproses oleh apoteker.',
+            'data' => $order
+        ]);
+    }
 }
 

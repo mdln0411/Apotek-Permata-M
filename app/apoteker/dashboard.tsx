@@ -3,27 +3,23 @@ import { useAuth } from '@/context/AuthContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { 
-    SafeAreaView, 
-    ScrollView, 
-    StyleSheet, 
-    Text, 
-    TouchableOpacity, 
-    View, 
+import {
     Platform,
-    ActivityIndicator
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 export default function ApotekerDashboard() {
-    const { user, logout, unreadChatCount } = useAuth();
-
+    const { user, logout } = useAuth();
     const [stats, setStats] = useState({
         pendingOrders: 0,
-        reportedOrders: 0,
         lowStock: 0,
         totalConsultations: 0
     });
-
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -36,18 +32,15 @@ export default function ApotekerDashboard() {
             // Ambil data pesanan untuk dihitung statistiknya
             const orderRes = await axiosClient.get('/api/admin/orders');
             const medRes = await axiosClient.get('/api/medicines?per_page=500');
-            
-            const pending = orderRes.data.data.filter((o: any) => o.status === 'pending' || o.status === 'menunggu').length;
-            const reported = orderRes.data.data.filter((o: any) => o.status === 'dilaporkan').length;
+
+            const pending = orderRes.data.data.filter((o: any) => o.status === 'pending').length;
             const low = medRes.data.data.filter((m: any) => m.stock < 10).length;
 
             setStats({
                 pendingOrders: pending,
-                reportedOrders: reported,
                 lowStock: low,
-                totalConsultations: 0 
+                totalConsultations: 0 // Fitur mendatang
             });
-
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
         } finally {
@@ -76,10 +69,10 @@ export default function ApotekerDashboard() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                
+
                 {/* Stats Cards */}
                 <View style={styles.statsGrid}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         style={[styles.statCard, { borderLeftColor: '#1976D2' }]}
                         onPress={() => router.push('/apoteker')}
                     >
@@ -87,19 +80,18 @@ export default function ApotekerDashboard() {
                         <Text style={[styles.statValue, { color: '#1976D2' }]}>{stats.pendingOrders}</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
-                        style={[styles.statCard, { borderLeftColor: '#FF5252' }]}
-                        onPress={() => router.push('/apoteker')}
+                    <TouchableOpacity
+                        style={[styles.statCard, { borderLeftColor: '#F57C00' }]}
+                        onPress={() => router.push('/apoteker/manage-stock')}
                     >
-                        <Text style={styles.statLabel}>Laporan Baru</Text>
-                        <Text style={[styles.statValue, { color: '#FF5252' }]}>{stats.reportedOrders}</Text>
+                        <Text style={styles.statLabel}>Stok Menipis</Text>
+                        <Text style={[styles.statValue, { color: '#F57C00' }]}>{stats.lowStock}</Text>
                     </TouchableOpacity>
                 </View>
 
-
                 {/* Quick Actions */}
                 <Text style={styles.sectionTitle}>Menu Utama Apoteker</Text>
-                
+
                 <View style={styles.menuContainer}>
                     <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/apoteker')}>
                         <View style={[styles.iconBg, { backgroundColor: '#E3F2FD' }]}>
@@ -142,13 +134,7 @@ export default function ApotekerDashboard() {
                             <Text style={styles.menuTitle}>Konsultasi Online</Text>
                             <Text style={styles.menuDesc}>Tanya jawab dengan pasien</Text>
                         </View>
-                        {unreadChatCount > 0 && (
-                            <View style={styles.badgeCount}>
-                                <Text style={styles.badgeCountText}>{unreadChatCount}</Text>
-                            </View>
-                        )}
                         <Feather name="chevron-right" size={20} color="#CCC" />
-
                     </TouchableOpacity>
                 </View>
 
@@ -159,13 +145,13 @@ export default function ApotekerDashboard() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FBF8' },
-    header: { 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        paddingHorizontal: 24, 
-        paddingTop: Platform.OS === 'ios' ? 20 : 60, 
-        paddingBottom: 25, 
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingTop: Platform.OS === 'ios' ? 20 : 60,
+        paddingBottom: 25,
         backgroundColor: '#FFF',
         borderBottomWidth: 1,
         borderBottomColor: '#EEE'
@@ -185,7 +171,4 @@ const styles = StyleSheet.create({
     menuInfo: { flex: 1, marginLeft: 16 },
     menuTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
     menuDesc: { fontSize: 12, color: '#999', marginTop: 2 },
-    badgeCount: { backgroundColor: '#FF5252', borderRadius: 10, minWidth: 20, height: 20, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 6, marginRight: 8 },
-    badgeCountText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' }
 });
-

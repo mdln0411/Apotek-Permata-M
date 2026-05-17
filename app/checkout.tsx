@@ -75,19 +75,29 @@ export default function CheckoutScreen() {
                 console.log('Order created successfully:', res.data.data);
                 await refreshCart(); 
                 
-                // Pindah ke success screen dengan dua pilihan
-                router.replace({
-                    pathname: '/success-action',
-                    params: {
-                        title: 'Pesanan Sudah Dipesan!',
-                        message: 'Pesanan Anda telah berhasil dibuat. Apoteker kami akan segera menyiapkan obat Anda.',
-                        target: '/(tabs)',
-                        buttonText: 'Ke Beranda',
-                        secondaryTarget: '/(tabs)/pesanan',
-                        secondaryButtonText: 'Lihat Pesanan Saya'
-                    }
-                } as any);
-
+                if (selectedPayment.id === '1') {
+                    router.replace({
+                        pathname: '/payment-qris',
+                        params: {
+                            orderId: res.data.data.id,
+                            orderNumber: res.data.data.order_number,
+                            totalPrice: total
+                        }
+                    } as any);
+                } else {
+                    // Pindah ke success screen dengan dua pilihan
+                    router.replace({
+                        pathname: '/success-action',
+                        params: {
+                            title: 'Pesanan Sudah Dipesan!',
+                            message: 'Pesanan Anda telah berhasil dibuat. Apoteker kami akan segera menyiapkan obat Anda.',
+                            target: '/(tabs)',
+                            buttonText: 'Ke Beranda',
+                            secondaryTarget: '/(tabs)/pesanan',
+                            secondaryButtonText: 'Lihat Pesanan Saya'
+                        }
+                    } as any);
+                }
             }
         } catch (e: any) {
             console.error('Checkout error detail:', e.response?.data || e.message);

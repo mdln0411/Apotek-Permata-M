@@ -23,42 +23,42 @@ const THEME = {
 const INITIAL_NOTIFICATIONS = [
     {
         id: '1',
-        title: 'Pesanan Dikirim',
-        desc: 'Pesanan #ORD-9921 Anda sedang dalam perjalanan oleh kurir.',
-        time: '5 mnt yang lalu',
-        icon: 'truck-delivery-outline',
+        title: 'Kategori Obat Baru!',
+        desc: 'Sekarang tersedia kategori obat Demam, Vitamin, dan P3K di katalog kami.',
+        time: 'Baru saja',
+        icon: 'medical-bag',
+        color: '#E8F5E9',
+        iconColor: '#2E8B57',
+        isRead: false
+    },
+    {
+        id: '2',
+        title: 'Artikel Kesehatan Baru',
+        desc: 'Baca artikel: "Mengenal Jenis-Jenis Antibiotik" untuk wawasan kesehatan Anda.',
+        time: '10 mnt yang lalu',
+        icon: 'book-open-variant',
         color: '#E3F2FD',
         iconColor: '#1976D2',
         isRead: false
     },
     {
-        id: '2',
-        title: 'Promo Flash Sale!',
-        desc: 'Dapatkan diskon hingga 50% untuk produk vitamin hari ini saja.',
-        time: '2 jam yang lalu',
-        icon: 'sale',
+        id: '3',
+        title: 'Pesanan Diproses',
+        desc: 'Pesanan #ORD-1002 Anda sedang disiapkan oleh Apoteker Permata.',
+        time: '1 jam yang lalu',
+        icon: 'clock-outline',
         color: '#FFF3E0',
         iconColor: '#F57C00',
         isRead: false
     },
     {
-        id: '3',
-        title: 'Pengingat Obat',
-        desc: 'Waktunya minum Amoxicillin sesuai jadwal Anda.',
-        time: '4 jam yang lalu',
-        icon: 'bell-ring-outline',
+        id: '4',
+        title: 'Promo Vitamin',
+        desc: 'Diskon 20% untuk semua jenis Vitamin hari ini!',
+        time: '5 jam yang lalu',
+        icon: 'sale',
         color: '#F3E5F5',
         iconColor: '#7B1FA2',
-        isRead: true
-    },
-    {
-        id: '4',
-        title: 'Konsultasi Selesai',
-        desc: 'Dokter telah memberikan resep digital untuk keluhan Anda.',
-        time: '1 hari yang lalu',
-        icon: 'message-check-outline',
-        color: '#E8F5E9',
-        iconColor: '#2E8B57',
         isRead: true
     }
 ];
