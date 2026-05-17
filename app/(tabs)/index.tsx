@@ -79,7 +79,9 @@ export default function HomeScreen() {
         { id: '1', name: 'Konsultasi', icon: 'chat-processing-outline', color: '#E3F2FD', iconColor: '#1976D2', route: '/konsultasi' },
         { id: '2', name: 'Unggah Resep', icon: 'camera-outline', color: '#FFF3E0', iconColor: '#F57C00', route: '/upload-resep' },
         { id: '3', name: 'Pengingat', icon: 'bell-outline', color: '#F3E5F5', iconColor: '#7B1FA2', route: '/pengingat' },
-        { id: '4', name: 'Edukasi', icon: 'book-open-variant', color: '#E8F5E9', iconColor: '#2E8B57', route: '/(tabs)/index' }, // Links to the section below or specific page
+        { id: '4', name: 'Alergi Saya', icon: 'heart-outline', color: '#FFEBEE', iconColor: '#D32F2F', route: '/alergi-obat' },
+        { id: '5', name: 'Simulasi', icon: 'flask-outline', color: '#E8EAF6', iconColor: '#3F51B5', route: '/simulasi-obat' },
+        { id: '6', name: 'Edukasi', icon: 'book-open-variant', color: '#E8F5E9', iconColor: '#2E8B57', route: '/(tabs)/index' }, // Links to the section below or specific page
     ];
 
     const categories = [
@@ -485,14 +487,16 @@ const styles = StyleSheet.create({
 
     mainMenuGrid: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         paddingHorizontal: 15,
         marginTop: 25,
     },
     mainMenuItem: {
-        flex: 1,
+        width: '33.33%',
         alignItems: 'center',
+        marginBottom: 16,
     },
     mainMenuIcon: {
         width: 55,
