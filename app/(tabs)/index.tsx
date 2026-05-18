@@ -216,16 +216,12 @@ export default function HomeScreen() {
                     </View>
                 </View>
 
-                {/* Main Action Menus Horizontal Slider */}
-                <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.mainMenuSlider}
-                >
+                {/* Main Action Menus */}
+                <View style={styles.mainMenuGrid}>
                     {mainMenus.map((menu) => (
                         <TouchableOpacity 
                             key={menu.id} 
-                            style={styles.mainMenuSliderItem} 
+                            style={styles.mainMenuItem} 
                             onPress={() => handleMenuPress(menu)}
                         >
                             <View style={[styles.mainMenuIcon, { backgroundColor: menu.color }]}>
@@ -239,7 +235,7 @@ export default function HomeScreen() {
                             <Text style={styles.mainMenuLabel}>{menu.name}</Text>
                         </TouchableOpacity>
                     ))}
-                </ScrollView>
+                </View>
 
                 {/* Banners */}
                 <View style={styles.sectionPadding}>
@@ -489,16 +485,18 @@ const styles = StyleSheet.create({
     healthQuote: { fontSize: 12, color: THEME.textDark, lineHeight: 18, textAlign: 'center', fontWeight: '500', fontStyle: 'italic' },
     quoteAuthor: { fontSize: 10, color: THEME.primary, textAlign: 'right', marginTop: 4, fontWeight: 'bold' },
 
-    mainMenuSlider: {
-        paddingHorizontal: 20,
-        paddingTop: 15,
-        paddingBottom: 5,
+    mainMenuGrid: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        paddingHorizontal: 15,
+        marginTop: 25,
     },
-    mainMenuSliderItem: {
-        width: 78,
+    mainMenuItem: {
+        width: '33.33%',
         alignItems: 'center',
-        marginRight: 10,
+        marginBottom: 16,
     },
     mainMenuIcon: {
         width: 55,
