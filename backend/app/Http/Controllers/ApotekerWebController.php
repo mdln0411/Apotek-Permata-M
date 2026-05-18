@@ -33,7 +33,30 @@ class ApotekerWebController extends Controller
         $query = Order::with(['user', 'items.medicine']);
         
         if ($request->has('status') && $request->status != '') {
-            $query->where('status', $request->status);
+            if ($request->status === 'dilaporkan') {
+                $query->where(function($q) {
+                    $q->where('status', 'dilaporkan')
+                      ->orWhere(function($sq) {
+                          $sq->where('status', 'dibatalkan')
+                             ->where(function($ssq) {
+                                 $ssq->where('notes', 'like', '%pengguna%')
+                                     ->orWhere('notes', 'like', '%pembeli%')
+                                     ->orWhereNull('notes')
+                                     ->orWhere('notes', '');
+                             });
+                      });
+                });
+            } else if ($request->status === 'batal_pasien') {
+                $query->where('status', 'dibatalkan')
+                      ->where(function($q) {
+                          $q->where('notes', 'like', '%pengguna%')
+                            ->orWhere('notes', 'like', '%pembeli%')
+                            ->orWhereNull('notes')
+                            ->orWhere('notes', '');
+                      });
+            } else {
+                $query->where('status', $request->status);
+            }
         }
 
         $orders = $query->latest()->get();
@@ -80,7 +103,42 @@ class ApotekerWebController extends Controller
             'status' => 'required|in:menunggu,diproses,dikirim,selesai,dibatalkan'
         ]);
 
-        $order->update(['status' => $request->status]);
+        $oldStatus = $order->status;
+        $newStatus = $request->status;
+
+        // Return stock if cancelled
+        if ($newStatus === 'dibatalkan' && $oldStatus !== 'dibatalkan') {
+            foreach ($order->items as $item) {
+                $medicine = Medicine::find($item->medicine_id);
+                if ($medicine) {
+                    $medicine->increment('stock', $item->quantity);
+                }
+            }
+        }
+
+        $order->update(['status' => $newStatus]);
+
+        // Send Notification
+        $title = '';
+        $message = '';
+        if ($newStatus === 'diproses') {
+            $title = 'Pesanan Diproses';
+            $message = "Pesanan Anda {$order->order_number} sedang diproses oleh apoteker.";
+        } else if ($newStatus === 'dikirim') {
+            $title = 'Pesanan Dikirim';
+            $message = "Pesanan Anda {$order->order_number} sedang dalam perjalanan ke alamat Anda.";
+        } else if ($newStatus === 'selesai') {
+            $title = 'Pesanan Selesai';
+            $message = "Pesanan Anda {$order->order_number} telah selesai. Terima kasih!";
+        } else if ($newStatus === 'dibatalkan') {
+            $title = 'Pesanan Dibatalkan';
+            $message = "Pesanan Anda {$order->order_number} telah dibatalkan oleh apoteker.";
+        }
+
+        if ($title && $message) {
+            $order->user->notify(new \App\Notifications\AppNotification($title, $message, 'order'));
+        }
+
         return back()->with('success', 'Status pesanan berhasil diperbarui.');
     }
 
@@ -168,10 +226,48 @@ class ApotekerWebController extends Controller
     }
 
 
-    public function prescriptions()
+    public function prescriptions(Request $request)
     {
-        $prescriptions = Prescription::with('user')->latest()->get();
+        $query = Prescription::with('user');
+        
+        if ($request->has('status') && $request->status != '') {
+            $query->where('status', $request->status);
+        }
+        
+        $prescriptions = $query->latest()->get();
         return view('apoteker.prescriptions', compact('prescriptions'));
+    }
+
+    public function exportPrescriptions(Request $request)
+    {
+        $query = Prescription::with('user');
+        
+        if ($request->has('status') && $request->status != '') {
+            $query->where('status', $request->status);
+        }
+        
+        $prescriptions = $query->latest()->get();
+        $filename = "laporan_resep_" . date('Y-m-d') . ".csv";
+        $handle = fopen('php://output', 'w');
+        
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        fputcsv($handle, ['ID Resep', 'Pasien', 'Email Pasien', 'Status', 'Catatan', 'Tanggal Diunggah']);
+
+        foreach ($prescriptions as $p) {
+            fputcsv($handle, [
+                $p->id,
+                $p->user ? $p->user->name : 'Guest',
+                $p->user ? $p->user->email : '-',
+                $p->status,
+                $p->notes ?? '-',
+                $p->created_at->format('Y-m-d H:i')
+            ]);
+        }
+
+        fclose($handle);
+        exit;
     }
 
     public function updatePrescriptionStatus(Request $request, Prescription $prescription)

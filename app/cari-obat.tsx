@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { router, Stack } from 'expo-router';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { getMedicines, MedicineListItem } from '@/api/medicineService';
 import { useAuth } from '@/context/AuthContext';
@@ -46,6 +46,42 @@ const SEARCH_DICTIONARY = [
   'perih',
   'nyeri'
 ];
+
+const renderMedicineImage = (item: any) => {
+    // Jika image_url adalah URL online lengkap, tampilkan gambar aslinya!
+    if (item.image_url && (item.image_url.startsWith('http://') || item.image_url.startsWith('https://'))) {
+        return (
+            <Image 
+                source={{ uri: item.image_url }} 
+                style={styles.resultImage || { width: '100%', height: '100%' }} 
+                resizeMode="contain"
+            />
+        );
+    }
+
+    const unitLower = (item.unit || '').toLowerCase();
+    const nameLower = (item.name || '').toLowerCase();
+    const isLiquid = unitLower.includes('ml') || unitLower.includes('botol') || unitLower.includes('cair') || nameLower.includes('sirup') || nameLower.includes('cair') || nameLower.includes('drop') || nameLower.includes('suspensi');
+    const iconName = isLiquid ? 'bottle-tonic-plus' : 'pill';
+    
+    const bgColors = ['#E8F5E9', '#E3F2FD', '#FFF3E0', '#F3E5F5', '#E8EAF6'];
+    const textColors = ['#2E8B57', '#1976D2', '#F57C00', '#7B1FA2', '#3F51B5'];
+    
+    let hash = 0;
+    const name = item.name || '';
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colorIndex = Math.abs(hash) % bgColors.length;
+    const bgColor = bgColors[colorIndex];
+    const textColor = textColors[colorIndex];
+
+    return (
+        <View style={{ width: '100%', height: '100%', backgroundColor: bgColor, justifyContent: 'center', alignItems: 'center' }}>
+            <MaterialCommunityIcons name={iconName as any} size={28} color={textColor} />
+        </View>
+    );
+};
 
 export default function CariObatScreen() {
   const { user } = useAuth();
@@ -279,15 +315,7 @@ export default function CariObatScreen() {
                 onPress={() => router.push({ pathname: '/detail-obat', params: { id: product.id } } as any)}
               >
                 <View style={styles.resultEmojiBox}>
-                  {product.image_url ? (
-                    <Image 
-                      source={{ uri: product.image_url }} 
-                      style={styles.resultImage}
-                      resizeMode="contain"
-                    />
-                  ) : (
-                    <Text style={styles.resultEmoji}>{getFallbackEmoji(product.category)}</Text>
-                  )}
+                  {renderMedicineImage(product)}
                 </View>
                 <View style={styles.resultInfo}>
                   <Text style={styles.resultName} numberOfLines={2}>{product.name}</Text>

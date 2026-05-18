@@ -1,10 +1,10 @@
 import axiosClient from '@/api/axiosClient';
-import { LoginPromptModal } from '@/components/LoginPromptModal';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router, Stack, useFocusEffect } from 'expo-router';
-import React, { useEffect, useState, useCallback } from 'react';
+import { router, Stack } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { LoginPromptModal } from '@/components/LoginPromptModal';
 import {
     Alert,
     Dimensions,
@@ -38,48 +38,10 @@ const THEME = {
     error: '#E74C3C',
 };
 
-const renderMedicineImage = (item: any) => {
-    // Jika image_url adalah URL online lengkap, tampilkan gambar aslinya!
-    if (item.image_url && (item.image_url.startsWith('http://') || item.image_url.startsWith('https://'))) {
-        return (
-            <Image 
-                source={{ uri: item.image_url }} 
-                style={styles.productImage || { width: '100%', height: '100%' }} 
-                resizeMode="contain"
-            />
-        );
-    }
-
-    const unitLower = (item.unit || '').toLowerCase();
-    const nameLower = (item.name || '').toLowerCase();
-    const isLiquid = unitLower.includes('ml') || unitLower.includes('botol') || unitLower.includes('cair') || nameLower.includes('sirup') || nameLower.includes('cair') || nameLower.includes('drop') || nameLower.includes('suspensi');
-    const iconName = isLiquid ? 'bottle-tonic-plus' : 'pill';
-    
-    // Curated soft background and solid HSL text color pairings
-    const bgColors = ['#E8F5E9', '#E3F2FD', '#FFF3E0', '#F3E5F5', '#E8EAF6'];
-    const textColors = ['#2E8B57', '#1976D2', '#F57C00', '#7B1FA2', '#3F51B5'];
-    
-    let hash = 0;
-    const name = item.name || '';
-    for (let i = 0; i < name.length; i++) {
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const colorIndex = Math.abs(hash) % bgColors.length;
-    const bgColor = bgColors[colorIndex];
-    const textColor = textColors[colorIndex];
-
-    return (
-        <View style={{ width: '100%', height: '100%', backgroundColor: bgColor, justifyContent: 'center', alignItems: 'center' }}>
-            <MaterialCommunityIcons name={iconName as any} size={44} color={textColor} />
-        </View>
-    );
-};
-
 export default function HomeScreen() {
     const { user, unreadChatCount } = useAuth();
     const { itemCount, addToCart } = useCart();
     const [medicines, setMedicines] = useState<any[]>([]);
-    const [education, setEducation] = useState<any[]>([]); // Data edukasi dari DB
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -88,31 +50,9 @@ export default function HomeScreen() {
     const [loginModalMessage, setLoginModalMessage] = useState('');
     const [loginModalTitle, setLoginModalTitle] = useState('');
 
-    const [unreadNotifCount, setUnreadNotifCount] = useState(0);
-
-    const fetchUnreadNotificationCount = async () => {
-        if (!user) {
-            setUnreadNotifCount(0);
-            return;
-        }
-        try {
-            const response = await axiosClient.get('/api/notifications');
-            if (response.data && response.data.data) {
-                const unread = response.data.data.filter((n: any) => n.read_at === null).length;
-                setUnreadNotifCount(unread);
-            }
-        } catch (error) {
-            console.error('Error fetching unread notification count:', error);
-        }
-    };
-
-    useFocusEffect(
-        useCallback(() => {
-            fetchMedicines();
-            fetchEducation();
-            fetchUnreadNotificationCount();
-        }, [user])
-    );
+    useEffect(() => {
+        fetchMedicines();
+    }, []);
 
     const fetchMedicines = async () => {
         try {
@@ -124,17 +64,6 @@ export default function HomeScreen() {
             console.error('Error fetching medicines:', error);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const fetchEducation = async () => {
-        try {
-            const response = await axiosClient.get('/api/education');
-            if (response.data && response.data.data) {
-                setEducation(response.data.data.slice(0, 3)); // Ambil 3 saja untuk beranda
-            }
-        } catch (error) {
-            console.error('Error fetching education:', error);
         }
     };
 
@@ -152,7 +81,7 @@ export default function HomeScreen() {
         { id: '3', name: 'Pengingat', icon: 'bell-outline', color: '#F3E5F5', iconColor: '#7B1FA2', route: '/pengingat' },
         { id: '4', name: 'Alergi Saya', icon: 'heart-outline', color: '#FFEBEE', iconColor: '#D32F2F', route: '/alergi-obat' },
         { id: '5', name: 'Simulasi', icon: 'flask-outline', color: '#E8EAF6', iconColor: '#3F51B5', route: '/simulasi-obat' },
-        { id: '6', name: 'Edukasi', icon: 'book-open-variant', color: '#E8F5E9', iconColor: '#2E8B57', route: '/edukasi' }, 
+        { id: '6', name: 'Edukasi', icon: 'book-open-variant', color: '#E8F5E9', iconColor: '#2E8B57', route: '/(tabs)/index' }, // Links to the section below or specific page
     ];
 
     const categories = [
@@ -234,9 +163,9 @@ export default function HomeScreen() {
                         }}
                     >
                         <Ionicons name="notifications-outline" size={24} color={THEME.white} />
-                        {user && unreadNotifCount > 0 && (
+                        {user && (
                             <View style={styles.badge}>
-                                <Text style={styles.badgeText}>{unreadNotifCount}</Text>
+                                <Text style={styles.badgeText}>3</Text>
                             </View>
                         )}
                     </TouchableOpacity>
@@ -254,12 +183,11 @@ export default function HomeScreen() {
                             <Feather name="search" size={20} color={THEME.textMuted} />
                             <TextInput 
                                 placeholder="Cari obat, vitamin, atau gejala..."
-                                style={[styles.searchInput, { outlineStyle: 'none' } as any]}
+                                style={styles.searchInput}
                                 value={searchQuery}
                                 onChangeText={setSearchQuery}
                                 onSubmitEditing={handleSearch}
                                 returnKeyType="search"
-                                underlineColorAndroid="transparent"
                             />
                             {searchQuery.length > 0 && (
                                 <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -276,8 +204,8 @@ export default function HomeScreen() {
                         <View style={styles.welcomeTop}>
                             <MaterialCommunityIcons name="account-star" size={24} color={THEME.primary} />
                             <View style={styles.welcomeInfo}>
-                                <Text style={styles.welcomeMemberText}>Selamat Datang!</Text>
-                                <Text style={styles.memberUserName}>{user?.name || 'di Apotek Permata'}</Text>
+                                <Text style={styles.welcomeMemberText}>Selamat Datang, Member!</Text>
+                                <Text style={styles.memberUserName}>{user?.name || 'Tamu Setia'}</Text>
                             </View>
                         </View>
                         <View style={styles.memberDivider} />
@@ -288,12 +216,16 @@ export default function HomeScreen() {
                     </View>
                 </View>
 
-                {/* Main Action Menus */}
-                <View style={styles.mainMenuGrid}>
+                {/* Main Action Menus Horizontal Slider */}
+                <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.mainMenuSlider}
+                >
                     {mainMenus.map((menu) => (
                         <TouchableOpacity 
                             key={menu.id} 
-                            style={styles.mainMenuItem} 
+                            style={styles.mainMenuSliderItem} 
                             onPress={() => handleMenuPress(menu)}
                         >
                             <View style={[styles.mainMenuIcon, { backgroundColor: menu.color }]}>
@@ -307,7 +239,7 @@ export default function HomeScreen() {
                             <Text style={styles.mainMenuLabel}>{menu.name}</Text>
                         </TouchableOpacity>
                     ))}
-                </View>
+                </ScrollView>
 
                 {/* Banners */}
                 <View style={styles.sectionPadding}>
@@ -396,7 +328,18 @@ export default function HomeScreen() {
                             onPress={() => router.push({ pathname: '/detail-obat', params: { id: item.id } } as any)}
                         >
                             <View style={styles.productImageWrapper}>
-                                {renderMedicineImage(item)}
+                                {item.image_url ? (
+                                    <Image 
+                                        source={{ 
+                                            uri: item.image_url.startsWith('http') 
+                                                ? item.image_url 
+                                                : `http://10.0.2.2:8000/storage/${item.image_url}` 
+                                        }} 
+                                        style={styles.productImage} 
+                                    />
+                                ) : (
+                                    <MaterialCommunityIcons name="pill" size={40} color="#BDC3C7" />
+                                )}
                                 {item.stock < 5 && (
                                     <View style={styles.stockLabel}>
                                         <Text style={styles.stockText}>Sisa {item.stock}</Text>
@@ -406,6 +349,13 @@ export default function HomeScreen() {
                             <View style={styles.productInfo}>
                                 <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                                 <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
+                                <TouchableOpacity 
+                                    style={styles.addBtnSmall}
+                                    onPress={() => handleBuyClick(item)}
+                                >
+                                    <Feather name="plus" size={16} color={THEME.white} />
+                                    <Text style={styles.addBtnText}>Beli</Text>
+                                </TouchableOpacity>
                             </View>
                         </TouchableOpacity>
                     ))}
@@ -415,44 +365,19 @@ export default function HomeScreen() {
                 {/* Edukasi / Artikel */}
                 <View style={[styles.sectionHeader, { marginTop: 10 }]}>
                     <Text style={styles.sectionTitle}>Edukasi Kesehatan</Text>
-                    <TouchableOpacity onPress={() => router.push('/edukasi' as any)}>
-                        <Text style={styles.seeMore}>Lihat Semua</Text>
-                    </TouchableOpacity>
                 </View>
                 <View style={styles.articleList}>
-                    {education.length > 0 ? (
-                        education.map((item) => (
-                            <TouchableOpacity 
-                                key={item.id} 
-                                style={styles.articleCard}
-                                onPress={() => router.push('/edukasi' as any)}
-                            >
-                                <Image 
-                                    source={{ uri: item.image_url || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?q=80&w=200&auto=format&fit=crop' }} 
-                                    style={styles.articleImage} 
-                                />
-                                <View style={styles.articleContent}>
-                                    <View style={styles.tagWrapper}>
-                                        <Text style={styles.articleTag}>{item.category?.toUpperCase() || 'TIPS'}</Text>
-                                    </View>
-                                    <Text style={styles.articleTitle} numberOfLines={2}>{item.title}</Text>
-                                    <Text style={styles.articleMeta}>{item.author || 'Admin'} • {new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</Text>
-                                </View>
-                            </TouchableOpacity>
-                        ))
-                    ) : (
-                        <TouchableOpacity style={styles.articleCard} onPress={() => router.push('/edukasi' as any)}>
-                            <Image 
-                                source={{ uri: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?q=80&w=200&auto=format&fit=crop' }} 
-                                style={styles.articleImage} 
-                            />
-                            <View style={styles.articleContent}>
-                                <Text style={styles.articleTag}>TIPS KESEHATAN</Text>
-                                <Text style={styles.articleTitle}>Cara Alami Atasi Batuk Berdahak Tanpa Obat Kimia</Text>
-                                <Text style={styles.articleMeta}>Admin • 12 Mei 2026</Text>
-                            </View>
-                        </TouchableOpacity>
-                    )}
+                    <TouchableOpacity style={styles.articleCard}>
+                        <Image 
+                            source={{ uri: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?q=80&w=200&auto=format&fit=crop' }} 
+                            style={styles.articleImage} 
+                        />
+                        <View style={styles.articleContent}>
+                            <Text style={styles.articleTag}>TIPS KESEHATAN</Text>
+                            <Text style={styles.articleTitle}>Cara Alami Atasi Batuk Berdahak Tanpa Obat Kimia</Text>
+                            <Text style={styles.articleMeta}>Admin • 12 Mei 2026</Text>
+                        </View>
+                    </TouchableOpacity>
                 </View>
 
                 <View style={{ height: 40 }} />
@@ -564,18 +489,16 @@ const styles = StyleSheet.create({
     healthQuote: { fontSize: 12, color: THEME.textDark, lineHeight: 18, textAlign: 'center', fontWeight: '500', fontStyle: 'italic' },
     quoteAuthor: { fontSize: 10, color: THEME.primary, textAlign: 'right', marginTop: 4, fontWeight: 'bold' },
 
-    mainMenuGrid: {
+    mainMenuSlider: {
+        paddingHorizontal: 20,
+        paddingTop: 15,
+        paddingBottom: 5,
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        paddingHorizontal: 15,
-        marginTop: 25,
     },
-    mainMenuItem: {
-        width: '33.33%',
+    mainMenuSliderItem: {
+        width: 78,
         alignItems: 'center',
-        marginBottom: 16,
+        marginRight: 10,
     },
     mainMenuIcon: {
         width: 55,
@@ -661,7 +584,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     productCard: {
-        width: '48%',
+        width: (SCREEN_WIDTH - 45) / 2,
         backgroundColor: THEME.white,
         borderRadius: 15,
         marginBottom: 15,
@@ -721,8 +644,7 @@ const styles = StyleSheet.create({
     },
     articleImage: { width: 80, height: 80, borderRadius: 12 },
     articleContent: { flex: 1, marginLeft: 15, justifyContent: 'center' },
-    tagWrapper: { backgroundColor: '#E8F5E9', alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginBottom: 4 },
-    articleTag: { fontSize: 10, fontWeight: 'bold', color: THEME.primary, marginBottom: 0 },
+    articleTag: { fontSize: 10, fontWeight: 'bold', color: THEME.secondary, marginBottom: 4 },
     articleTitle: { fontSize: 14, fontWeight: 'bold', color: THEME.textDark, lineHeight: 20 },
     articleMeta: { fontSize: 10, color: THEME.textMuted, marginTop: 6 },
 });

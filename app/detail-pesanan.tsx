@@ -1,6 +1,6 @@
 import axiosClient from '@/api/axiosClient';
 import { useAuth } from '@/context/AuthContext';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -15,7 +15,8 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
+    KeyboardAvoidingView
 } from 'react-native';
 
 
@@ -47,6 +48,42 @@ interface OrderDetail {
 }
 
 
+const renderMedicineImage = (item: any) => {
+    // Jika image_url adalah URL online lengkap, tampilkan gambar aslinya!
+    if (item.image_url && (item.image_url.startsWith('http://') || item.image_url.startsWith('https://'))) {
+        return (
+            <Image 
+                source={{ uri: item.image_url }} 
+                style={styles.itemImage || { width: '100%', height: '100%' }} 
+                resizeMode="cover"
+            />
+        );
+    }
+
+    const unitLower = (item.unit || '').toLowerCase();
+    const nameLower = (item.name || '').toLowerCase();
+    const isLiquid = unitLower.includes('ml') || unitLower.includes('botol') || unitLower.includes('cair') || nameLower.includes('sirup') || nameLower.includes('cair') || nameLower.includes('drop') || nameLower.includes('suspensi');
+    const iconName = isLiquid ? 'bottle-tonic-plus' : 'pill';
+    
+    const bgColors = ['#E8F5E9', '#E3F2FD', '#FFF3E0', '#F3E5F5', '#E8EAF6'];
+    const textColors = ['#2E8B57', '#1976D2', '#F57C00', '#7B1FA2', '#3F51B5'];
+    
+    let hash = 0;
+    const name = item.name || '';
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colorIndex = Math.abs(hash) % bgColors.length;
+    const bgColor = bgColors[colorIndex];
+    const textColor = textColors[colorIndex];
+
+    return (
+        <View style={{ width: '100%', height: '100%', backgroundColor: bgColor, justifyContent: 'center', alignItems: 'center' }}>
+            <MaterialCommunityIcons name={iconName as any} size={20} color={textColor} />
+        </View>
+    );
+};
+
 export default function DetailPesananScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const { user } = useAuth();
@@ -61,6 +98,41 @@ export default function DetailPesananScreen() {
     // Status Update Modal State
     const [confirmModalVisible, setConfirmModalVisible] = useState(false);
     const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+
+    // Cancellation Modal State
+    const [cancelModalVisible, setCancelModalVisible] = useState(false);
+    const [cancelReason, setCancelReason] = useState('');
+    const [isApotekerCancel, setIsApotekerCancel] = useState(false);
+
+    const submitCancellation = async () => {
+        if (!cancelReason) {
+            Alert.alert('Error', 'Silakan masukkan alasan pembatalan');
+            return;
+        }
+        try {
+            setUpdating(true);
+            const res = await axiosClient.post(`/api/orders/${id}/cancel`, { reason: cancelReason });
+            if (res.data.status === 'success') {
+                setOrder(prev => prev ? { ...prev, status: 'dibatalkan' } : null);
+                setCancelModalVisible(false);
+                setCancelReason('');
+                
+                router.push({
+                    pathname: '/success-action',
+                    params: {
+                        title: 'Pesanan Dibatalkan',
+                        message: `Pesanan #${order?.order_number} telah berhasil dibatalkan.`,
+                        target: user?.role === 'apoteker' ? '/apoteker' : '/(tabs)/pesanan'
+                    }
+                } as any);
+            }
+        } catch (e: any) {
+            console.error('Failed to cancel order:', e.response?.data || e.message);
+            Alert.alert('Gagal', e.response?.data?.message || 'Terjadi kesalahan saat membatalkan pesanan');
+        } finally {
+            setUpdating(false);
+        }
+    };
 
 
 
@@ -300,6 +372,57 @@ export default function DetailPesananScreen() {
                 </View>
             </Modal>
 
+            {/* Modal Pembatalan Pesanan dengan Alasan */}
+            <Modal
+                visible={cancelModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setCancelModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <KeyboardAvoidingView 
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                        style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                        <View style={styles.modalContent}>
+                            <View style={[styles.iconCircle, { backgroundColor: '#FFEBEE' }]}>
+                                <Ionicons name="close-circle" size={40} color="#D32F2F" />
+                            </View>
+                            <Text style={styles.modalTitle}>Batalkan Pesanan?</Text>
+                            <Text style={styles.modalSubtitle}>Silakan masukkan alasan pembatalan pesanan ini:</Text>
+                            
+                            <TextInput
+                                style={styles.textArea}
+                                placeholder="Tulis alasan pembatalan di sini (contoh: Salah input obat, Ingin ganti metode bayar, Stok obat habis...)"
+                                multiline
+                                numberOfLines={4}
+                                value={cancelReason}
+                                onChangeText={setCancelReason}
+                            />
+
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity 
+                                    style={[styles.modalBtn, styles.btnCancel]} 
+                                    onPress={() => {
+                                        setCancelModalVisible(false);
+                                        setCancelReason('');
+                                    }}
+                                >
+                                    <Text style={styles.btnCancelText}>Kembali</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    style={[styles.modalBtn, { backgroundColor: '#D32F2F' }]} 
+                                    onPress={submitCancellation}
+                                    disabled={updating}
+                                >
+                                    {updating ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnSubmitText}>Ya, Batalkan</Text>}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </KeyboardAvoidingView>
+                </View>
+            </Modal>
+
             {/* Header */}
 
 
@@ -385,17 +508,7 @@ export default function DetailPesananScreen() {
                     {o.items.map((item) => (
                         <View key={item.id} style={styles.itemRow}>
                             <View style={styles.itemImageContainer}>
-                                {item.medicine?.image_url ? (
-                                    <Image 
-                                        source={{ uri: item.medicine.image_url }} 
-                                        style={styles.itemImage}
-                                        resizeMode="cover"
-                                    />
-                                ) : (
-                                    <View style={styles.fallbackIcon}>
-                                        <Ionicons name="medical" size={24} color="#2E8B57" />
-                                    </View>
-                                )}
+                                {renderMedicineImage(item.medicine || { name: item.name, image_url: item.medicine?.image_url })}
                             </View>
                             <View style={styles.itemMain}>
                                 <Text style={styles.itemName}>{item.name}</Text>
@@ -430,10 +543,25 @@ export default function DetailPesananScreen() {
                 </View>
 
                 {/* User Actions */}
-                {user?.role === 'member' && (o.status === 'dikirim' || o.status === 'selesai') && (
+                {/* User Actions */}
+                {user?.role === 'member' && (o.status === 'pending' || o.status === 'diproses' || o.status === 'dikirim' || o.status === 'selesai') && (
                     <View style={styles.userActionSection}>
                         <Text style={styles.actionSectionTitle}>Aksi Pesanan</Text>
                         <View style={styles.actionRow}>
+                            {/* Member can cancel if status is pending or diproses */}
+                            {(o.status === 'pending' || o.status === 'diproses') && (
+                                <TouchableOpacity 
+                                    style={[styles.btnAction, { backgroundColor: '#D32F2F' }]} 
+                                    onPress={() => {
+                                        setIsApotekerCancel(false);
+                                        setCancelModalVisible(true);
+                                    }}
+                                    disabled={updating}
+                                >
+                                    <Text style={styles.btnActionText}>Batalkan Pesanan</Text>
+                                </TouchableOpacity>
+                            )}
+
                             {o.status === 'dikirim' && (
                                 <TouchableOpacity 
                                     style={[styles.btnAction, { backgroundColor: '#2E8B57' }]} 
@@ -443,16 +571,18 @@ export default function DetailPesananScreen() {
                                     <Text style={styles.btnActionText}>Konfirmasi Diterima</Text>
                                 </TouchableOpacity>
                             )}
-                            <TouchableOpacity 
-                                style={[styles.btnAction, { backgroundColor: '#FF5252', flex: 0.8 }]} 
-                                onPress={handleReportIssue}
-                                disabled={updating}
-                            >
-                                <Text style={styles.btnActionText}>Laporkan Masalah</Text>
-                            </TouchableOpacity>
+
+                            {(o.status === 'dikirim' || o.status === 'selesai') && (
+                                <TouchableOpacity 
+                                    style={[styles.btnAction, { backgroundColor: '#FF5252', flex: 0.8 }]} 
+                                    onPress={handleReportIssue}
+                                    disabled={updating}
+                                >
+                                    <Text style={styles.btnActionText}>Laporkan Masalah</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                         {o.status === 'selesai' && (
-
                             <Text style={styles.infoTextSmall}>
                                 Jika Anda belum menerima obat tetapi status sudah "Selesai", silakan klik "Laporkan Masalah".
                             </Text>
@@ -462,7 +592,6 @@ export default function DetailPesananScreen() {
 
                 {/* Pharmacist Actions */}
                 {user?.role === 'apoteker' && (
-
                     <View style={styles.pharmacistSection}>
                         <Text style={styles.adminTitle}>Panel Apoteker</Text>
                         <View style={styles.actionRow}>
@@ -496,7 +625,10 @@ export default function DetailPesananScreen() {
                             {o.status !== 'selesai' && o.status !== 'dibatalkan' && (
                                 <TouchableOpacity 
                                     style={[styles.btnAction, { backgroundColor: '#D32F2F' }]} 
-                                    onPress={() => confirmStatusUpdate('dibatalkan')}
+                                    onPress={() => {
+                                        setIsApotekerCancel(true);
+                                        setCancelModalVisible(true);
+                                    }}
                                     disabled={updating}
                                 >
                                     <Text style={styles.btnActionText}>Batalkan</Text>

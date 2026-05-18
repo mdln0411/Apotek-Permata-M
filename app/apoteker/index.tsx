@@ -1,7 +1,7 @@
 import axiosClient from '@/api/axiosClient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
     Platform,
@@ -32,6 +32,14 @@ export default function PesananMasuk() {
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [masalahFilter, setMasalahFilter] = useState<'semua' | 'dilaporkan' | 'dibatalkan'>('semua');
+
+    const isCancelledByUser = (o: any) => {
+        const status = (o.status || '').toLowerCase().trim();
+        if (status !== 'dibatalkan') return false;
+        const notes = (o.notes || '').toLowerCase();
+        return notes.includes('pengguna') || notes.includes('pembeli') || (!notes.includes('apoteker') && !notes.includes('admin'));
+    };
 
     const fetchOrders = async () => {
         try {
@@ -83,7 +91,16 @@ export default function PesananMasuk() {
             return status === 'selesai' || status === 'completed';
         }
         if (activeTab === 'dilaporkan') {
-            return status === 'dilaporkan' || status === 'reported';
+            const isMasalah = status === 'dilaporkan' || status === 'reported' || isCancelledByUser(o);
+            if (!isMasalah) return false;
+
+            if (masalahFilter === 'dilaporkan') {
+                return status === 'dilaporkan' || status === 'reported';
+            }
+            if (masalahFilter === 'dibatalkan') {
+                return isCancelledByUser(o);
+            }
+            return true;
         }
         return false;
     });
@@ -109,7 +126,7 @@ export default function PesananMasuk() {
             const status = (o.status || 'pending').toLowerCase().trim();
             if (id === 'menunggu') return status === 'pending' || status === 'menunggu';
             if (id === 'diproses') return status === 'diproses' || status === 'processing';
-            if (id === 'dilaporkan') return status === 'dilaporkan' || status === 'reported';
+            if (id === 'dilaporkan') return status === 'dilaporkan' || status === 'reported' || isCancelledByUser(o);
             return false;
         }).length;
     };
@@ -143,9 +160,32 @@ export default function PesananMasuk() {
                 </ScrollView>
             </View>
 
+            {activeTab === 'dilaporkan' && (
+                <View style={styles.segmentContainer}>
+                    <TouchableOpacity 
+                        style={[styles.segmentBtn, masalahFilter === 'semua' && styles.activeSegmentBtn]}
+                        onPress={() => setMasalahFilter('semua')}
+                    >
+                        <Text style={[styles.segmentText, masalahFilter === 'semua' && styles.activeSegmentText]}>Semua</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={[styles.segmentBtn, masalahFilter === 'dilaporkan' && styles.activeSegmentBtn]}
+                        onPress={() => setMasalahFilter('dilaporkan')}
+                    >
+                        <Text style={[styles.segmentText, masalahFilter === 'dilaporkan' && styles.activeSegmentText]}>Laporan Masalah</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={[styles.segmentBtn, masalahFilter === 'dibatalkan' && styles.activeSegmentBtn]}
+                        onPress={() => setMasalahFilter('dibatalkan')}
+                    >
+                        <Text style={[styles.segmentText, masalahFilter === 'dibatalkan' && styles.activeSegmentText]}>Batal Pasien</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
             <ScrollView 
                 showsVerticalScrollIndicator={false} 
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={[styles.scrollContent, activeTab === 'dilaporkan' && { paddingTop: 10 }]}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME.primary]} />}
             >
                 {loading && !refreshing ? (
@@ -162,13 +202,15 @@ export default function PesananMasuk() {
                                 <View style={styles.headerInfo}>
                                     <View style={[styles.statusBadge, 
                                         item.status === 'pending' || item.status === 'menunggu' ? { backgroundColor: '#FFF3E0' } :
-                                        item.status === 'dilaporkan' ? { backgroundColor: '#FFEBEE' } : { backgroundColor: '#E8F5E9' }
+                                        item.status === 'dilaporkan' ? { backgroundColor: '#FFEBEE' } : 
+                                        item.status === 'dibatalkan' ? { backgroundColor: '#ECEFF1' } : { backgroundColor: '#E8F5E9' }
                                     ]}>
                                         <Text style={[styles.statusLabel, 
                                             item.status === 'pending' || item.status === 'menunggu' ? { color: '#E65100' } :
-                                            item.status === 'dilaporkan' ? { color: THEME.danger } : { color: THEME.primary }
+                                            item.status === 'dilaporkan' ? { color: THEME.danger } : 
+                                            item.status === 'dibatalkan' ? { color: '#455A64' } : { color: THEME.primary }
                                         ]}>
-                                            {(item.status || 'Baru').toUpperCase()}
+                                            {item.status === 'dibatalkan' ? 'DIBATALKAN PASIEN' : (item.status || 'Baru').toUpperCase()}
                                         </Text>
                                     </View>
                                     <Text style={styles.orderNumber}>ORD-{item.id}{new Date(item.created_at).getTime().toString().slice(-4)}</Text>
@@ -192,6 +234,17 @@ export default function PesananMasuk() {
                                     <Text style={styles.infoLabel}>Total Pembayaran</Text>
                                     <Text style={[styles.infoValue, { color: THEME.primary, fontSize: 16 }]}>Rp {Number(item.total_amount || item.total_price || 0).toLocaleString('id-ID')}</Text>
                                 </View>
+
+                                {activeTab === 'dilaporkan' && (item.notes || item.reason) && (
+                                    <View style={[styles.problemNoteBox, { borderLeftColor: item.status === 'dibatalkan' ? '#607D8B' : THEME.danger }]}>
+                                        <Text style={styles.problemNoteTitle}>
+                                            {item.status === 'dibatalkan' ? 'Alasan Pembatalan:' : 'Detail Laporan:'}
+                                        </Text>
+                                        <Text style={styles.problemNoteText}>
+                                            {item.notes || item.reason || 'Tidak ada alasan khusus.'}
+                                        </Text>
+                                    </View>
+                                )}
                             </View>
 
                             <View style={styles.cardActions}>
@@ -221,10 +274,12 @@ export default function PesananMasuk() {
                                 )}
                                 {activeTab === 'dilaporkan' && (
                                     <TouchableOpacity 
-                                        style={[styles.btnTerima, { backgroundColor: THEME.danger }]}
+                                        style={[styles.btnTerima, { backgroundColor: item.status === 'dibatalkan' ? '#607D8B' : THEME.danger }]}
                                         onPress={() => router.push({ pathname: '/detail-pesanan', params: { id: item.id } } as any)}
                                     >
-                                        <Text style={styles.btnTerimaText}>Tinjau Masalah</Text>
+                                        <Text style={styles.btnTerimaText}>
+                                            {item.status === 'dibatalkan' ? 'Detail Batal' : 'Tinjau Masalah'}
+                                        </Text>
                                     </TouchableOpacity>
                                 )}
 
@@ -296,5 +351,53 @@ const styles = StyleSheet.create({
     btnTerimaText: { color: THEME.white, fontWeight: '700', fontSize: 14 },
     btnDetail: { width: 50, backgroundColor: THEME.white, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: THEME.border },
     emptyContainer: { alignItems: 'center', marginTop: 80 },
-    emptyText: { color: THEME.textMuted, marginTop: 15, fontSize: 15, fontWeight: '500' }
+    emptyText: { color: THEME.textMuted, marginTop: 15, fontSize: 15, fontWeight: '500' },
+    segmentContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#ECEFF1',
+        borderRadius: 12,
+        padding: 4,
+        marginHorizontal: 20,
+        marginTop: 15,
+        justifyContent: 'space-between',
+        gap: 6,
+    },
+    segmentBtn: {
+        flex: 1,
+        paddingVertical: 8,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    activeSegmentBtn: {
+        backgroundColor: THEME.white,
+        elevation: 2,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2,
+    },
+    segmentText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#546E7A',
+    },
+    activeSegmentText: {
+        color: THEME.primary,
+        fontWeight: 'bold',
+    },
+    problemNoteBox: {
+        backgroundColor: '#F5F5F5',
+        borderRadius: 12,
+        padding: 12,
+        marginTop: 10,
+        borderLeftWidth: 4,
+    },
+    problemNoteTitle: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: THEME.textDark,
+        marginBottom: 4,
+    },
+    problemNoteText: {
+        fontSize: 12,
+        color: '#555',
+        lineHeight: 18,
+    },
 });

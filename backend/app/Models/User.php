@@ -28,6 +28,19 @@ class User extends Authenticatable
         'address',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($user) {
+            $user->notifications()->delete();
+            if ($user->cart) {
+                $user->cart()->delete();
+            }
+            $user->allergies()->delete();
+        });
+    }
+
     public function cart()
     {
         return $this->hasOne(Cart::class);
@@ -36,6 +49,11 @@ class User extends Authenticatable
     public function orders()
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function allergies()
+    {
+        return $this->hasMany(Allergy::class);
     }
 
     /**

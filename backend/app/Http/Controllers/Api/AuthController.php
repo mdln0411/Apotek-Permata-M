@@ -29,6 +29,9 @@ class AuthController extends Controller
             'address' => $request->address,
         ]);
 
+        // Fail-safe: clear any orphaned notifications belonging to this ID
+        $user->notifications()->delete();
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -112,6 +115,9 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
         ]);
+
+        // Fail-safe: clear any orphaned notifications belonging to this ID
+        $user->notifications()->delete();
 
         return response()->json(['status' => 'success', 'message' => 'User berhasil ditambahkan', 'data' => $user], 201);
     }

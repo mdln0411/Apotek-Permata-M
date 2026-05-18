@@ -69,30 +69,105 @@ class MedicineSeeder extends Seeder
                 continue;
             }
 
-            // Tentukan apakah perlu resep (obat keras biasanya punya komposisi tertentu)
-            // Default: false (bebas), bisa diupdate manual di database
+            // Tentukan apakah perlu resep
             $perluResep = $this->determinesPrescription($namaObat, $kategori);
 
-            Medicine::create([
-                'name'                  => $namaObat,
-                'category'              => $kategori ?: 'Umum',
-                'indication'            => $this->cleanText($row[3] ?? null),
-                'unit'                  => $this->cleanText($row[4] ?? null),
-                'price'                 => $hargaMulai,
-                'price_detail'          => $this->cleanText($row[6] ?? null),
-                'stock'                 => $stok > 0 ? $stok : rand(10, 100), // random jika kosong
-                'usage_rules'           => $this->cleanText($row[7] ?? null),
-                'dosage'                => $this->cleanText($row[8] ?? null),
-                'side_effects'          => $this->cleanText($row[9] ?? null),
-                'interactions'          => $this->cleanText($row[10] ?? null),
-                'usage_duration'        => $this->cleanText($row[11] ?? null),
-                'composition'           => $this->cleanText($row[12] ?? null),
-                'contraindications'     => $this->cleanText($row[13] ?? null),
-                'image_url'             => $this->cleanText($row[15] ?? null),
-                'prescription_required' => $perluResep,
-            ]);
+            // Split satuan_tersedia (kolom 4) dan harga_detail (kolom 6)
+            $satuanRaw = $this->cleanText($row[4] ?? '');
+            $units = array_map('trim', explode(',', $satuanRaw ?? ''));
+            $units = array_filter($units);
 
-            $importCount++;
+            // Parse pemetaan harga detail
+            $priceMap = [];
+            $priceDetailStr = $this->cleanText($row[6] ?? '');
+            if (!empty($priceDetailStr)) {
+                $parts = explode(';', $priceDetailStr);
+                foreach ($parts as $part) {
+                    $kv = explode(':', $part);
+                    if (count($kv) === 2) {
+                        $u = trim($kv[0]);
+                        $p = (int) preg_replace('/[^0-9]/', '', $kv[1]);
+                        $priceMap[strtolower($u)] = $p;
+                    }
+                }
+            }
+
+            // Cek apakah produk merupakan sirup atau cairan
+            $isLiquid = false;
+            $nameLower = strtolower($namaObat);
+            $liquidKeywords = ['cair', 'sirup', 'suspensi', 'elixir', 'drop', 'ml', 'syrup', 'liquid'];
+            foreach ($liquidKeywords as $keyword) {
+                if (str_contains($nameLower, $keyword)) {
+                    $isLiquid = true;
+                    break;
+                }
+            }
+            if (!$isLiquid) {
+                foreach ($units as $u) {
+                    if (str_contains(strtolower($u), 'ml') || str_contains(strtolower($u), 'cair')) {
+                        $isLiquid = true;
+                        break;
+                    }
+                }
+            }
+
+            if ($isLiquid && count($units) > 1) {
+                // Split cairan/sirup menjadi baris obat terpisah!
+                foreach ($units as $u) {
+                    $unitPrice = $priceMap[strtolower($u)] ?? $hargaMulai;
+                    
+                    // Bersihkan nama unit agar tidak duplikat di nama obat
+                    $cleanUnit = trim(str_replace('Cair', '', $u));
+                    $newName = $namaObat;
+                    if (!str_contains(strtolower($namaObat), strtolower($cleanUnit))) {
+                        $newName = $namaObat . ' ' . $cleanUnit;
+                    }
+
+                    Medicine::create([
+                        'name'                  => trim($newName),
+                        'category'              => $kategori ?: 'Umum',
+                        'indication'            => $this->cleanText($row[3] ?? null),
+                        'unit'                  => $u,
+                        'price'                 => $unitPrice,
+                        'price_detail'          => $u . ': Rp ' . number_format($unitPrice, 0, ',', '.'),
+                        'stock'                 => $stok > 0 ? $stok : rand(10, 100),
+                        'usage_rules'           => $this->cleanText($row[7] ?? null),
+                        'dosage'                => $this->cleanText($row[8] ?? null),
+                        'side_effects'          => $this->cleanText($row[9] ?? null),
+                        'interactions'          => $this->cleanText($row[10] ?? null),
+                        'usage_duration'        => $this->cleanText($row[11] ?? null),
+                        'composition'           => $this->cleanText($row[12] ?? null),
+                        'contraindications'     => $this->cleanText($row[13] ?? null),
+                        'image_url'             => $this->cleanText($row[15] ?? null),
+                        'prescription_required' => $perluResep,
+                    ]);
+                    $importCount++;
+                }
+            } else {
+                // Obat padat atau cairan dengan kemasan tunggal - Simpan kemasan pertama saja
+                $primaryUnit = $units[0] ?? 'Pcs';
+                $unitPrice = $priceMap[strtolower($primaryUnit)] ?? $hargaMulai;
+
+                Medicine::create([
+                    'name'                  => $namaObat,
+                    'category'              => $kategori ?: 'Umum',
+                    'indication'            => $this->cleanText($row[3] ?? null),
+                    'unit'                  => $primaryUnit,
+                    'price'                 => $unitPrice,
+                    'price_detail'          => $primaryUnit . ': Rp ' . number_format($unitPrice, 0, ',', '.'),
+                    'stock'                 => $stok > 0 ? $stok : rand(10, 100),
+                    'usage_rules'           => $this->cleanText($row[7] ?? null),
+                    'dosage'                => $this->cleanText($row[8] ?? null),
+                    'side_effects'          => $this->cleanText($row[9] ?? null),
+                    'interactions'          => $this->cleanText($row[10] ?? null),
+                    'usage_duration'        => $this->cleanText($row[11] ?? null),
+                    'composition'           => $this->cleanText($row[12] ?? null),
+                    'contraindications'     => $this->cleanText($row[13] ?? null),
+                    'image_url'             => $this->cleanText($row[15] ?? null),
+                    'prescription_required' => $perluResep,
+                ]);
+                $importCount++;
+            }
         }
 
         fclose($handle);

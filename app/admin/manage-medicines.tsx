@@ -24,6 +24,7 @@ export default function ManageMedicines() {
     const [sidebarVisible, setSidebarVisible] = useState(false);
     const [medicines, setMedicines] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     
     // Modal State
     const [modalVisible, setModalVisible] = useState(false);
@@ -200,6 +201,16 @@ export default function ManageMedicines() {
     const filteredMedicines = Array.isArray(medicines) ? medicines.filter(m => 
         m.name?.toLowerCase().includes(searchQuery.toLowerCase())
     ) : [];
+
+    const sortedFilteredMedicines = [...filteredMedicines].sort((a, b) => {
+        const nameA = (a.name || '').toLowerCase();
+        const nameB = (b.name || '').toLowerCase();
+        if (sortOrder === 'asc') {
+            return nameA.localeCompare(nameB);
+        } else {
+            return nameB.localeCompare(nameA);
+        }
+    });
 
     return (
         <SafeAreaView style={styles.container}>
@@ -407,21 +418,35 @@ export default function ManageMedicines() {
                 </View>
 
                 {/* Search Bar */}
-                <View style={styles.searchContainer}>
-                    <Ionicons name="search-outline" size={20} color="#999" style={styles.searchIcon} />
-                    <TextInput 
-                        style={styles.searchInput}
-                        placeholder="Cari obat..."
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+                    <View style={[styles.searchContainer, { flex: 1, marginBottom: 0 }]}>
+                        <Ionicons name="search-outline" size={20} color="#999" style={styles.searchIcon} />
+                        <TextInput 
+                            style={styles.searchInput}
+                            placeholder="Cari obat..."
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                    </View>
+                    <TouchableOpacity 
+                        style={styles.sortBtn} 
+                        onPress={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons 
+                            name={sortOrder === 'asc' ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'} 
+                            size={22} 
+                            color="#2E8B57" 
+                        />
+                        <Text style={styles.sortBtnText}>{sortOrder === 'asc' ? 'A-Z' : 'Z-A'}</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Medicine List */}
                 <View style={styles.listContainer}>
                     {loading ? (
                         <ActivityIndicator size="large" color="#2E8B57" style={{ marginTop: 20 }} />
-                    ) : filteredMedicines.map((item) => (
+                    ) : sortedFilteredMedicines.map((item) => (
                         <View key={item.id} style={styles.medCard}>
                             <View style={styles.medImageBg}>
                                 {item.image_url ? (
@@ -522,5 +547,21 @@ const styles = StyleSheet.create({
     rowInputs: { flexDirection: 'row', justifyContent: 'space-between' },
     switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
     saveBtn: { backgroundColor: '#2E8B57', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 20, shadowColor: '#2E8B57', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
-    saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
+    saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+    sortBtn: {
+        width: 60,
+        height: 50,
+        backgroundColor: '#FFF',
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#EEE',
+        gap: 2,
+    },
+    sortBtnText: {
+        fontSize: 9,
+        fontWeight: 'bold',
+        color: '#2E8B57',
+    },
 });

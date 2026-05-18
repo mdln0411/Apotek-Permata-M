@@ -1,8 +1,8 @@
 import axiosClient from '@/api/axiosClient';
 import { useAuth } from '@/context/AuthContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { router, Stack, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
     ActivityIndicator,
     Image,
@@ -37,11 +37,18 @@ export interface Prescription {
 
 export default function PesananScreen() {
     const { user } = useAuth();
+    const { tab } = useLocalSearchParams<{ tab?: string }>();
     const [orders, setOrders] = useState<Order[]>([]);
     const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState<'pesanan' | 'resep'>('pesanan');
+
+    useEffect(() => {
+        if (tab === 'resep' || tab === 'pesanan') {
+            setActiveTab(tab);
+        }
+    }, [tab]);
 
     const fetchOrders = async () => {
         if (!user) return;
@@ -92,6 +99,7 @@ export default function PesananScreen() {
         switch (status.toLowerCase()) {
             case 'completed':
             case 'selesai':
+            case 'valid':
                 return { bg: '#E8F5E9', text: '#2E8B57' };
             case 'pending':
             case 'menunggu':
@@ -99,6 +107,9 @@ export default function PesananScreen() {
             case 'processing':
             case 'diproses':
                 return { bg: '#E3F2FD', text: '#1976D2' };
+            case 'rejected':
+            case 'ditolak':
+                return { bg: '#FFEBEE', text: '#D32F2F' };
             default:
                 return { bg: '#F5F5F5', text: '#666' };
         }
@@ -223,8 +234,16 @@ export default function PesananScreen() {
                                     </View>
 
                                     <View style={styles.cardBody}>
-                                        <View style={styles.iconBox}>
-                                            <Feather name="image" size={24} color="#2E8B57" />
+                                        <View style={styles.imageBox}>
+                                            {prescription.image_url ? (
+                                                <Image 
+                                                    source={{ uri: `${Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000'}/storage/${prescription.image_url}` }} 
+                                                    style={styles.medicinePreview}
+                                                    resizeMode="cover"
+                                                />
+                                            ) : (
+                                                <Feather name="image" size={24} color="#2E8B57" />
+                                            )}
                                         </View>
                                         <View style={styles.infoBox}>
                                             <Text style={styles.dateText}>{formatDate(prescription.created_at)}</Text>

@@ -36,6 +36,8 @@
                         <option value="diproses" {{ request('status') == 'diproses' ? 'selected' : '' }}>Diproses</option>
                         <option value="dikirim" {{ request('status') == 'dikirim' ? 'selected' : '' }}>Dikirim</option>
                         <option value="selesai" {{ request('status') == 'selesai' ? 'selected' : '' }}>Selesai</option>
+                        <option value="dilaporkan" {{ request('status') == 'dilaporkan' ? 'selected' : '' }}>Masalah / Dilaporkan</option>
+                        <option value="batal_pasien" {{ request('status') == 'batal_pasien' ? 'selected' : '' }}>Dibatalkan Pasien</option>
                         <option value="dibatalkan" {{ request('status') == 'dibatalkan' ? 'selected' : '' }}>Dibatalkan</option>
                     </select>
                 </form>
@@ -90,6 +92,8 @@
                         </td>
                         <td class="px-8 py-6">
                             @php
+                                $isBatalUser = $order->status === 'dibatalkan' && (str_contains(strtolower($order->notes), 'pengguna') || str_contains(strtolower($order->notes), 'pembeli') || (!str_contains(strtolower($order->notes), 'apoteker') && !str_contains(strtolower($order->notes), 'admin')));
+                                $statusText = $isBatalUser ? 'Batal Pasien' : $order->status;
                                 $statusClasses = [
                                     'menunggu' => 'bg-amber-100 text-amber-700 border-amber-200',
                                     'diproses' => 'bg-blue-100 text-blue-700 border-blue-200',
@@ -98,10 +102,16 @@
                                     'dilaporkan' => 'bg-purple-100 text-purple-700 border-purple-200',
                                 ];
                                 $cls = $statusClasses[$order->status] ?? 'bg-slate-100 text-slate-700 border-slate-200';
+                                if ($isBatalUser) {
+                                    $cls = 'bg-slate-100 text-slate-600 border-slate-300';
+                                }
                             @endphp
                             <span class="px-3 py-1 rounded-full text-[8px] font-bold uppercase border {{ $cls }}">
-                                {{ $order->status }}
+                                {{ $statusText }}
                             </span>
+                            @if($order->notes)
+                                <p class="text-[9px] text-slate-500 mt-1.5 max-w-[160px] truncate italic" title="{{ $order->notes }}">{{ $order->notes }}</p>
+                            @endif
                         </td>
                         <td class="px-8 py-6 text-right">
                             <div class="flex justify-end gap-2">
@@ -159,6 +169,13 @@
                 </div>
             </div>
 
+            <div id="det-notes-container" class="border-t border-slate-100 mt-8 pt-8 hidden">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Catatan / Alasan Masalah</p>
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p id="det-notes" class="text-slate-600 text-sm italic"></p>
+                </div>
+            </div>
+
             <div class="border-t border-slate-100 mt-8 pt-6 flex justify-between items-center">
                 <p class="font-bold text-slate-500">Total Pembayaran</p>
                 <p id="det-total" class="text-2xl font-black text-emerald-600"></p>
@@ -182,6 +199,13 @@
         document.getElementById('det-address').innerText = order.shipping_address;
         document.getElementById('det-date').innerText = `Dipesan pada: ${new Date(order.created_at).toLocaleString('id-ID')}`;
         document.getElementById('det-total').innerText = `Rp ${new Intl.NumberFormat('id-ID').format(order.total_price)}`;
+        
+        if (order.notes) {
+            document.getElementById('det-notes').innerText = order.notes;
+            document.getElementById('det-notes-container').classList.remove('hidden');
+        } else {
+            document.getElementById('det-notes-container').classList.add('hidden');
+        }
         
         const itemsContainer = document.getElementById('det-items');
         itemsContainer.innerHTML = '';

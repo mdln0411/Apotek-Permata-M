@@ -40,6 +40,8 @@ export default function ManageStock() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'semua' | 'habis' | 'menipis' | 'tersedia'>('semua');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
     useEffect(() => {
         fetchMedicines();
@@ -74,9 +76,25 @@ export default function ManageStock() {
         }
     };
 
-    const filteredMedicines = medicines.filter(m => 
-        m.name.toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredMedicines = medicines.filter(m => {
+        const matchesSearch = m.name.toLowerCase().includes(search.toLowerCase());
+        if (!matchesSearch) return false;
+
+        if (statusFilter === 'habis') return m.stock === 0;
+        if (statusFilter === 'menipis') return m.stock > 0 && m.stock < 10;
+        if (statusFilter === 'tersedia') return m.stock >= 10;
+        return true;
+    });
+
+    const sortedFilteredMedicines = [...filteredMedicines].sort((a, b) => {
+        const nameA = a.name.toLowerCase();
+        const nameB = b.name.toLowerCase();
+        if (sortOrder === 'asc') {
+            return nameA.localeCompare(nameB);
+        } else {
+            return nameB.localeCompare(nameA);
+        }
+    });
 
     const lowStockCount = medicines.filter(m => m.stock < 10).length;
 
@@ -99,15 +117,29 @@ export default function ManageStock() {
 
                 {/* Search & Stats Bar */}
                 <View style={styles.headerActions}>
-                    <View style={styles.searchBox}>
-                        <Ionicons name="search-outline" size={20} color={THEME.textMuted} />
-                        <TextInput 
-                            placeholder="Cari obat..." 
-                            style={styles.searchInput} 
-                            placeholderTextColor={THEME.textMuted}
-                            value={search}
-                            onChangeText={setSearch}
-                        />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View style={[styles.searchBox, { flex: 1, marginBottom: 0 }]}>
+                            <Ionicons name="search-outline" size={20} color={THEME.textMuted} />
+                            <TextInput 
+                                placeholder="Cari obat..." 
+                                style={styles.searchInput} 
+                                placeholderTextColor={THEME.textMuted}
+                                value={search}
+                                onChangeText={setSearch}
+                            />
+                        </View>
+                        <TouchableOpacity 
+                            style={styles.sortBtn} 
+                            onPress={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                            activeOpacity={0.7}
+                        >
+                            <MaterialCommunityIcons 
+                                name={sortOrder === 'asc' ? 'sort-alphabetical-ascending' : 'sort-alphabetical-descending'} 
+                                size={22} 
+                                color={THEME.primary} 
+                            />
+                            <Text style={styles.sortBtnText}>{sortOrder === 'asc' ? 'A-Z' : 'Z-A'}</Text>
+                        </TouchableOpacity>
                     </View>
                     {lowStockCount > 0 && (
                         <View style={styles.alertBar}>
@@ -116,6 +148,36 @@ export default function ManageStock() {
                         </View>
                     )}
                 </View>
+
+                {/* Filter Status Bar */}
+                <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    contentContainerStyle={styles.filterBar}
+                >
+                    {[
+                        { key: 'semua', label: 'Semua', count: medicines.length },
+                        { key: 'habis', label: 'Habis', count: medicines.filter(m => m.stock === 0).length },
+                        { key: 'menipis', label: 'Menipis', count: medicines.filter(m => m.stock > 0 && m.stock < 10).length },
+                        { key: 'tersedia', label: 'Tersedia', count: medicines.filter(m => m.stock >= 10).length },
+                    ].map(tab => (
+                        <TouchableOpacity
+                            key={tab.key}
+                            style={[
+                                styles.filterTab, 
+                                statusFilter === tab.key && styles.filterTabActive
+                            ]}
+                            onPress={() => setStatusFilter(tab.key as any)}
+                        >
+                            <Text style={[
+                                styles.filterTabText,
+                                statusFilter === tab.key && styles.filterTabTextActive
+                            ]}>
+                                {tab.label} ({tab.count})
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
             </View>
 
             <ScrollView 
@@ -129,13 +191,13 @@ export default function ManageStock() {
                     <View style={styles.loaderContainer}>
                         <ActivityIndicator size="large" color={THEME.primary} />
                     </View>
-                ) : filteredMedicines.length === 0 ? (
+                ) : sortedFilteredMedicines.length === 0 ? (
                     <View style={styles.emptyContainer}>
                         <MaterialCommunityIcons name="pill-off" size={80} color={THEME.border} />
                         <Text style={styles.emptyText}>Obat tidak ditemukan</Text>
                     </View>
                 ) : (
-                    filteredMedicines.map((item) => (
+                    sortedFilteredMedicines.map((item) => (
                         <View key={item.id} style={styles.stockCard}>
                             <View style={styles.cardMain}>
                                 <View style={styles.medInfo}>
@@ -192,7 +254,7 @@ const styles = StyleSheet.create({
     header: { 
         backgroundColor: THEME.primary, 
         paddingTop: Platform.OS === 'android' ? 60 : 40, 
-        paddingBottom: 30, 
+        paddingBottom: 20, 
         paddingHorizontal: 20,
         borderBottomLeftRadius: 30,
         borderBottomRightRadius: 30,
@@ -262,5 +324,50 @@ const styles = StyleSheet.create({
     lowStockBanner: { backgroundColor: '#FFF5F5', paddingVertical: 4, alignItems: 'center' },
     lowStockText: { fontSize: 10, color: THEME.danger, fontWeight: 'bold' },
     emptyContainer: { alignItems: 'center', marginTop: 80 },
-    emptyText: { color: THEME.textMuted, marginTop: 15, fontSize: 15, fontWeight: '500' }
+    emptyText: { color: THEME.textMuted, marginTop: 15, fontSize: 15, fontWeight: '500' },
+
+    // Filter Status Styles
+    filterBar: {
+        flexDirection: 'row',
+        paddingTop: 16,
+        paddingBottom: 4,
+        gap: 8,
+    },
+    filterTab: {
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    filterTabActive: {
+        backgroundColor: THEME.white,
+        borderColor: THEME.white,
+    },
+    filterTabText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: 'rgba(255,255,255,0.9)',
+    },
+    filterTabTextActive: {
+        color: THEME.primary,
+    },
+    sortBtn: {
+        width: 65,
+        height: 50,
+        backgroundColor: THEME.white,
+        borderRadius: 15,
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexDirection: 'column',
+        gap: 2,
+        elevation: 2,
+    },
+    sortBtnText: {
+        fontSize: 9,
+        fontWeight: 'bold',
+        color: THEME.primary,
+    },
 });

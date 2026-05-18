@@ -9,6 +9,7 @@ use App\Http\Controllers\MedicineReminderController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\ConsultationController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Api\AllergyController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -71,7 +72,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/confirm-received', [OrderController::class, 'confirmReceived']);
         Route::post('/{id}/report', [OrderController::class, 'reportIssue']);
         Route::post('/{id}/pay', [OrderController::class, 'confirmPayment']);
+        Route::post('/{id}/cancel', [OrderController::class, 'cancelOrder']);
     });
+
+    // Allergies System
+    Route::apiResource('allergies', AllergyController::class);
 
 
     // --- Shared Admin/Apoteker Routes ---

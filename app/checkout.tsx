@@ -1,9 +1,9 @@
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import axiosClient from '@/api/axiosClient';
-import { Feather, Ionicons } from '@expo/vector-icons';
-import { router, Stack } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
     ActivityIndicator, 
     Alert, 
@@ -19,9 +19,48 @@ import {
     Image
 } from 'react-native';
 
+const renderMedicineImage = (item: any) => {
+    // Jika image_url adalah URL online lengkap, tampilkan gambar aslinya!
+    if (item.image_url && (item.image_url.startsWith('http://') || item.image_url.startsWith('https://'))) {
+        return (
+            <Image 
+                source={{ uri: item.image_url }} 
+                style={{ width: '100%', height: '100%' }} 
+                resizeMode="contain"
+            />
+        );
+    }
+
+    const unitLower = (item.unit || '').toLowerCase();
+    const nameLower = (item.name || '').toLowerCase();
+    const isLiquid = unitLower.includes('ml') || unitLower.includes('botol') || unitLower.includes('cair') || nameLower.includes('sirup') || nameLower.includes('cair') || nameLower.includes('drop') || nameLower.includes('suspensi');
+    const iconName = isLiquid ? 'bottle-tonic-plus' : 'pill';
+    
+    const bgColors = ['#E8F5E9', '#E3F2FD', '#FFF3E0', '#F3E5F5', '#E8EAF6'];
+    const textColors = ['#2E8B57', '#1976D2', '#F57C00', '#7B1FA2', '#3F51B5'];
+    
+    let hash = 0;
+    const name = item.name || '';
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colorIndex = Math.abs(hash) % bgColors.length;
+    const bgColor = bgColors[colorIndex];
+    const textColor = textColors[colorIndex];
+
+    return (
+        <View style={{ width: '100%', height: '100%', backgroundColor: bgColor, justifyContent: 'center', alignItems: 'center' }}>
+            <MaterialCommunityIcons name={iconName as any} size={24} color={textColor} />
+        </View>
+    );
+};
+
 export default function CheckoutScreen() {
     const { user } = useAuth();
-    const { items, totalPrice, refreshCart } = useCart();
+    const { items, refreshCart } = useCart();
+    
+    // Ambil item_ids terpilih dari query parameter
+    const { item_ids } = useLocalSearchParams<{ item_ids?: string }>();
     
     const [metode, setMetode] = useState<'antar' | 'jemput'>('antar');
     const [jamJemput, setJamJemput] = useState('');
@@ -44,8 +83,30 @@ export default function CheckoutScreen() {
         setShowPaymentModal(false);
     };
 
-    // Perhitungan Harga Dinamis
-    const subtotal = totalPrice;
+    // Filter item yang dicheckout saja
+    const selectedItemIds = useMemo(() => {
+        if (item_ids) {
+            try {
+                return JSON.parse(item_ids) as number[];
+            } catch (e) {
+                console.error('Failed to parse item_ids:', e);
+            }
+        }
+        return null;
+    }, [item_ids]);
+
+    const checkoutItems = useMemo(() => {
+        if (selectedItemIds) {
+            return items.filter(item => selectedItemIds.includes(item.id));
+        }
+        return items;
+    }, [items, selectedItemIds]);
+
+    // Perhitungan Harga Dinamis berdasarkan item terpilih saja
+    const subtotal = useMemo(() => {
+        return checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    }, [checkoutItems]);
+
     const biayaLayanan = 2000;
     const ongkir = metode === 'antar' ? 10000 : 0;
     const total = subtotal + biayaLayanan + ongkir;
@@ -69,6 +130,7 @@ export default function CheckoutScreen() {
             const res = await axiosClient.post('/api/orders', {
                 shipping_address: metode === 'antar' ? alamatLengkap : 'Ambil di Apotek',
                 notes: metode === 'jemput' ? `Jam Jemput: ${jamJemput}` : `Metode: ${selectedPayment.label}`,
+                item_ids: selectedItemIds || undefined, // Teruskan array ID item yang dicheckout
             });
 
             if (res.data.status === 'success') {
@@ -107,13 +169,13 @@ export default function CheckoutScreen() {
         }
     };
 
-    if (items.length === 0) {
+    if (checkoutItems.length === 0) {
         return (
             <SafeAreaView style={styles.container}>
                 <Stack.Screen options={{ headerShown: false }} />
                 <View style={styles.centered}>
                     <Ionicons name="cart-outline" size={80} color="#CCC" />
-                    <Text style={styles.emptyTitle}>Tidak ada item</Text>
+                    <Text style={styles.emptyTitle}>Tidak ada item untuk checkout</Text>
                     <TouchableOpacity onPress={() => router.back()} style={styles.loginBtn}>
                         <Text style={styles.loginBtnText}>Kembali ke Keranjang</Text>
                     </TouchableOpacity>
@@ -204,12 +266,11 @@ export default function CheckoutScreen() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Ringkasan Pesanan</Text>
 
-                    {items.map(item => (
+                    {checkoutItems.map(item => (
                         <View key={item.id} style={styles.orderItem}>
-                            <Image 
-                                source={{ uri: item.image_url || 'https://via.placeholder.com/150' }} 
-                                style={styles.itemImage} 
-                            />
+                            <View style={[styles.itemImage, { overflow: 'hidden' }]}>
+                                {renderMedicineImage(item)}
+                            </View>
                             <View style={styles.itemInfo}>
                                 <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
                                 <Text style={styles.itemPrice}>{item.price_formatted} x {item.quantity}</Text>
