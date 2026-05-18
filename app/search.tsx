@@ -59,11 +59,12 @@ export default function SearchScreen() {
         <View style={styles.searchBarContainer}>
           <Ionicons name="search-outline" size={20} color="#888" style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { outlineStyle: 'none' } as any]}
             placeholder="Cari obat..."
             value={searchQuery}
             onChangeText={setSearchQuery}
             onSubmitEditing={() => handleSearch(searchQuery)}
+            underlineColorAndroid="transparent"
           />
         </View>
       </View>
