@@ -1,10 +1,11 @@
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     ActivityIndicator, 
+    Alert,
     Image, 
     SafeAreaView, 
     ScrollView, 
@@ -15,10 +16,54 @@ import {
     RefreshControl
 } from 'react-native';
 
+const renderMedicineImage = (item: any) => {
+    // Jika image_url adalah URL online lengkap, tampilkan gambar aslinya!
+    if (item.image_url && (item.image_url.startsWith('http://') || item.image_url.startsWith('https://'))) {
+        return (
+            <Image 
+                source={{ uri: item.image_url }} 
+                style={{ width: '100%', height: '100%' }} 
+                resizeMode="contain"
+            />
+        );
+    }
+
+    const unitLower = (item.unit || '').toLowerCase();
+    const nameLower = (item.name || '').toLowerCase();
+    const isLiquid = unitLower.includes('ml') || unitLower.includes('botol') || unitLower.includes('cair') || nameLower.includes('sirup') || nameLower.includes('cair') || nameLower.includes('drop') || nameLower.includes('suspensi');
+    const iconName = isLiquid ? 'bottle-tonic-plus' : 'pill';
+    
+    const bgColors = ['#E8F5E9', '#E3F2FD', '#FFF3E0', '#F3E5F5', '#E8EAF6'];
+    const textColors = ['#2E8B57', '#1976D2', '#F57C00', '#7B1FA2', '#3F51B5'];
+    
+    let hash = 0;
+    const name = item.name || '';
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colorIndex = Math.abs(hash) % bgColors.length;
+    const bgColor = bgColors[colorIndex];
+    const textColor = textColors[colorIndex];
+
+    return (
+        <View style={{ width: '100%', height: '100%', backgroundColor: bgColor, justifyContent: 'center', alignItems: 'center' }}>
+            <MaterialCommunityIcons name={iconName as any} size={28} color={textColor} />
+        </View>
+    );
+};
+
 export default function KeranjangScreen() {
     const { user } = useAuth();
     const { items, totalPrice, loading, refreshCart, removeFromCart, updateQty } = useCart();
     const [refreshing, setRefreshing] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+    // Sinkronisasi otomatis agar semua item tercentang di awal/saat data keranjang termuat
+    useEffect(() => {
+        if (items.length > 0 && selectedIds.length === 0) {
+            setSelectedIds(items.map(item => item.id));
+        }
+    }, [items]);
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -71,9 +116,32 @@ export default function KeranjangScreen() {
         );
     }
 
-    const ongkir = 10000;
-    const diskon = totalPrice > 50000 ? 5000 : 0;
-    const total = totalPrice + ongkir - diskon;
+    // Perhitungan dinamis berdasarkan item yang dicentang (checked) saja
+    const selectedItems = items.filter(item => selectedIds.includes(item.id));
+    const selectedTotalPrice = selectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const ongkir = selectedItems.length > 0 ? 10000 : 0;
+    const diskon = selectedTotalPrice > 50000 ? 5000 : 0;
+    const total = selectedTotalPrice + ongkir - diskon;
+
+    const allSelected = items.length > 0 && selectedIds.length === items.length;
+    const handleSelectAll = () => {
+        if (allSelected) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(items.map(item => item.id));
+        }
+    };
+
+    const handleCheckout = () => {
+        if (selectedIds.length === 0) {
+            Alert.alert('Perhatian', 'Silakan pilih minimal 1 produk untuk checkout');
+            return;
+        }
+        router.push({
+            pathname: '/checkout',
+            params: { item_ids: JSON.stringify(selectedIds) }
+        } as any);
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -92,6 +160,44 @@ export default function KeranjangScreen() {
                 </View>
             </View>
 
+            {/* Bar Pilih Semua */}
+            <View style={styles.selectAllBar}>
+                <TouchableOpacity style={styles.selectAllBtn} onPress={handleSelectAll}>
+                    <View style={[styles.checkbox, allSelected && styles.checkboxChecked]}>
+                        {allSelected && <Feather name="check" size={12} color="#FFF" />}
+                    </View>
+                    <Text style={styles.selectAllText}>Pilih Semua ({items.length})</Text>
+                </TouchableOpacity>
+
+                {selectedIds.length > 0 && (
+                    <TouchableOpacity 
+                        style={styles.deleteSelectedBtn}
+                        onPress={async () => {
+                            Alert.alert(
+                                'Hapus Item',
+                                `Apakah Anda yakin ingin menghapus ${selectedIds.length} produk terpilih?`,
+                                [
+                                    { text: 'Batal', style: 'cancel' },
+                                    { 
+                                        text: 'Hapus', 
+                                        style: 'destructive',
+                                        onPress: async () => {
+                                            for (const id of selectedIds) {
+                                                await removeFromCart(id);
+                                            }
+                                            setSelectedIds([]);
+                                        }
+                                    }
+                                ]
+                            );
+                        }}
+                    >
+                        <Feather name="trash-2" size={14} color="#FF5252" />
+                        <Text style={styles.deleteSelectedText}>Hapus Terpilih</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+
             <ScrollView 
                 contentContainerStyle={styles.scrollContent} 
                 showsVerticalScrollIndicator={false}
@@ -100,51 +206,69 @@ export default function KeranjangScreen() {
                 }
             >
                 {/* Cart Items */}
-                {items.map((item) => (
-                    <View key={item.id} style={styles.cartCard}>
-                        <Image 
-                            source={{ uri: item.image_url || 'https://via.placeholder.com/150' }} 
-                            style={styles.productImg} 
-                        />
-
-                        <View style={styles.productInfo}>
-                            <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
-                            <Text style={styles.productDesc}>{item.unit}</Text>
-                            <View style={styles.badgeKategori}>
-                                <Text style={styles.badgeKategoriText}>{item.category}</Text>
-                            </View>
-                            <Text style={styles.productPrice}>{item.price_formatted}</Text>
-                        </View>
-
-                        <View style={styles.actionWrap}>
-                            <View style={styles.qtyControl}>
-                                <TouchableOpacity 
-                                    onPress={() => updateQty(item.id, item.quantity - 1)} 
-                                    style={styles.qtyBtn}
-                                >
-                                    <Feather name="minus" size={14} color="#333" />
-                                </TouchableOpacity>
-                                <Text style={styles.qtyText}>{item.quantity}</Text>
-                                <TouchableOpacity 
-                                    onPress={() => updateQty(item.id, item.quantity + 1)} 
-                                    style={styles.qtyBtn}
-                                >
-                                    <Feather name="plus" size={14} color="#2E8B57" />
-                                </TouchableOpacity>
-                            </View>
-                            <TouchableOpacity style={styles.deleteBtn} onPress={() => removeFromCart(item.id)}>
-                                <Feather name="trash-2" size={14} color="#FF5252" />
-                                <Text style={[styles.deleteText, { color: '#FF5252' }]}>Hapus</Text>
+                {items.map((item) => {
+                    const isChecked = selectedIds.includes(item.id);
+                    return (
+                        <View key={item.id} style={styles.cartCard}>
+                            {/* Checkbox */}
+                            <TouchableOpacity 
+                                style={styles.checkboxContainer}
+                                onPress={() => {
+                                    if (isChecked) {
+                                        setSelectedIds(selectedIds.filter(id => id !== item.id));
+                                    } else {
+                                        setSelectedIds([...selectedIds, item.id]);
+                                    }
+                                }}
+                            >
+                                <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
+                                    {isChecked && <Feather name="check" size={12} color="#FFF" />}
+                                </View>
                             </TouchableOpacity>
+
+                            <View style={[styles.productImg, { overflow: 'hidden' }]}>
+                                {renderMedicineImage(item)}
+                            </View>
+
+                            <View style={styles.productInfo}>
+                                <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+                                <Text style={styles.productDesc}>{item.unit}</Text>
+                                <View style={styles.badgeKategori}>
+                                    <Text style={styles.badgeKategoriText}>{item.category}</Text>
+                                </View>
+                                <Text style={styles.productPrice}>{item.price_formatted}</Text>
+                            </View>
+
+                            <View style={styles.actionWrap}>
+                                <View style={styles.qtyControl}>
+                                    <TouchableOpacity 
+                                        onPress={() => updateQty(item.id, item.quantity - 1)} 
+                                        style={styles.qtyBtn}
+                                    >
+                                        <Feather name="minus" size={14} color="#333" />
+                                    </TouchableOpacity>
+                                    <Text style={styles.qtyText}>{item.quantity}</Text>
+                                    <TouchableOpacity 
+                                        onPress={() => updateQty(item.id, item.quantity + 1)} 
+                                        style={styles.qtyBtn}
+                                    >
+                                        <Feather name="plus" size={14} color="#2E8B57" />
+                                    </TouchableOpacity>
+                                </View>
+                                <TouchableOpacity style={styles.deleteBtn} onPress={() => removeFromCart(item.id)}>
+                                    <Feather name="trash-2" size={14} color="#FF5252" />
+                                    <Text style={[styles.deleteText, { color: '#FF5252' }]}>Hapus</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                    </View>
-                ))}
+                    );
+                })}
 
                 {/* Ringkasan Pembayaran */}
                 <View style={styles.paymentCard}>
                     <View style={styles.paymentRow}>
-                        <Text style={styles.paymentLabel}>Subtotal ({items.length} produk)</Text>
-                        <Text style={styles.paymentValue}>Rp {totalPrice.toLocaleString('id-ID')}</Text>
+                        <Text style={styles.paymentLabel}>Subtotal ({selectedItems.length} terpilih)</Text>
+                        <Text style={styles.paymentValue}>Rp {selectedTotalPrice.toLocaleString('id-ID')}</Text>
                     </View>
                     <View style={styles.paymentRow}>
                         <Text style={styles.paymentLabel}>Ongkos Kirim</Text>
@@ -168,15 +292,15 @@ export default function KeranjangScreen() {
             {/* Checkout Button */}
             <View style={styles.bottomBar}>
                 <TouchableOpacity 
-                    style={[styles.checkoutBtn, loading && { opacity: 0.7 }]} 
-                    onPress={() => router.push('/checkout' as any)}
+                    style={[styles.checkoutBtn, (loading || selectedIds.length === 0) && { opacity: 0.7 }]} 
+                    onPress={handleCheckout}
                     disabled={loading}
                 >
                     {loading ? (
                         <ActivityIndicator color="#FFF" />
                     ) : (
                         <>
-                            <Text style={styles.checkoutBtnText}>Checkout Sekarang</Text>
+                            <Text style={styles.checkoutBtnText}>Checkout ({selectedIds.length} Obat)</Text>
                             <Feather name="chevron-right" size={18} color="#FFF" />
                         </>
                     )}
@@ -222,5 +346,58 @@ const styles = StyleSheet.create({
     divider: { height: 1, backgroundColor: '#E8E8E8', marginVertical: 12 },
     bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF', padding: 16, borderTopWidth: 1, borderTopColor: '#E8E8E8' },
     checkoutBtn: { backgroundColor: '#2E8B57', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 14, borderRadius: 12 },
-    checkoutBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', marginRight: 8 }
+    checkoutBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', marginRight: 8 },
+
+    // Bar Pilih Semua
+    selectAllBar: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#FFF',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#EEEEEE',
+    },
+    selectAllBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    selectAllText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#333',
+        marginLeft: 10,
+    },
+    deleteSelectedBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    deleteSelectedText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#FF5252',
+    },
+
+    // Checkbox
+    checkboxContainer: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingRight: 12,
+    },
+    checkbox: {
+        width: 20,
+        height: 20,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: '#BDC3C7',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#FFF',
+    },
+    checkboxChecked: {
+        backgroundColor: '#2E8B57',
+        borderColor: '#2E8B57',
+    },
 });

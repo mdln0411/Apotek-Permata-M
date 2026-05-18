@@ -3,8 +3,8 @@ import { LoginPromptModal } from '@/components/LoginPromptModal';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router, Stack } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, Stack, useFocusEffect } from 'expo-router';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     Alert,
     Dimensions,
@@ -38,6 +38,43 @@ const THEME = {
     error: '#E74C3C',
 };
 
+const renderMedicineImage = (item: any) => {
+    // Jika image_url adalah URL online lengkap, tampilkan gambar aslinya!
+    if (item.image_url && (item.image_url.startsWith('http://') || item.image_url.startsWith('https://'))) {
+        return (
+            <Image 
+                source={{ uri: item.image_url }} 
+                style={styles.productImage || { width: '100%', height: '100%' }} 
+                resizeMode="contain"
+            />
+        );
+    }
+
+    const unitLower = (item.unit || '').toLowerCase();
+    const nameLower = (item.name || '').toLowerCase();
+    const isLiquid = unitLower.includes('ml') || unitLower.includes('botol') || unitLower.includes('cair') || nameLower.includes('sirup') || nameLower.includes('cair') || nameLower.includes('drop') || nameLower.includes('suspensi');
+    const iconName = isLiquid ? 'bottle-tonic-plus' : 'pill';
+    
+    // Curated soft background and solid HSL text color pairings
+    const bgColors = ['#E8F5E9', '#E3F2FD', '#FFF3E0', '#F3E5F5', '#E8EAF6'];
+    const textColors = ['#2E8B57', '#1976D2', '#F57C00', '#7B1FA2', '#3F51B5'];
+    
+    let hash = 0;
+    const name = item.name || '';
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colorIndex = Math.abs(hash) % bgColors.length;
+    const bgColor = bgColors[colorIndex];
+    const textColor = textColors[colorIndex];
+
+    return (
+        <View style={{ width: '100%', height: '100%', backgroundColor: bgColor, justifyContent: 'center', alignItems: 'center' }}>
+            <MaterialCommunityIcons name={iconName as any} size={44} color={textColor} />
+        </View>
+    );
+};
+
 export default function HomeScreen() {
     const { user, unreadChatCount } = useAuth();
     const { itemCount, addToCart } = useCart();
@@ -51,10 +88,31 @@ export default function HomeScreen() {
     const [loginModalMessage, setLoginModalMessage] = useState('');
     const [loginModalTitle, setLoginModalTitle] = useState('');
 
-    useEffect(() => {
-        fetchMedicines();
-        fetchEducation();
-    }, []);
+    const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+
+    const fetchUnreadNotificationCount = async () => {
+        if (!user) {
+            setUnreadNotifCount(0);
+            return;
+        }
+        try {
+            const response = await axiosClient.get('/api/notifications');
+            if (response.data && response.data.data) {
+                const unread = response.data.data.filter((n: any) => n.read_at === null).length;
+                setUnreadNotifCount(unread);
+            }
+        } catch (error) {
+            console.error('Error fetching unread notification count:', error);
+        }
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchMedicines();
+            fetchEducation();
+            fetchUnreadNotificationCount();
+        }, [user])
+    );
 
     const fetchMedicines = async () => {
         try {
@@ -176,9 +234,9 @@ export default function HomeScreen() {
                         }}
                     >
                         <Ionicons name="notifications-outline" size={24} color={THEME.white} />
-                        {user && (
+                        {user && unreadNotifCount > 0 && (
                             <View style={styles.badge}>
-                                <Text style={styles.badgeText}>3</Text>
+                                <Text style={styles.badgeText}>{unreadNotifCount}</Text>
                             </View>
                         )}
                     </TouchableOpacity>
@@ -338,18 +396,7 @@ export default function HomeScreen() {
                             onPress={() => router.push({ pathname: '/detail-obat', params: { id: item.id } } as any)}
                         >
                             <View style={styles.productImageWrapper}>
-                                {item.image_url ? (
-                                    <Image 
-                                        source={{ 
-                                            uri: item.image_url.startsWith('http') 
-                                                ? item.image_url 
-                                                : `${Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000'}/storage/${item.image_url}` 
-                                        }} 
-                                        style={styles.productImage} 
-                                    />
-                                ) : (
-                                    <MaterialCommunityIcons name="pill" size={40} color="#BDC3C7" />
-                                )}
+                                {renderMedicineImage(item)}
                                 {item.stock < 5 && (
                                     <View style={styles.stockLabel}>
                                         <Text style={styles.stockText}>Sisa {item.stock}</Text>
@@ -359,13 +406,6 @@ export default function HomeScreen() {
                             <View style={styles.productInfo}>
                                 <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                                 <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
-                                <TouchableOpacity 
-                                    style={styles.addBtnSmall}
-                                    onPress={() => handleBuyClick(item)}
-                                >
-                                    <Feather name="plus" size={16} color={THEME.white} />
-                                    <Text style={styles.addBtnText}>Beli</Text>
-                                </TouchableOpacity>
                             </View>
                         </TouchableOpacity>
                     ))}
@@ -621,7 +661,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     productCard: {
-        width: (SCREEN_WIDTH - 45) / 2,
+        width: '48%',
         backgroundColor: THEME.white,
         borderRadius: 15,
         marginBottom: 15,

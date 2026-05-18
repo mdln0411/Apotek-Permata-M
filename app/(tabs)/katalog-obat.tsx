@@ -21,6 +21,42 @@ import {
     View,
 } from 'react-native';
 
+const renderMedicineImage = (item: any) => {
+    // Jika image_url adalah URL online lengkap, tampilkan gambar aslinya!
+    if (item.image_url && (item.image_url.startsWith('http://') || item.image_url.startsWith('https://'))) {
+        return (
+            <Image 
+                source={{ uri: item.image_url }} 
+                style={styles.productImage || { width: '100%', height: '100%' }} 
+                resizeMode="contain"
+            />
+        );
+    }
+
+    const unitLower = (item.unit || '').toLowerCase();
+    const nameLower = (item.name || '').toLowerCase();
+    const isLiquid = unitLower.includes('ml') || unitLower.includes('botol') || unitLower.includes('cair') || nameLower.includes('sirup') || nameLower.includes('cair') || nameLower.includes('drop') || nameLower.includes('suspensi');
+    const iconName = isLiquid ? 'bottle-tonic-plus' : 'pill';
+    
+    const bgColors = ['#E8F5E9', '#E3F2FD', '#FFF3E0', '#F3E5F5', '#E8EAF6'];
+    const textColors = ['#2E8B57', '#1976D2', '#F57C00', '#7B1FA2', '#3F51B5'];
+    
+    let hash = 0;
+    const name = item.name || '';
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colorIndex = Math.abs(hash) % bgColors.length;
+    const bgColor = bgColors[colorIndex];
+    const textColor = textColors[colorIndex];
+
+    return (
+        <View style={{ width: '100%', height: '100%', backgroundColor: bgColor, justifyContent: 'center', alignItems: 'center' }}>
+            <MaterialCommunityIcons name={iconName as any} size={48} color={textColor} />
+        </View>
+    );
+};
+
 export default function KatalogObatScreen() {
     const { user } = useAuth();
     const { search, category } = useLocalSearchParams<{ search?: string; category?: string }>();
@@ -146,17 +182,7 @@ export default function KatalogObatScreen() {
         >
             {/* Gambar */}
             <View style={styles.imageWrapper}>
-                {item.image_url ? (
-                    <Image
-                        source={{ uri: item.image_url }}
-                        style={styles.productImage}
-                        resizeMode="contain"
-                    />
-                ) : (
-                    <View style={styles.noImageBox}>
-                        <Ionicons name="medical" size={36} color="#C8E6C9" />
-                    </View>
-                )}
+                {renderMedicineImage(item)}
                 {/* Badge resep */}
                 {item.prescription_required && (
                     <View style={styles.badgeResep}>

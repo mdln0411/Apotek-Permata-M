@@ -87,7 +87,8 @@ class ConsultationController extends Controller
     public function sendMessage(Request $request, $id)
     {
         $request->validate([
-            'message' => 'required|string'
+            'message' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:10240' // max 10MB
         ]);
 
         $consultation = Consultation::findOrFail($id);
@@ -97,10 +98,21 @@ class ConsultationController extends Controller
             $consultation->update(['pharmacist_id' => $request->user()->id]);
         }
 
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('chats', 'public');
+        }
+
+        $messageText = $request->message;
+        if (!$messageText && $imagePath) {
+            $messageText = '[Gambar]';
+        }
+
         $message = Message::create([
             'consultation_id' => $id,
             'sender_id' => $request->user()->id,
-            'message' => $request->message
+            'message' => $messageText ?? '',
+            'image' => $imagePath
         ]);
 
         $consultation->touch(); // Update updated_at

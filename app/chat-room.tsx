@@ -1,6 +1,7 @@
 import axiosClient from '@/api/axiosClient';
 import { useAuth } from '@/context/AuthContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState, useRef } from 'react';
 import { 
@@ -13,7 +14,10 @@ import {
     FlatList, 
     KeyboardAvoidingView, 
     Platform,
-    ActivityIndicator
+    ActivityIndicator,
+    Image,
+    Alert,
+    Modal
 } from 'react-native';
 
 export default function ChatRoom() {
@@ -23,6 +27,8 @@ export default function ChatRoom() {
     const [messages, setMessages] = useState<any[]>([]);
     const [inputText, setInputText] = useState('');
     const [loading, setLoading] = useState(true);
+    const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+    const [captionText, setCaptionText] = useState('');
     const flatListRef = useRef<FlatList>(null);
 
     useEffect(() => {
@@ -69,12 +75,116 @@ export default function ChatRoom() {
         }
     };
 
+    const pickImage = async () => {
+        if (Platform.OS !== 'web') {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                alert('Maaf, kami butuh izin galeri untuk mengirim gambar.');
+                return;
+            }
+        }
+
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 0.1, // High compression (10%) for lightweight, instant uploads!
+        });
+
+        if (!result.canceled) {
+            setSelectedImageUri(result.assets[0].uri);
+            setCaptionText('');
+        }
+    };
+
+    const takePhoto = async () => {
+        if (Platform.OS !== 'web') {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                alert('Maaf, kami butuh izin kamera untuk mengambil foto.');
+                return;
+            }
+        }
+
+        let result = await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            quality: 0.1, // High compression (10%) for lightweight, instant uploads!
+        });
+
+        if (!result.canceled) {
+            setSelectedImageUri(result.assets[0].uri);
+            setCaptionText('');
+        }
+    };
+
+    const uploadImage = async (uri: string, caption: string = '') => {
+        // Reset states FIRST to close the WhatsApp overlay immediately so the user never gets stuck!
+        setSelectedImageUri(null);
+        setCaptionText('');
+
+        try {
+            const formData = new FormData();
+            
+            if (Platform.OS === 'web') {
+                const response = await fetch(uri);
+                const blob = await response.blob();
+                const fileType = blob.type || 'image/jpeg';
+                const extension = fileType.split('/')[1] || 'jpg';
+                formData.append('image', blob, `chat_${Date.now()}.${extension}`);
+            } else {
+                // Match the exact working format in upload-resep.tsx
+                const uriParts = uri.split('.');
+                const fileType = uriParts[uriParts.length - 1];
+                formData.append('image', {
+                    uri: uri,
+                    name: `chat_${Date.now()}.${fileType}`,
+                    type: `image/${fileType}`,
+                } as any);
+            }
+
+            if (caption.trim()) {
+                formData.append('message', caption);
+            }
+
+            const response = await axiosClient.post(`/api/consultations/${id}/messages`, formData, {
+                headers: { 
+                    'Content-Type': 'multipart/form-data',
+                    'Accept': 'application/json'
+                },
+                timeout: 120000 // 120 seconds timeout to allow PC/Web browser uncompressed high-res uploads!
+            });
+            
+            if (response.data && response.data.data) {
+                setMessages(prev => [...(Array.isArray(prev) ? prev : []), response.data.data]);
+                setTimeout(() => {
+                    try {
+                        flatListRef.current?.scrollToEnd({ animated: true });
+                    } catch (scrollErr) {
+                        console.warn('Scroll error:', scrollErr);
+                    }
+                }, 100);
+            }
+        } catch (error: any) {
+            console.error('Failed to send image message:', error);
+            const errMsg = error.response?.data?.message || error.message || 'Gagal mengirim gambar';
+            alert(`Gagal mengirim gambar: ${errMsg}`);
+        }
+    };
+
     const renderMessage = ({ item }: { item: any }) => {
         const isMine = item.sender_id === user?.id;
         return (
             <View style={[styles.msgContainer, isMine ? styles.myMsg : styles.theirMsg]}>
                 <View style={[styles.msgBubble, isMine ? styles.myBubble : styles.theirBubble]}>
-                    <Text style={[styles.msgText, isMine ? styles.myText : styles.theirText]}>{item.message}</Text>
+                    {item.image_url && (
+                        <Image 
+                            source={{ uri: item.image_url }} 
+                            style={styles.msgImage} 
+                            resizeMode="cover"
+                        />
+                    )}
+                    {item.message !== '[Gambar]' && (
+                        <Text style={[styles.msgText, isMine ? styles.myText : styles.theirText]}>{item.message}</Text>
+                    )}
                     <Text style={styles.msgTime}>
                         {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
@@ -101,9 +211,6 @@ export default function ChatRoom() {
                         <Text style={styles.headerStatus}>Online</Text>
                     </View>
                 </View>
-                <TouchableOpacity style={styles.callBtn}>
-                    <Ionicons name="call-outline" size={22} color="#2E8B57" />
-                </TouchableOpacity>
             </View>
 
             {loading ? (
@@ -126,7 +233,24 @@ export default function ChatRoom() {
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
                 <View style={styles.inputContainer}>
-                    <TouchableOpacity style={styles.attachBtn}>
+                    <TouchableOpacity 
+                        style={styles.attachBtn}
+                        onPress={() => {
+                            if (Platform.OS === 'web') {
+                                pickImage();
+                            } else {
+                                Alert.alert(
+                                    'Kirim Gambar',
+                                    'Pilih sumber gambar:',
+                                    [
+                                        { text: 'Kamera', onPress: takePhoto },
+                                        { text: 'Galeri', onPress: pickImage },
+                                        { text: 'Batal', style: 'cancel' }
+                                    ]
+                                );
+                            }
+                        }}
+                    >
                         <Ionicons name="add" size={24} color="#666" />
                     </TouchableOpacity>
                     <TextInput
@@ -141,6 +265,66 @@ export default function ChatRoom() {
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
+
+            {/* WhatsApp-style Image Preview Modal */}
+            <Modal
+                visible={selectedImageUri !== null}
+                transparent={false}
+                animationType="slide"
+                onRequestClose={() => setSelectedImageUri(null)}
+            >
+                <SafeAreaView style={styles.previewModalContainer}>
+                    {/* Header */}
+                    <View style={styles.previewHeader}>
+                        <TouchableOpacity 
+                            onPress={() => setSelectedImageUri(null)}
+                            style={styles.previewBackBtn}
+                            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                        >
+                            <Ionicons name="arrow-back" size={24} color="#FFF" />
+                        </TouchableOpacity>
+                        <Text style={styles.previewTitle}>Kirim Gambar</Text>
+                    </View>
+
+                    {/* Image View */}
+                    <View style={styles.previewImageContainer}>
+                        {selectedImageUri && (
+                            <Image 
+                                source={{ uri: selectedImageUri }} 
+                                style={styles.previewImage} 
+                                resizeMode="contain"
+                            />
+                        )}
+                    </View>
+
+                    {/* Footer Input for Caption */}
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        style={styles.previewFooter}
+                    >
+                        <View style={styles.previewInputRow}>
+                            <TextInput
+                                style={styles.previewInput}
+                                placeholder="Tambahkan keterangan..."
+                                placeholderTextColor="#AAA"
+                                value={captionText}
+                                onChangeText={setCaptionText}
+                                multiline
+                            />
+                            <TouchableOpacity 
+                                style={styles.previewSendBtn}
+                                onPress={() => {
+                                    if (selectedImageUri) {
+                                        uploadImage(selectedImageUri, captionText);
+                                    }
+                                }}
+                            >
+                                <Ionicons name="send" size={20} color="#FFF" />
+                            </TouchableOpacity>
+                        </View>
+                    </KeyboardAvoidingView>
+                </SafeAreaView>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -161,6 +345,7 @@ const styles = StyleSheet.create({
     msgBubble: { padding: 12, borderRadius: 18 },
     myBubble: { backgroundColor: '#2E8B57', borderBottomRightRadius: 4 },
     theirBubble: { backgroundColor: '#FFF', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#EEE' },
+    msgImage: { width: 220, height: 160, borderRadius: 12, marginBottom: 6 },
     msgText: { fontSize: 14, lineHeight: 20 },
     myText: { color: '#FFF' },
     theirText: { color: '#333' },
@@ -168,5 +353,17 @@ const styles = StyleSheet.create({
     inputContainer: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#EEE' },
     attachBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
     input: { flex: 1, backgroundColor: '#F5F5F5', borderRadius: 20, paddingHorizontal: 15, paddingVertical: 8, maxHeight: 100, marginHorizontal: 10 },
-    sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2E8B57', justifyContent: 'center', alignItems: 'center' }
+    sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2E8B57', justifyContent: 'center', alignItems: 'center' },
+    
+    // WhatsApp style preview styles
+    previewModalContainer: { flex: 1, backgroundColor: '#0B141A' },
+    previewHeader: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#0B141A' },
+    previewBackBtn: { padding: 8, marginRight: 10 },
+    previewTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFF' },
+    previewImageContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' },
+    previewImage: { width: '100%', height: '100%' },
+    previewFooter: { backgroundColor: '#0B141A', padding: 15 },
+    previewInputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1F2C34', borderRadius: 25, paddingHorizontal: 15, paddingVertical: 8 },
+    previewInput: { flex: 1, color: '#FFF', fontSize: 16, maxHeight: 100 },
+    previewSendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#00A884', justifyContent: 'center', alignItems: 'center', marginLeft: 10 }
 });

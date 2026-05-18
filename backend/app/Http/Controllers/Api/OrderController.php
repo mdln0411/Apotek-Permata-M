@@ -31,21 +31,36 @@ class OrderController extends Controller
         $request->validate([
             'shipping_address' => 'required|string',
             'notes' => 'nullable|string',
+            'item_ids' => 'nullable|array',
+            'item_ids.*' => 'integer',
         ]);
 
         $user = $request->user();
         $cart = Cart::where('user_id', $user->id)->first();
 
-        if (!$cart || $cart->items()->count() === 0) {
+        if (!$cart) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Cart is empty'
             ], 400);
         }
 
-        return DB::transaction(function () use ($user, $cart, $request) {
+        $itemIds = $request->input('item_ids');
+        $cartItemsQuery = $cart->items()->with('medicine');
+        if (!empty($itemIds)) {
+            $cartItemsQuery->whereIn('id', $itemIds);
+        }
+        $cartItems = $cartItemsQuery->get();
+
+        if ($cartItems->count() === 0) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No items selected for checkout'
+            ], 400);
+        }
+
+        return DB::transaction(function () use ($user, $cart, $request, $cartItems, $itemIds) {
             $totalPrice = 0;
-            $cartItems = $cart->items()->with('medicine')->get();
 
             // Hitung total harga
             foreach ($cartItems as $item) {
@@ -74,11 +89,18 @@ class OrderController extends Controller
                 ]);
 
                 // Kurangi stok obat
-
+                $medicine = $item->medicine;
+                if ($medicine && $medicine->stock >= $item->quantity) {
+                    $medicine->decrement('stock', $item->quantity);
+                }
             }
 
-            // Kosongkan keranjang
-            $cart->items()->delete();
+            // Kosongkan keranjang (hanya item yang dicheckout)
+            if (!empty($itemIds)) {
+                $cart->items()->whereIn('id', $itemIds)->delete();
+            } else {
+                $cart->items()->delete();
+            }
 
             // Kirim Notifikasi
             $user->notify(new AppNotification(
@@ -137,7 +159,52 @@ class OrderController extends Controller
         ]);
 
         $order = Order::findOrFail($id);
-        $order->update(['status' => $request->status]);
+        $oldStatus = $order->status;
+        $newStatus = $request->status;
+
+        if ($oldStatus === $newStatus) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Status pesanan sama dengan status sebelumnya',
+                'data' => $order
+            ]);
+        }
+
+        // Return stock if cancelled
+        if ($newStatus === 'dibatalkan' && $oldStatus !== 'dibatalkan') {
+            foreach ($order->items as $item) {
+                $medicine = \App\Models\Medicine::find($item->medicine_id);
+                if ($medicine) {
+                    $medicine->increment('stock', $item->quantity);
+                }
+            }
+        }
+
+        $order->update(['status' => $newStatus]);
+
+        // Send notifications based on status change
+        $title = '';
+        $message = '';
+        if ($newStatus === 'diproses') {
+            $title = 'Pesanan Diproses';
+            $message = "Pesanan Anda {$order->order_number} sedang diproses oleh apoteker.";
+        } else if ($newStatus === 'dikirim') {
+            $title = 'Pesanan Dikirim';
+            $message = "Pesanan Anda {$order->order_number} sedang dalam perjalanan ke alamat Anda.";
+        } else if ($newStatus === 'selesai') {
+            $title = 'Pesanan Selesai';
+            $message = "Pesanan Anda {$order->order_number} telah selesai. Terima kasih telah berbelanja!";
+        } else if ($newStatus === 'dibatalkan') {
+            $title = 'Pesanan Dibatalkan';
+            $message = "Pesanan Anda {$order->order_number} telah dibatalkan oleh apoteker.";
+        } else if ($newStatus === 'dilaporkan') {
+            $title = 'Laporan Masalah Pesanan';
+            $message = "Pesanan Anda {$order->order_number} dilaporkan bermasalah. Kami akan segera memeriksanya.";
+        }
+
+        if ($title && $message) {
+            $order->user->notify(new AppNotification($title, $message, 'order'));
+        }
 
         return response()->json([
             'status' => 'success',
@@ -203,6 +270,61 @@ class OrderController extends Controller
             'status' => 'success',
             'message' => 'Pembayaran berhasil dikonfirmasi! Pesanan Anda sedang diproses oleh apoteker.',
             'data' => $order
+        ]);
+    }
+
+    public function cancelOrder(Request $request, $id)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:500'
+        ]);
+
+        $order = Order::findOrFail($id);
+        $user = $request->user();
+
+        // Members can only cancel their own pending/diproses orders
+        if ($user->role === 'member') {
+            if ($order->user_id !== $user->id) {
+                return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
+            }
+            if (!in_array($order->status, ['pending', 'diproses'])) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Pesanan tidak dapat dibatalkan pada status ini.'
+                ], 400);
+            }
+        } else if ($user->role !== 'admin' && $user->role !== 'apoteker') {
+            return response()->json(['status' => 'error', 'message' => 'Forbidden'], 403);
+        }
+
+        // Update status and append cancellation reason
+        $actor = $user->role === 'member' ? 'Pengguna' : ($user->role === 'apoteker' ? 'Apoteker' : 'Admin');
+        $cancellationNote = "\n[BATAL OLEH {$actor}]: {$request->reason}";
+
+        $order->update([
+            'status' => 'dibatalkan',
+            'notes' => $order->notes . $cancellationNote
+        ]);
+
+        // Return stock back
+        foreach ($order->items as $item) {
+            $medicine = \App\Models\Medicine::find($item->medicine_id);
+            if ($medicine) {
+                $medicine->increment('stock', $item->quantity);
+            }
+        }
+
+        // Kirim Notifikasi
+        $order->user->notify(new AppNotification(
+            'Pesanan Dibatalkan',
+            "Pesanan {$order->order_number} telah dibatalkan. Alasan: {$request->reason}",
+            'order'
+        ));
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Pesanan berhasil dibatalkan.',
+            'data' => $order->load('items')
         ]);
     }
 }

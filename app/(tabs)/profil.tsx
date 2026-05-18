@@ -117,6 +117,12 @@ export default function ProfilScreen() {
                         <Feather name="chevron-right" size={18} color="#CCC" />
                     </TouchableOpacity>
                     <View style={styles.divider} />
+                    <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/alergi-obat' as any)}>
+                        <Feather name="heart" size={18} color="#D32F2F" />
+                        <Text style={styles.menuText}>Alergi Obat Saya</Text>
+                        <Feather name="chevron-right" size={18} color="#CCC" />
+                    </TouchableOpacity>
+                    <View style={styles.divider} />
                     <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/ubah-kata-sandi' as any)}>
                         <Feather name="lock" size={18} color="#555" />
                         <Text style={styles.menuText}>Ubah Kata Sandi</Text>

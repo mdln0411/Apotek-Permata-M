@@ -1,10 +1,11 @@
 import { getMedicineDetail, MedicineDetail } from '@/api/medicineService';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { LoginPromptModal } from '@/components/LoginPromptModal';
+import axiosClient from '@/api/axiosClient';
 import {
     ActivityIndicator,
     Alert,
@@ -13,6 +14,7 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -44,6 +46,42 @@ const SectionCard = ({ icon, title, content }: { icon: string; title: string; co
     );
 };
 
+const renderMedicineImage = (item: any) => {
+    // Jika image_url adalah URL online lengkap, tampilkan gambar aslinya!
+    if (item.image_url && (item.image_url.startsWith('http://') || item.image_url.startsWith('https://'))) {
+        return (
+            <Image 
+                source={{ uri: item.image_url }} 
+                style={styles.mainImage || { width: '100%', height: '100%' }} 
+                resizeMode="contain"
+            />
+        );
+    }
+
+    const unitLower = (item.unit || '').toLowerCase();
+    const nameLower = (item.name || '').toLowerCase();
+    const isLiquid = unitLower.includes('ml') || unitLower.includes('botol') || unitLower.includes('cair') || nameLower.includes('sirup') || nameLower.includes('cair') || nameLower.includes('drop') || nameLower.includes('suspensi');
+    const iconName = isLiquid ? 'bottle-tonic-plus' : 'pill';
+    
+    const bgColors = ['#E8F5E9', '#E3F2FD', '#FFF3E0', '#F3E5F5', '#E8EAF6'];
+    const textColors = ['#2E8B57', '#1976D2', '#F57C00', '#7B1FA2', '#3F51B5'];
+    
+    let hash = 0;
+    const name = item.name || '';
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colorIndex = Math.abs(hash) % bgColors.length;
+    const bgColor = bgColors[colorIndex];
+    const textColor = textColors[colorIndex];
+
+    return (
+        <View style={{ width: '100%', height: '100%', backgroundColor: bgColor, justifyContent: 'center', alignItems: 'center' }}>
+            <MaterialCommunityIcons name={iconName as any} size={88} color={textColor} />
+        </View>
+    );
+};
+
 export default function DetailObatScreen() {
     const { user } = useAuth();
     const { addToCart } = useCart();
@@ -55,6 +93,7 @@ export default function DetailObatScreen() {
     const [jumlah, setJumlah] = useState(1);
     const [loginModalVisible, setLoginModalVisible] = useState(false);
     const [loginModalMessage, setLoginModalMessage] = useState('');
+    const [orderedStatus, setOrderedStatus] = useState<{ status: string; date: string } | null>(null);
 
     const handleAddToCart = async (checkout = false) => {
         if (!user) {
@@ -99,6 +138,30 @@ export default function DetailObatScreen() {
                 setLoading(true);
                 const res = await getMedicineDetail(Number(id));
                 setMedicine(res.data);
+                
+                // Cek riwayat pembelian obat ini jika user telah login
+                if (user) {
+                    try {
+                        const ordRes = await axiosClient.get('/api/orders');
+                        if (ordRes.data && ordRes.data.data) {
+                            const matched = ordRes.data.data.find((ord: any) => 
+                                ord.items && ord.items.some((item: any) => item.medicine_id === Number(id))
+                            );
+                            if (matched) {
+                                setOrderedStatus({
+                                    status: matched.status,
+                                    date: new Date(matched.created_at).toLocaleDateString('id-ID', {
+                                        day: 'numeric',
+                                        month: 'long',
+                                        year: 'numeric'
+                                    })
+                                });
+                            }
+                        }
+                    } catch (ordErr) {
+                        console.error('Error checking order history:', ordErr);
+                    }
+                }
             } catch (e) {
                 setError('Gagal memuat data obat. Pastikan server berjalan.');
                 console.error(e);
@@ -107,7 +170,7 @@ export default function DetailObatScreen() {
             }
         };
         fetchDetail();
-    }, [id]);
+    }, [id, user]);
 
     // Loading State
     if (loading) {
@@ -155,6 +218,17 @@ export default function DetailObatScreen() {
 
     const totalHarga = medicine.price * jumlah;
 
+    // Mapping penerjemahan status pesanan agar lebih ramah pengguna
+    const statusTranslations: Record<string, string> = {
+        pending: 'Menunggu Pembayaran',
+        diproses: 'Sedang Diproses Apoteker',
+        dikirim: 'Dalam Pengiriman',
+        selesai: 'Selesai',
+        dibatalkan: 'Dibatalkan',
+        dilaporkan: 'Dilaporkan'
+    };
+    const translatedStatus = orderedStatus ? (statusTranslations[orderedStatus.status] || orderedStatus.status) : '';
+
     return (
         <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
@@ -165,28 +239,24 @@ export default function DetailObatScreen() {
                     <Ionicons name="chevron-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Detail Obat</Text>
-                <View style={styles.headerRight}>
-                    <TouchableOpacity style={styles.headerIconBtn}>
-                        <Feather name="heart" size={20} color="#2E8B57" />
-                    </TouchableOpacity>
-                </View>
+                <View style={styles.headerRight} />
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
+                {/* Banner Pemberitahuan Checkout (Riwayat Pesanan Aktif) */}
+                {orderedStatus && (
+                    <View style={styles.orderNotificationBanner}>
+                        <Feather name="bell" size={18} color="#FFF" style={styles.bannerIcon} />
+                        <Text style={styles.bannerText}>
+                            Anda memiliki pesanan aktif obat ini sejak <Text style={{ fontWeight: 'bold' }}>{orderedStatus.date}</Text>. Status: <Text style={{ fontWeight: 'bold' }}>{translatedStatus}</Text>.
+                        </Text>
+                    </View>
+                )}
+
                 {/* Gambar Obat */}
                 <View style={styles.imageContainer}>
-                    {medicine.image_url ? (
-                        <Image
-                            source={{ uri: medicine.image_url }}
-                            style={styles.mainImage}
-                            resizeMode="contain"
-                        />
-                    ) : (
-                        <View style={styles.noImage}>
-                            <Ionicons name="medical" size={80} color="#C8E6C9" />
-                        </View>
-                    )}
+                    {renderMedicineImage(medicine)}
                     {/* Badge Resep */}
                     {medicine.prescription_required && (
                         <View style={styles.badgeResepFloat}>
@@ -253,37 +323,35 @@ export default function DetailObatScreen() {
                     </View>
                 </View>
 
-                {/* Quantity & Action */}
+                {/* Quantity Selector */}
                 {medicine.stock > 0 && (
                     <View style={styles.actionSection}>
                         <View style={styles.qtyRow}>
-                            <Text style={styles.qtyLabel}>Jumlah</Text>
+                            <Text style={styles.qtyLabel}>Jumlah Pembelian</Text>
                             <View style={styles.qtyControl}>
                                 <TouchableOpacity style={styles.qtyBtn} onPress={kurangJumlah}>
                                     <Feather name="minus" size={16} color={jumlah <= 1 ? '#CCC' : '#333'} />
                                 </TouchableOpacity>
-                                <Text style={styles.qtyValue}>{jumlah}</Text>
+                                <TextInput
+                                    style={[styles.qtyInput, { outlineStyle: 'none' } as any]}
+                                    keyboardType="numeric"
+                                    value={String(jumlah)}
+                                    onChangeText={(text) => {
+                                        const parsed = parseInt(text.replace(/[^0-9]/g, ''), 10);
+                                        if (!isNaN(parsed) && parsed > 0) {
+                                            setJumlah(parsed > medicine.stock ? medicine.stock : parsed);
+                                        } else if (text === '') {
+                                            setJumlah(0);
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        if (jumlah < 1) setJumlah(1);
+                                    }}
+                                />
                                 <TouchableOpacity style={styles.qtyBtn} onPress={tambahJumlah}>
                                     <Feather name="plus" size={16} color={jumlah >= medicine.stock ? '#CCC' : '#333'} />
                                 </TouchableOpacity>
                             </View>
-                        </View>
-                        <View style={styles.btnRow}>
-                            <TouchableOpacity 
-                                style={[styles.btnCart, adding && styles.btnDisabled]} 
-                                onPress={() => handleAddToCart(false)}
-                                disabled={adding}
-                            >
-                                <Feather name="shopping-cart" size={16} color="#2E8B57" />
-                                <Text style={styles.btnCartText}>Keranjang</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.btnBuy, adding && styles.btnDisabled]} 
-                                onPress={() => handleAddToCart(true)}
-                                disabled={adding}
-                            >
-                                <Text style={styles.btnBuyText}>Beli Sekarang</Text>
-                            </TouchableOpacity>
                         </View>
                     </View>
                 )}
@@ -368,9 +436,16 @@ export default function DetailObatScreen() {
 
             {/* Sticky Bottom Bar */}
             <View style={styles.bottomBar}>
-                <TouchableOpacity style={styles.bottomCartIcon} onPress={() => router.push('/keranjang' as any)}>
-                    <Feather name="shopping-cart" size={24} color="#2E8B57" />
-                    <Text style={styles.bottomCartLabel}>Keranjang</Text>
+                <TouchableOpacity 
+                    style={[
+                        styles.bottomBtnCart, 
+                        (medicine.stock === 0 || adding) && styles.bottomBtnCartDisabled
+                    ]} 
+                    disabled={medicine.stock === 0 || adding}
+                    onPress={() => handleAddToCart(false)}
+                >
+                    <Feather name="shopping-cart" size={18} color="#2E8B57" style={{ marginRight: 6 }} />
+                    <Text style={styles.bottomBtnCartText}>+ Keranjang</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={[
@@ -381,12 +456,12 @@ export default function DetailObatScreen() {
                     onPress={() => handleAddToCart(true)}
                 >
                     {adding ? (
-                        <ActivityIndicator color="#FFF" />
+                        <ActivityIndicator color="#FFF" size="small" />
                     ) : (
                         <Text style={styles.bottomBtnBuyText}>
                             {medicine.stock === 0
                                 ? 'Stok Habis'
-                                : `Beli Sekarang • Rp ${totalHarga.toLocaleString('id-ID')}`}
+                                : `Beli Sekarang`}
                         </Text>
                     )}
                 </TouchableOpacity>
@@ -429,7 +504,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     headerTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-    headerRight: { flexDirection: 'row', gap: 8 },
+    headerRight: { width: 40 },
 
     // Centered (loading/error)
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
@@ -441,6 +516,20 @@ const styles = StyleSheet.create({
 
     scrollContent: { paddingBottom: 20 },
 
+    // Order History Banner
+    orderNotificationBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#2E8B57',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        marginHorizontal: 20,
+        marginTop: 16,
+        borderRadius: 12,
+    },
+    bannerIcon: { marginRight: 10 },
+    bannerText: { color: '#FFF', fontSize: 13, flex: 1, lineHeight: 18 },
+
     // Gambar
     imageContainer: {
         width: '100%',
@@ -449,6 +538,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         position: 'relative',
+        marginTop: 10,
     },
     mainImage: { width: '100%', height: '100%' },
     noImage: { justifyContent: 'center', alignItems: 'center' },
@@ -506,18 +596,19 @@ const styles = StyleSheet.create({
     trustText: { fontSize: 11, color: '#333', textAlign: 'center', lineHeight: 16, marginTop: 2 },
 
     // Action
-    actionSection: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 4 },
-    qtyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+    actionSection: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
+    qtyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
     qtyLabel: { fontSize: 15, fontWeight: '600', color: '#333' },
-    qtyControl: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 10 },
-    qtyBtn: { padding: 10 },
-    qtyValue: { fontSize: 16, fontWeight: 'bold', color: '#333', minWidth: 40, textAlign: 'center' },
-    btnRow: { flexDirection: 'row', gap: 10 },
-    btnCart: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#2E8B57', borderRadius: 10, paddingVertical: 12, gap: 6 },
-    btnCartText: { color: '#2E8B57', fontSize: 14, fontWeight: 'bold' },
-    btnBuy: { flex: 1.4, backgroundColor: '#2E8B57', alignItems: 'center', justifyContent: 'center', borderRadius: 10, paddingVertical: 12 },
-    btnBuyText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
-    btnDisabled: { opacity: 0.6, borderColor: '#CCC' },
+    qtyControl: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 10, backgroundColor: '#FAFAFA' },
+    qtyBtn: { padding: 12 },
+    qtyInput: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+        minWidth: 40,
+        textAlign: 'center',
+        paddingVertical: 0,
+    },
 
     // Section Cards
     sectionCard: {
@@ -567,9 +658,41 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         shadowOffset: { width: 0, height: -2 },
     },
-    bottomCartIcon: { alignItems: 'center', marginRight: 16 },
-    bottomCartLabel: { fontSize: 10, color: '#2E8B57', marginTop: 2 },
-    bottomBtnBuy: { flex: 1, backgroundColor: '#2E8B57', borderRadius: 12, justifyContent: 'center', alignItems: 'center', paddingVertical: 14 },
-    bottomBtnBuyDisabled: { backgroundColor: '#BDBDBD' },
-    bottomBtnBuyText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
+    bottomBtnCart: {
+        flex: 1,
+        flexDirection: 'row',
+        borderColor: '#2E8B57',
+        borderWidth: 1.5,
+        backgroundColor: '#FFF',
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 14,
+        marginRight: 12,
+    },
+    bottomBtnCartDisabled: {
+        borderColor: '#BDBDBD',
+        opacity: 0.6,
+    },
+    bottomBtnCartText: {
+        color: '#2E8B57',
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+    bottomBtnBuy: {
+        flex: 1.2,
+        backgroundColor: '#2E8B57',
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 14,
+    },
+    bottomBtnBuyDisabled: {
+        backgroundColor: '#BDBDBD',
+    },
+    bottomBtnBuyText: {
+        color: '#FFF',
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
 });
