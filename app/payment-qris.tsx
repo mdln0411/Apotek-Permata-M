@@ -16,6 +16,7 @@ import {
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import axiosClient from '@/api/axiosClient';
+import QRCode from 'react-native-qrcode-svg';
 
 const THEME = {
   primary: '#2E8B57', // Sea Green
@@ -191,10 +192,15 @@ export default function QRISPaymentScreen() {
 
           {/* QR Container */}
           <View style={styles.qrCodeWrapper}>
-            <Image 
-              source={{ uri: qrCodeUrl }} 
-              style={styles.qrImage}
-              resizeMode="contain"
+            <QRCode
+              value={qrData}
+              size={180}
+              backgroundColor="white"
+              color="black"
+              logo={require('../assets/images/icon.png')}
+              logoSize={40}
+              logoBackgroundColor="white"
+              logoBorderRadius={8}
             />
           </View>
 

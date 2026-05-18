@@ -21,10 +21,12 @@ export default function UploadResepScreen() {
     const [loading, setLoading] = useState(false);
 
     const pickImage = async () => {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-            alert('Maaf, kami butuh izin galeri untuk mengunggah resep.');
-            return;
+        if (Platform.OS !== 'web') {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                alert('Maaf, kami butuh izin galeri untuk mengunggah resep.');
+                return;
+            }
         }
 
         let result = await ImagePicker.launchImageLibraryAsync({
@@ -39,10 +41,12 @@ export default function UploadResepScreen() {
     };
 
     const takePhoto = async () => {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-            alert('Maaf, kami butuh izin kamera untuk mengambil foto resep.');
-            return;
+        if (Platform.OS !== 'web') {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                alert('Maaf, kami butuh izin kamera untuk mengambil foto resep.');
+                return;
+            }
         }
 
         let result = await ImagePicker.launchCameraAsync({
@@ -85,9 +89,10 @@ export default function UploadResepScreen() {
 
             Alert.alert('Berhasil!', 'Resep Anda telah terkirim. Apoteker akan segera memverifikasi resep Anda.');
             router.replace('/(tabs)');
-        } catch (error) {
+        } catch (error: any) {
             console.error('Upload error:', error);
-            Alert.alert('Gagal', 'Terjadi kesalahan saat mengunggah resep. Silakan coba lagi.');
+            const errorMsg = error.response?.data?.message || error.message || 'Terjadi kesalahan saat mengunggah resep. Silakan coba lagi.';
+            Alert.alert('Gagal', errorMsg);
         } finally {
             setLoading(false);
         }
@@ -117,17 +122,24 @@ export default function UploadResepScreen() {
                 </View>
 
                 {/* Upload Area */}
-                <TouchableOpacity style={styles.uploadArea} onPress={() => {
-                    Alert.alert(
-                        'Pilih Sumber',
-                        'Ambil foto resep atau pilih dari galeri?',
-                        [
-                            { text: 'Kamera', onPress: takePhoto },
-                            { text: 'Galeri', onPress: pickImage },
-                            { text: 'Batal', style: 'cancel' }
-                        ]
-                    );
-                }}>
+                <TouchableOpacity 
+                    style={styles.uploadArea} 
+                    onPress={() => {
+                        if (Platform.OS === 'web') {
+                            pickImage();
+                        } else {
+                            Alert.alert(
+                                'Pilih Sumber',
+                                'Ambil foto resep atau pilih dari galeri?',
+                                [
+                                    { text: 'Kamera', onPress: takePhoto },
+                                    { text: 'Galeri', onPress: pickImage },
+                                    { text: 'Batal', style: 'cancel' }
+                                ]
+                            );
+                        }
+                    }}
+                >
                     {image ? (
                         <Image source={{ uri: image }} style={styles.previewImg} />
                     ) : (

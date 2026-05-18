@@ -1,9 +1,68 @@
+import axiosClient from '@/api/axiosClient';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
-import React from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { 
+    ActivityIndicator, 
+    Alert, 
+    SafeAreaView, 
+    ScrollView, 
+    StyleSheet, 
+    Text, 
+    TextInput, 
+    TouchableOpacity, 
+    View 
+} from 'react-native';
 
 export default function RegisterScreen() {
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleRegister = async () => {
+        if (!name || !email || !password || !confirmPassword) {
+            Alert.alert('Peringatan', 'Semua kolom harus diisi.');
+            return;
+        }
+
+        if (password.length < 8) {
+            Alert.alert('Peringatan', 'Password harus minimal 8 karakter.');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            Alert.alert('Peringatan', 'Konfirmasi password tidak cocok.');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const response = await axiosClient.post('/api/auth/register', {
+                name,
+                email,
+                password,
+            });
+
+            router.replace({
+                pathname: '/success-action',
+                params: {
+                    title: 'Akun Berhasil Dibuat!',
+                    message: `Selamat! Akun atas nama ${name} telah berhasil terdaftar di Apotek Permata. Silakan masuk untuk mulai berbelanja.`,
+                    target: '/login',
+                    buttonText: 'Masuk Sekarang'
+                }
+            } as any);
+        } catch (error: any) {
+            console.error('Registration error:', error);
+            const errorMsg = error.response?.data?.message || error.message || 'Terjadi kesalahan saat mendaftar.';
+            Alert.alert('Pendaftaran Gagal', errorMsg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
@@ -24,32 +83,56 @@ export default function RegisterScreen() {
 
                 <View style={styles.card}>
                     <Text style={styles.inputLabel}>Nama Lengkap</Text>
-                    <TextInput style={styles.textInput} placeholder="Nama Anda" placeholderTextColor="#999" />
+                    <TextInput 
+                        style={styles.textInput} 
+                        placeholder="Nama Anda" 
+                        placeholderTextColor="#999" 
+                        value={name}
+                        onChangeText={setName}
+                    />
 
                     <Text style={styles.inputLabel}>Email</Text>
-                    <TextInput style={styles.textInput} placeholder="email@example.com" placeholderTextColor="#999" keyboardType="email-address" />
+                    <TextInput 
+                        style={styles.textInput} 
+                        placeholder="email@example.com" 
+                        placeholderTextColor="#999" 
+                        keyboardType="email-address" 
+                        autoCapitalize="none"
+                        value={email}
+                        onChangeText={setEmail}
+                    />
 
                     <Text style={styles.inputLabel}>Password</Text>
-                    <TextInput style={styles.textInput} placeholder="••••••••" placeholderTextColor="#999" secureTextEntry />
+                    <TextInput 
+                        style={styles.textInput} 
+                        placeholder="••••••••" 
+                        placeholderTextColor="#999" 
+                        secureTextEntry 
+                        value={password}
+                        onChangeText={setPassword}
+                    />
 
                     <Text style={styles.inputLabel}>Konfirmasi Password</Text>
-                    <TextInput style={styles.textInput} placeholder="••••••••" placeholderTextColor="#999" secureTextEntry />
+                    <TextInput 
+                        style={styles.textInput} 
+                        placeholder="••••••••" 
+                        placeholderTextColor="#999" 
+                        secureTextEntry 
+                        value={confirmPassword}
+                        onChangeText={setConfirmPassword}
+                    />
 
                     <TouchableOpacity 
-                        style={styles.primaryButton}
-                        onPress={() => router.replace({
-                            pathname: '/success-action',
-                            params: {
-                                title: 'Akun Berhasil Dibuat!',
-                                message: 'Selamat! Akun Anda telah terdaftar di Apotek Permata. Silakan masuk untuk mulai berbelanja.',
-                                target: '/login',
-                                buttonText: 'Masuk Sekarang'
-                            }
-                        } as any)}
+                        style={[styles.primaryButton, loading && styles.disabledButton]}
+                        onPress={handleRegister}
+                        disabled={loading}
                     >
-                        <Text style={styles.primaryButtonText}>Daftar</Text>
+                        {loading ? (
+                            <ActivityIndicator color="#FFF" />
+                        ) : (
+                            <Text style={styles.primaryButtonText}>Daftar</Text>
+                        )}
                     </TouchableOpacity>
-
 
                     <View style={styles.loginRow}>
                         <Text style={styles.loginText}>Sudah punya akun? </Text>
@@ -77,6 +160,7 @@ const styles = StyleSheet.create({
     inputLabel: { fontSize: 14, fontWeight: '500', color: '#333', marginBottom: 8, marginTop: 12 },
     textInput: { height: 48, borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, paddingHorizontal: 16, fontSize: 15, color: '#333', backgroundColor: '#FAFAFA' },
     primaryButton: { backgroundColor: '#2E8B57', height: 48, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginTop: 24 },
+    disabledButton: { backgroundColor: '#A5D6A7' },
     primaryButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
     loginRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
     loginText: { color: '#555', fontSize: 14 },
