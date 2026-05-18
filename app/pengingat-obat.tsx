@@ -1,9 +1,161 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Notifications from 'expo-notifications';
+import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { router, Stack } from 'expo-router';
-import React from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+
+// Konfigurasi Notifikasi
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+interface Reminder {
+  id: string;
+  medicineName: string;
+  times: string[];
+  duration: string;
+  isActive: boolean;
+  notificationIds: string[];
+}
 
 export default function PengingatObatScreen() {
+  const [reminders, setReminders] = useState<Reminder[]>([
+    {
+      id: '1',
+      medicineName: 'Paracetamol 500mg',
+      times: ['08:00', '14:00', '20:00'],
+      duration: '7 hari',
+      isActive: true,
+      notificationIds: []
+    },
+    {
+      id: '2',
+      medicineName: 'Vitamin C 1000mg',
+      times: ['09:00'],
+      duration: '30 hari',
+      isActive: true,
+      notificationIds: []
+    }
+  ]);
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newMedicineName, setNewMedicineName] = useState('');
+  const [newDuration, setNewDuration] = useState('');
+  const [selectedTime, setSelectedTime] = useState(new Date());
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [tempTimes, setTempTimes] = useState<string[]>([]);
+
+  useEffect(() => {
+    requestPermissions();
+  }, []);
+
+  const requestPermissions = async () => {
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Izin Botifikasi', 'Mohon izinkan notifikasi untuk menggunakan fitur pengingat.');
+    }
+  };
+
+  const scheduleNotification = async (medicineName: string, timeStr: string) => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Waktunya Minum Obat! 💊",
+        body: `Jangan lupa minum ${medicineName} sekarang.`,
+        sound: true,
+      },
+      trigger: {
+        type: SchedulableTriggerInputTypes.CALENDAR,
+        hour: hours,
+        minute: minutes,
+        repeats: true,
+      } as any,
+    });
+    
+    return id;
+  };
+
+  const handleAddReminder = async () => {
+    if (!newMedicineName || !newDuration || tempTimes.length === 0) {
+      Alert.alert('Eror', 'Mohon isi semua data pengingat.');
+      return;
+    }
+
+    const notificationIds: string[] = [];
+    for (const time of tempTimes) {
+      const id = await scheduleNotification(newMedicineName, time);
+      notificationIds.push(id);
+    }
+
+    const newReminder: Reminder = {
+      id: Date.now().toString(),
+      medicineName: newMedicineName,
+      times: tempTimes,
+      duration: `${newDuration} hari`,
+      isActive: true,
+      notificationIds
+    };
+
+    setReminders([...reminders, newReminder]);
+    setModalVisible(false);
+    resetForm();
+    Alert.alert('Berhasil', 'Pengingat obat telah ditambahkan dan notifikasi dijadwalkan.');
+  };
+
+  const resetForm = () => {
+    setNewMedicineName('');
+    setNewDuration('');
+    setTempTimes([]);
+  };
+
+  const deleteReminder = async (id: string) => {
+    const reminder = reminders.find(r => r.id === id);
+    if (reminder) {
+      // Cancel all notifications for this reminder
+      for (const notifId of reminder.notificationIds) {
+        await Notifications.cancelScheduledNotificationAsync(notifId);
+      }
+    }
+    setReminders(reminders.filter(r => r.id !== id));
+  };
+
+  const onTimeChange = (event: any, selectedValue?: Date) => {
+    setShowTimePicker(Platform.OS === 'ios');
+    if (selectedValue) {
+      const hours = selectedValue.getHours().toString().padStart(2, '0');
+      const minutes = selectedValue.getMinutes().toString().padStart(2, '0');
+      const timeStr = `${hours}:${minutes}`;
+      
+      if (!tempTimes.includes(timeStr)) {
+        setTempTimes([...tempTimes, timeStr].sort());
+      }
+    }
+  };
+
+  const removeTempTime = (time: string) => {
+    setTempTimes(tempTimes.filter(t => t !== time));
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -19,81 +171,132 @@ export default function PengingatObatScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
         {/* Tombol Tambah Pengingat */}
-        <TouchableOpacity style={styles.addButton}>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => setModalVisible(true)}
+        >
           <Feather name="plus" size={20} color="#FFF" style={styles.addIcon} />
           <Text style={styles.addButtonText}>Tambah Pengingat</Text>
         </TouchableOpacity>
 
-        {/* Card Pengingat 1 */}
-        <View style={styles.card}>
-          <View style={styles.cardTopRow}>
-            <Text style={styles.medicineName}>Paracetamol 500mg</Text>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.checkButton}>
-                <Ionicons name="checkmark" size={18} color="#2E8B57" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteButton}>
-                <Feather name="trash-2" size={18} color="#D32F2F" />
-              </TouchableOpacity>
+        {reminders.map((reminder) => (
+          <View key={reminder.id} style={styles.card}>
+            <View style={styles.cardTopRow}>
+              <Text style={styles.medicineName}>{reminder.medicineName}</Text>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity 
+                  style={styles.deleteButton}
+                  onPress={() => deleteReminder(reminder.id)}
+                >
+                  <Feather name="trash-2" size={18} color="#D32F2F" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.timeContainer}>
+              {reminder.times.map((time, index) => (
+                <View key={index} style={styles.timeBadge}>
+                  <Feather name="clock" size={12} color="#2E8B57" style={styles.timeIcon} />
+                  <Text style={styles.timeText}>{time}</Text>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.durationText}>Durasi: {reminder.duration}</Text>
+
+            <View style={styles.statusBox}>
+              <Feather name="bell" size={14} color="#555" style={styles.statusIcon} />
+              <Text style={styles.statusText}>Pengingat aktif</Text>
             </View>
           </View>
-
-          <View style={styles.timeContainer}>
-            <View style={styles.timeBadge}>
-              <Feather name="clock" size={12} color="#2E8B57" style={styles.timeIcon} />
-              <Text style={styles.timeText}>08:00</Text>
-            </View>
-            <View style={styles.timeBadge}>
-              <Feather name="clock" size={12} color="#2E8B57" style={styles.timeIcon} />
-              <Text style={styles.timeText}>14:00</Text>
-            </View>
-            <View style={styles.timeBadge}>
-              <Feather name="clock" size={12} color="#2E8B57" style={styles.timeIcon} />
-              <Text style={styles.timeText}>20:00</Text>
-            </View>
-          </View>
-
-          <Text style={styles.durationText}>Durasi: 7 hari</Text>
-
-          <View style={styles.statusBox}>
-            <Feather name="bell" size={14} color="#555" style={styles.statusIcon} />
-            <Text style={styles.statusText}>Pengingat aktif</Text>
-          </View>
-        </View>
-
-        {/* Card Pengingat 2 */}
-        <View style={styles.card}>
-          <View style={styles.cardTopRow}>
-            <Text style={styles.medicineName}>Vitamin C 1000mg</Text>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.checkButton}>
-                <Ionicons name="checkmark" size={18} color="#2E8B57" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteButton}>
-                <Feather name="trash-2" size={18} color="#D32F2F" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.timeContainer}>
-            <View style={styles.timeBadge}>
-              <Feather name="clock" size={12} color="#2E8B57" style={styles.timeIcon} />
-              <Text style={styles.timeText}>09:00</Text>
-            </View>
-          </View>
-
-          <Text style={styles.durationText}>Durasi: 30 hari</Text>
-
-          <View style={styles.statusBox}>
-            <Feather name="bell" size={14} color="#555" style={styles.statusIcon} />
-            <Text style={styles.statusText}>Pengingat aktif</Text>
-          </View>
-        </View>
-
+        ))}
       </ScrollView>
+
+      {/* Modal Tambah Pengingat */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Tambah Pengingat Baru</Text>
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Nama Obat</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Contoh: Paracetamol"
+                value={newMedicineName}
+                onChangeText={setNewMedicineName}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Durasi (hari)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Contoh: 7"
+                keyboardType="numeric"
+                value={newDuration}
+                onChangeText={setNewDuration}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Jadwal Waktu</Text>
+              <View style={styles.timeSelectionRow}>
+                {tempTimes.map((time, index) => (
+                  <TouchableOpacity 
+                    key={index} 
+                    style={styles.tempTimeBadge}
+                    onPress={() => removeTempTime(time)}
+                  >
+                    <Text style={styles.tempTimeText}>{time}</Text>
+                    <Ionicons name="close-circle" size={14} color="#FFF" />
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity 
+                  style={styles.addTimeButton}
+                  onPress={() => setShowTimePicker(true)}
+                >
+                  <Ionicons name="add" size={20} color="#2E8B57" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {showTimePicker && (
+              <DateTimePicker
+                value={selectedTime}
+                mode="time"
+                is24Hour={true}
+                display="default"
+                onChange={onTimeChange}
+              />
+            )}
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Batal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={handleAddReminder}
+              >
+                <Text style={styles.saveButtonText}>Simpan</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -226,5 +429,101 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 13,
     color: '#555',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+    color: '#333',
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#555',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  timeSelectionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  tempTimeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2E8B57',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  tempTimeText: {
+    color: '#FFF',
+    fontSize: 14,
+    marginRight: 4,
+  },
+  addTimeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#2E8B57',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    marginTop: 24,
+  },
+  modalButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#F5F5F5',
+    marginRight: 12,
+  },
+  saveButton: {
+    backgroundColor: '#2E8B57',
+  },
+  cancelButtonText: {
+    color: '#555',
+    fontWeight: 'bold',
+  },
+  saveButtonText: {
+    color: '#FFF',
+    fontWeight: 'bold',
   },
 });

@@ -68,7 +68,12 @@ export default function UploadResepScreen() {
             if (Platform.OS === 'web') {
                 const response = await fetch(image);
                 const blob = await response.blob();
-                formData.append('image', blob, 'prescription.jpg');
+                
+                // Get original file type from blob
+                const fileType = blob.type || 'image/jpeg';
+                const extension = fileType.split('/')[1] || 'jpg';
+                
+                formData.append('image', blob, `prescription.${extension}`);
             } else {
                 const uriParts = image.split('.');
                 const fileType = uriParts[uriParts.length - 1];
@@ -79,12 +84,31 @@ export default function UploadResepScreen() {
                 } as any);
             }
 
-            await axiosClient.post('/api/prescriptions', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+            console.log('Attempting upload to:', axiosClient.defaults.baseURL + '/api/prescriptions');
+
+            const uploadResponse = await axiosClient.post('/api/prescriptions', formData, {
+                headers: { 
+                    'Content-Type': 'multipart/form-data',
+                    'Accept': 'application/json'
+                }
             });
 
-            Alert.alert('Berhasil!', 'Resep Anda telah terkirim. Apoteker akan segera memverifikasi resep Anda.');
-            router.replace('/(tabs)');
+            console.log('Server Response:', uploadResponse.data);
+
+            Alert.alert(
+                'Berhasil!', 
+                'Resep Anda telah terkirim. Apoteker akan segera memverifikasi resep Anda.',
+                [
+                    { 
+                        text: 'Lihat Riwayat', 
+                        onPress: () => router.replace('/(tabs)/pesanan') 
+                    },
+                    { 
+                        text: 'OK', 
+                        onPress: () => router.replace('/(tabs)') 
+                    }
+                ]
+            );
         } catch (error) {
             console.error('Upload error:', error);
             Alert.alert('Gagal', 'Terjadi kesalahan saat mengunggah resep. Silakan coba lagi.');

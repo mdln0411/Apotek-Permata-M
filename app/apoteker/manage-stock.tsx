@@ -1,6 +1,6 @@
 import axiosClient from '@/api/axiosClient';
-import { Feather, Ionicons } from '@expo/vector-icons';
-import { Stack } from 'expo-router';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { 
     SafeAreaView, 
@@ -11,12 +11,34 @@ import {
     View, 
     TextInput,
     ActivityIndicator,
-    Alert
+    StatusBar,
+    Platform,
+    RefreshControl
 } from 'react-native';
 
+const THEME = {
+    primary: '#2E8B57',
+    secondary: '#F0F9F4',
+    white: '#FFFFFF',
+    textDark: '#2C3E50',
+    textMuted: '#7F8C8D',
+    danger: '#FF5252',
+    warning: '#FFA000',
+    border: '#E8ECEF',
+    cardShadow: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+        elevation: 2
+    }
+};
+
 export default function ManageStock() {
+    const router = useRouter();
     const [medicines, setMedicines] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [search, setSearch] = useState('');
 
     useEffect(() => {
@@ -27,11 +49,12 @@ export default function ManageStock() {
         try {
             setLoading(true);
             const response = await axiosClient.get('/api/medicines?per_page=500');
-            setMedicines(response.data.data);
+            setMedicines(response.data.data || []);
         } catch (error) {
             console.error('Error fetching medicines:', error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -40,17 +63,14 @@ export default function ManageStock() {
         if (newStock < 0) return;
 
         try {
-            // Kita gunakan API yang sudah ada, kirim data stock baru
             await axiosClient.put(`/api/medicines/${id}`, { 
                 _method: 'PUT',
                 stock: newStock 
             });
-            
-            // Update local state agar real-time terasa cepat
             setMedicines(prev => prev.map(m => m.id === id ? { ...m, stock: newStock } : m));
         } catch (error) {
             alert('Gagal update stok');
-            fetchMedicines(); // Refresh jika gagal
+            fetchMedicines();
         }
     };
 
@@ -58,98 +78,189 @@ export default function ManageStock() {
         m.name.toLowerCase().includes(search.toLowerCase())
     );
 
+    const lowStockCount = medicines.filter(m => m.stock < 10).length;
+
     return (
         <SafeAreaView style={styles.container}>
-            <Stack.Screen options={{ 
-                headerShown: true, 
-                title: 'Stok Obat Real-Time', 
-                headerTintColor: '#FFF', 
-                headerStyle: { backgroundColor: '#2E8B57' } 
-            }} />
+            <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+            <Stack.Screen options={{ headerShown: false }} />
 
-            <View style={styles.searchBar}>
-                <Ionicons name="search" size={20} color="#999" style={{ marginRight: 10 }} />
-                <TextInput 
-                    placeholder="Cari obat untuk update stok..." 
-                    style={styles.input} 
-                    value={search}
-                    onChangeText={setSearch}
-                />
+            {/* Header Section */}
+            <View style={styles.header}>
+                <View style={styles.headerTop}>
+                    <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+                        <Ionicons name="chevron-back" size={24} color={THEME.white} />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.headerTitle}>Stok Obat</Text>
+                        <Text style={styles.headerSub}>{medicines.length} Total Produk</Text>
+                    </View>
+                </View>
+
+                {/* Search & Stats Bar */}
+                <View style={styles.headerActions}>
+                    <View style={styles.searchBox}>
+                        <Ionicons name="search-outline" size={20} color={THEME.textMuted} />
+                        <TextInput 
+                            placeholder="Cari obat..." 
+                            style={styles.searchInput} 
+                            placeholderTextColor={THEME.textMuted}
+                            value={search}
+                            onChangeText={setSearch}
+                        />
+                    </View>
+                    {lowStockCount > 0 && (
+                        <View style={styles.alertBar}>
+                            <Ionicons name="alert-circle" size={16} color={THEME.danger} />
+                            <Text style={styles.alertText}>{lowStockCount} Item Menipis</Text>
+                        </View>
+                    )}
+                </View>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                {loading ? (
-                    <ActivityIndicator size="large" color="#2E8B57" style={{ marginTop: 50 }} />
-                ) : filteredMedicines.map((item) => (
-                    <View key={item.id} style={styles.stockCard}>
-                        <View style={styles.medInfo}>
-                            <Text style={styles.medName}>{item.name}</Text>
-                            <Text style={styles.medCat}>{item.category} • {item.unit || 'Pcs'}</Text>
-                        </View>
-                        
-                        <View style={styles.stockAction}>
-                            <TouchableOpacity 
-                                style={styles.circleBtn} 
-                                onPress={() => updateStock(item.id, item.stock, -1)}
-                            >
-                                <Feather name="minus" size={20} color="#666" />
-                            </TouchableOpacity>
-                            
-                            <View style={styles.stockDisplay}>
-                                <Text style={[styles.stockValue, item.stock < 10 && { color: '#FF5252' }]}>
-                                    {item.stock}
-                                </Text>
-                                <Text style={styles.stockLabel}>Sisa</Text>
-                            </View>
-
-                            <TouchableOpacity 
-                                style={[styles.circleBtn, { backgroundColor: '#E8F5E9' }]} 
-                                onPress={() => updateStock(item.id, item.stock, 1)}
-                            >
-                                <Feather name="plus" size={20} color="#2E8B57" />
-                            </TouchableOpacity>
-                        </View>
+            <ScrollView 
+                showsVerticalScrollIndicator={false} 
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchMedicines(); }} colors={[THEME.primary]} />
+                }
+            >
+                {loading && !refreshing ? (
+                    <View style={styles.loaderContainer}>
+                        <ActivityIndicator size="large" color={THEME.primary} />
                     </View>
-                ))}
+                ) : filteredMedicines.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                        <MaterialCommunityIcons name="pill-off" size={80} color={THEME.border} />
+                        <Text style={styles.emptyText}>Obat tidak ditemukan</Text>
+                    </View>
+                ) : (
+                    filteredMedicines.map((item) => (
+                        <View key={item.id} style={styles.stockCard}>
+                            <View style={styles.cardMain}>
+                                <View style={styles.medInfo}>
+                                    <Text style={styles.medName} numberOfLines={1}>{item.name}</Text>
+                                    <View style={styles.medMeta}>
+                                        <View style={styles.categoryBadge}>
+                                            <Text style={styles.categoryText}>{item.category}</Text>
+                                        </View>
+                                        <Text style={styles.unitText}>Per {item.unit || 'Pcs'}</Text>
+                                    </View>
+                                </View>
+                                
+                                <View style={styles.stockControl}>
+                                    <TouchableOpacity 
+                                        style={[styles.controlBtn, { borderColor: THEME.border }]} 
+                                        onPress={() => updateStock(item.id, item.stock, -1)}
+                                        activeOpacity={0.6}
+                                    >
+                                        <Feather name="minus" size={18} color={THEME.textMuted} />
+                                    </TouchableOpacity>
+                                    
+                                    <View style={styles.stockDisplay}>
+                                        <Text style={[styles.stockValue, item.stock < 10 && styles.lowStockValue]}>
+                                            {item.stock}
+                                        </Text>
+                                        <Text style={styles.stockLabel}>Stok</Text>
+                                    </View>
+                                    
+                                    <TouchableOpacity 
+                                        style={[styles.controlBtn, { backgroundColor: THEME.secondary, borderColor: THEME.primary }]} 
+                                        onPress={() => updateStock(item.id, item.stock, 1)}
+                                        activeOpacity={0.6}
+                                    >
+                                        <Feather name="plus" size={18} color={THEME.primary} />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                            
+                            {item.stock < 10 && (
+                                <View style={styles.lowStockBanner}>
+                                    <Text style={styles.lowStockText}>Segera restok!</Text>
+                                </View>
+                            )}
+                        </View>
+                    ))
+                )}
             </ScrollView>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FBF8' },
-    searchBar: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        backgroundColor: '#FFF', 
-        margin: 20, 
-        borderRadius: 12, 
-        paddingHorizontal: 15, 
+    container: { flex: 1, backgroundColor: '#F8F9FA' },
+    header: { 
+        backgroundColor: THEME.primary, 
+        paddingTop: Platform.OS === 'android' ? 60 : 40, 
+        paddingBottom: 30, 
+        paddingHorizontal: 20,
+        borderBottomLeftRadius: 30,
+        borderBottomRightRadius: 30,
+        ...THEME.cardShadow
+    },
+    headerTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    backBtn: { marginRight: 15, padding: 5 },
+    headerTitle: { fontSize: 24, fontWeight: 'bold', color: THEME.white },
+    headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
+    headerActions: { gap: 15 },
+    searchBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: THEME.white,
+        borderRadius: 15,
+        paddingHorizontal: 15,
         height: 50,
-        borderWidth: 1,
-        borderColor: '#EEE'
-    },
-    input: { flex: 1, fontSize: 14 },
-    scrollContent: { paddingHorizontal: 20, paddingBottom: 30 },
-    stockCard: { 
-        flexDirection: 'row', 
-        backgroundColor: '#FFF', 
-        padding: 16, 
-        borderRadius: 18, 
-        alignItems: 'center', 
-        marginBottom: 12,
         elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 5
     },
-    medInfo: { flex: 1 },
-    medName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-    medCat: { fontSize: 12, color: '#999', marginTop: 2 },
-    stockAction: { flexDirection: 'row', alignItems: 'center', gap: 15 },
-    circleBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F5F5F5', justifyContent: 'center', alignItems: 'center' },
+    searchInput: {
+        flex: 1,
+        marginLeft: 10,
+        fontSize: 15,
+        color: THEME.textDark,
+    },
+    alertBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        alignSelf: 'flex-start'
+    },
+    alertText: { color: THEME.white, fontSize: 12, fontWeight: 'bold', marginLeft: 6 },
+    scrollContent: { padding: 20, paddingTop: 15 },
+    loaderContainer: { marginTop: 100, alignItems: 'center' },
+    stockCard: { 
+        backgroundColor: THEME.white, 
+        borderRadius: 20, 
+        marginBottom: 16, 
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: THEME.border,
+        ...THEME.cardShadow
+    },
+    cardMain: { padding: 16, flexDirection: 'row', alignItems: 'center' },
+    medInfo: { flex: 1, paddingRight: 10 },
+    medName: { fontSize: 16, fontWeight: '700', color: THEME.textDark, marginBottom: 6 },
+    medMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    categoryBadge: { backgroundColor: THEME.secondary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+    categoryText: { fontSize: 10, fontWeight: 'bold', color: THEME.primary },
+    unitText: { fontSize: 11, color: THEME.textMuted },
+    stockControl: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    controlBtn: { 
+        width: 36, 
+        height: 36, 
+        borderRadius: 12, 
+        borderWidth: 1, 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    },
     stockDisplay: { alignItems: 'center', minWidth: 40 },
-    stockValue: { fontSize: 20, fontWeight: 'bold', color: '#333' },
-    stockLabel: { fontSize: 10, color: '#999' }
+    stockValue: { fontSize: 18, fontWeight: '800', color: THEME.textDark },
+    lowStockValue: { color: THEME.danger },
+    stockLabel: { fontSize: 9, color: THEME.textMuted, marginTop: -2, textTransform: 'uppercase' },
+    lowStockBanner: { backgroundColor: '#FFF5F5', paddingVertical: 4, alignItems: 'center' },
+    lowStockText: { fontSize: 10, color: THEME.danger, fontWeight: 'bold' },
+    emptyContainer: { alignItems: 'center', marginTop: 80 },
+    emptyText: { color: THEME.textMuted, marginTop: 15, fontSize: 15, fontWeight: '500' }
 });

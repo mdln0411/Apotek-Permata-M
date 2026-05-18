@@ -1,6 +1,6 @@
 import axiosClient from '@/api/axiosClient';
-import { Feather, Ionicons } from '@expo/vector-icons';
-import { Stack } from 'expo-router';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -12,12 +12,37 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
+    Platform,
+    StatusBar,
+    RefreshControl
 } from 'react-native';
 
+const THEME = {
+    primary: '#2E8B57',
+    secondary: '#F0F9F4',
+    white: '#FFFFFF',
+    textDark: '#2C3E50',
+    textMuted: '#7F8C8D',
+    danger: '#FF5252',
+    warning: '#FFA000',
+    info: '#1976D2',
+    border: '#E8ECEF',
+    success: '#4CAF50',
+    cardShadow: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+        elevation: 2
+    }
+};
+
 export default function ValidasiResep() {
+    const router = useRouter();
     const [prescriptions, setPrescriptions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [selectedImg, setSelectedImg] = useState<string | null>(null);
     const [notes, setNotes] = useState('');
 
@@ -29,11 +54,12 @@ export default function ValidasiResep() {
         try {
             setLoading(true);
             const response = await axiosClient.get('/api/prescriptions');
-            setPrescriptions(response.data.data);
+            setPrescriptions(response.data.data || []);
         } catch (error) {
             console.error('Error fetching prescriptions:', error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -48,73 +74,137 @@ export default function ValidasiResep() {
         }
     };
 
+    const getImageUrl = (url: string) => {
+        if (!url) return '';
+        if (url.startsWith('http')) return url;
+        // Adjust storage path if needed
+        return `http://10.0.2.2:8000/storage/${url}`;
+    };
+
     return (
         <SafeAreaView style={styles.container}>
-            <Stack.Screen options={{ headerShown: true, title: 'Validasi Resep', headerTintColor: '#FFF', headerStyle: { backgroundColor: '#2E8B57' } }} />
+            <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+            <Stack.Screen options={{ headerShown: false }} />
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                <Text style={styles.sectionTitle}>Daftar Resep Masuk</Text>
-
-                {loading ? (
-                    <ActivityIndicator size="large" color="#2E8B57" style={{ marginTop: 50 }} />
-                ) : prescriptions.length === 0 ? (
-                    <Text style={{ textAlign: 'center', color: '#999', marginTop: 50 }}>Belum ada resep yang diunggah.</Text>
-                ) : prescriptions.map((item) => (
-                    <View key={item.id} style={styles.resepCard}>
-                        <TouchableOpacity onPress={() => setSelectedImg(item.image_url.startsWith('http') ? item.image_url : `http://127.0.0.1:8000/storage/${item.image_url}`)}>
-                            <Image
-                                source={{ uri: item.image_url.startsWith('http') ? item.image_url : `http://127.0.0.1:8000/storage/${item.image_url}` }}
-                                style={styles.resepImg}
-                            />
-                            <View style={styles.zoomIcon}>
-                                <Feather name="search" size={20} color="#FFF" />
-                            </View>
-                        </TouchableOpacity>
-
-                        <View style={styles.resepInfo}>
-                            <View style={styles.cardHead}>
-                                <View>
-                                    <Text style={styles.patientLabel}>Pasien</Text>
-                                    <Text style={styles.patientName}>{item.user?.name}</Text>
-                                </View>
-                                <View style={[styles.statusBadge, { backgroundColor: item.status === 'valid' ? '#E8F5E9' : item.status === 'rejected' ? '#FFEBEE' : '#E3F2FD' }]}>
-                                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: item.status === 'valid' ? '#2E8B57' : item.status === 'rejected' ? '#FF5252' : '#1976D2' }}>
-                                        {item.status.toUpperCase()}
-                                    </Text>
-                                </View>
-                            </View>
-
-                            <Text style={styles.resepDate}>{new Date(item.created_at).toLocaleDateString('id-ID')}</Text>
-
-                            {item.status === 'pending' && (
-                                <>
-                                    <TextInput
-                                        style={styles.noteInput}
-                                        placeholder="Tambahkan catatan (opsional)..."
-                                        value={notes}
-                                        onChangeText={setNotes}
-                                    />
-                                    <View style={styles.actionRow}>
-                                        <TouchableOpacity style={[styles.actionBtn, styles.btnReject]} onPress={() => handleUpdateStatus(item.id, 'rejected')}>
-                                            <Text style={styles.btnRejectText}>Tolak</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity style={[styles.actionBtn, styles.btnApprove]} onPress={() => handleUpdateStatus(item.id, 'valid')}>
-                                            <Text style={styles.btnApproveText}>Validasi</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </>
-                            )}
-                        </View>
+            {/* Header */}
+            <View style={styles.header}>
+                <View style={styles.headerTop}>
+                    <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+                        <Ionicons name="chevron-back" size={24} color={THEME.white} />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.headerTitle}>Validasi Resep</Text>
+                        <Text style={styles.headerSub}>{prescriptions.length} Resep Menunggu Tinjauan</Text>
                     </View>
-                ))}
+                </View>
+            </View>
+
+            <ScrollView 
+                showsVerticalScrollIndicator={false} 
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchPrescriptions(); }} colors={[THEME.primary]} />}
+            >
+                {loading && !refreshing ? (
+                    <View style={styles.loader}>
+                        <ActivityIndicator size="large" color={THEME.primary} />
+                    </View>
+                ) : prescriptions.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                        <MaterialCommunityIcons name="file-document-outline" size={80} color={THEME.border} />
+                        <Text style={styles.emptyText}>Belum ada resep digital masuk</Text>
+                    </View>
+                ) : (
+                    prescriptions.map((item) => (
+                        <View key={item.id} style={styles.resepCard}>
+                            <TouchableOpacity 
+                                activeOpacity={0.9}
+                                style={styles.imgContainer}
+                                onPress={() => setSelectedImg(getImageUrl(item.image_url))}
+                            >
+                                <Image
+                                    source={{ uri: getImageUrl(item.image_url) }}
+                                    style={styles.resepImg}
+                                />
+                                <View style={styles.zoomOverlay}>
+                                    <View style={styles.zoomBadge}>
+                                        <Feather name="maximize" size={16} color={THEME.white} />
+                                        <Text style={styles.zoomText}>Lihat Detail</Text>
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+
+                            <View style={styles.resepInfo}>
+                                <View style={styles.cardHead}>
+                                    <View style={styles.patientBox}>
+                                        <Text style={styles.patientName}>{item.user?.name || 'Pasien Anonim'}</Text>
+                                        <Text style={styles.resepDate}>
+                                            {new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                        </Text>
+                                    </View>
+                                    <View style={[styles.statusBadge, { 
+                                        backgroundColor: item.status === 'valid' ? THEME.secondary : 
+                                                        item.status === 'rejected' ? '#FFF5F5' : '#EBF5FB' 
+                                    }]}>
+                                        <Text style={[styles.statusText, { 
+                                            color: item.status === 'valid' ? THEME.primary : 
+                                                   item.status === 'rejected' ? THEME.danger : THEME.info 
+                                        }]}>
+                                            {(item.status || 'Pending').toUpperCase()}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {item.status === 'pending' && (
+                                    <View style={styles.actionSection}>
+                                        <View style={styles.divider} />
+                                        <TextInput
+                                            style={styles.noteInput}
+                                            placeholder="Catatan Apoteker (opsional)..."
+                                            placeholderTextColor={THEME.textMuted}
+                                            value={notes}
+                                            onChangeText={setNotes}
+                                            multiline
+                                        />
+                                        <View style={styles.actionRow}>
+                                            <TouchableOpacity 
+                                                style={[styles.actionBtn, styles.btnReject]} 
+                                                onPress={() => handleUpdateStatus(item.id, 'rejected')}
+                                            >
+                                                <Ionicons name="close-circle-outline" size={18} color={THEME.danger} />
+                                                <Text style={styles.btnRejectText}>Tolak Resep</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity 
+                                                style={[styles.actionBtn, styles.btnValid]} 
+                                                onPress={() => handleUpdateStatus(item.id, 'valid')}
+                                            >
+                                                <Ionicons name="checkmark-circle-outline" size={18} color={THEME.white} />
+                                                <Text style={styles.btnValidText}>Validasi Sekarang</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
+                                
+                                {item.notes && (
+                                    <View style={styles.noteDisplay}>
+                                        <Text style={styles.noteLabel}>Catatan:</Text>
+                                        <Text style={styles.noteValue}>{item.notes}</Text>
+                                    </View>
+                                )}
+                            </View>
+                        </View>
+                    ))
+                )}
             </ScrollView>
 
-            <Modal visible={!!selectedImg} transparent={true} animationType="fade">
+            {/* Image Modal */}
+            <Modal visible={!!selectedImg} transparent animationType="fade">
                 <View style={styles.modalBg}>
-                    <TouchableOpacity style={styles.closeBtn} onPress={() => setSelectedImg(null)}>
-                        <Ionicons name="close-circle" size={40} color="#FFF" />
+                    <TouchableOpacity style={styles.closeModal} onPress={() => setSelectedImg(null)}>
+                        <Ionicons name="close" size={32} color={THEME.white} />
                     </TouchableOpacity>
-                    {selectedImg && <Image source={{ uri: selectedImg }} style={styles.fullImg} resizeMode="contain" />}
+                    {selectedImg && (
+                        <Image source={{ uri: selectedImg }} style={styles.fullImg} resizeMode="contain" />
+                    )}
                 </View>
             </Modal>
         </SafeAreaView>
@@ -122,26 +212,89 @@ export default function ValidasiResep() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FBF8' },
+    container: { flex: 1, backgroundColor: '#F8F9FA' },
+    header: { 
+        backgroundColor: THEME.primary, 
+        paddingTop: Platform.OS === 'android' ? 60 : 40, 
+        paddingBottom: 30, 
+        paddingHorizontal: 20,
+        borderBottomLeftRadius: 30,
+        borderBottomRightRadius: 30,
+        ...THEME.cardShadow
+    },
+    headerTop: { flexDirection: 'row', alignItems: 'center' },
+    backBtn: { marginRight: 15, padding: 5 },
+    headerTitle: { fontSize: 24, fontWeight: 'bold', color: THEME.white },
+    headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
     scrollContent: { padding: 20 },
-    sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 15 },
-    resepCard: { backgroundColor: '#FFF', borderRadius: 20, overflow: 'hidden', marginBottom: 20, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 5 },
-    resepImg: { width: '100%', height: 200, backgroundColor: '#F0F0F0' },
-    zoomIcon: { position: 'absolute', right: 15, top: 15, backgroundColor: 'rgba(0,0,0,0.4)', padding: 8, borderRadius: 20 },
+    loader: { marginTop: 100 },
+    resepCard: { 
+        backgroundColor: THEME.white, 
+        borderRadius: 25, 
+        overflow: 'hidden', 
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: THEME.border,
+        ...THEME.cardShadow
+    },
+    imgContainer: { height: 200, width: '100%', position: 'relative' },
+    resepImg: { width: '100%', height: '100%' },
+    zoomOverlay: { 
+        ...StyleSheet.absoluteFillObject, 
+        backgroundColor: 'rgba(0,0,0,0.2)', 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    },
+    zoomBadge: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        backgroundColor: 'rgba(0,0,0,0.6)', 
+        paddingHorizontal: 15, 
+        paddingVertical: 8, 
+        borderRadius: 25,
+        gap: 6
+    },
+    zoomText: { color: THEME.white, fontSize: 12, fontWeight: 'bold' },
     resepInfo: { padding: 20 },
     cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-    statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-    patientLabel: { fontSize: 12, color: '#999', marginBottom: 2 },
-    patientName: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-    resepDate: { fontSize: 11, color: '#999', marginTop: 4, marginBottom: 15 },
-    noteInput: { backgroundColor: '#F9F9F9', borderColor: '#EEE', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 15, fontSize: 13 },
-    actionRow: { flexDirection: 'row', gap: 12 },
-    actionBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-    btnReject: { backgroundColor: '#FFF', borderColor: '#FF5252', borderWidth: 1 },
-    btnRejectText: { color: '#FF5252', fontWeight: 'bold' },
-    btnApprove: { backgroundColor: '#2E8B57' },
-    btnApproveText: { color: '#FFF', fontWeight: 'bold' },
-    modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' },
-    closeBtn: { position: 'absolute', top: 50, right: 20, zIndex: 10 },
-    fullImg: { width: '90%', height: '80%' }
+    patientBox: { flex: 1, marginRight: 10 },
+    patientName: { fontSize: 18, fontWeight: 'bold', color: THEME.textDark, marginBottom: 4 },
+    resepDate: { fontSize: 12, color: THEME.textMuted },
+    statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+    statusText: { fontSize: 10, fontWeight: '800' },
+    divider: { height: 1, backgroundColor: THEME.border, marginVertical: 15 },
+    noteInput: { 
+        backgroundColor: '#F8F9FA', 
+        borderWidth: 1, 
+        borderColor: THEME.border, 
+        borderRadius: 12, 
+        padding: 12, 
+        fontSize: 14, 
+        color: THEME.textDark,
+        minHeight: 60,
+        textAlignVertical: 'top',
+        marginBottom: 15
+    },
+    actionRow: { flexDirection: 'row', gap: 10 },
+    actionBtn: { 
+        flex: 1, 
+        height: 48, 
+        borderRadius: 12, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        gap: 8 
+    },
+    btnReject: { backgroundColor: THEME.white, borderWidth: 1, borderColor: THEME.danger },
+    btnRejectText: { color: THEME.danger, fontWeight: 'bold', fontSize: 14 },
+    btnValid: { backgroundColor: THEME.primary },
+    btnValidText: { color: THEME.white, fontWeight: 'bold', fontSize: 14 },
+    noteDisplay: { marginTop: 15, backgroundColor: THEME.secondary, padding: 12, borderRadius: 12 },
+    noteLabel: { fontSize: 11, color: THEME.primary, fontWeight: '800', marginBottom: 2 },
+    noteValue: { fontSize: 13, color: THEME.textDark },
+    modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
+    fullImg: { width: '90%', height: '80%' },
+    closeModal: { position: 'absolute', top: 50, right: 25, padding: 10, zIndex: 10 },
+    emptyContainer: { alignItems: 'center', marginTop: 100 },
+    emptyText: { color: THEME.textMuted, marginTop: 15, fontSize: 15, fontWeight: '500' }
 });

@@ -100,6 +100,12 @@ export default function ProfilScreen() {
                         <Text style={styles.menuText}>Ubah Kata Sandi</Text>
                         <Feather name="chevron-right" size={18} color="#CCC" />
                     </TouchableOpacity>
+                    <View style={styles.divider} />
+                    <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/pusat-bantuan' as any)}>
+                        <Feather name="help-circle" size={18} color="#2196F3" />
+                        <Text style={styles.menuText}>Pusat Bantuan (FAQ)</Text>
+                        <Feather name="chevron-right" size={18} color="#CCC" />
+                    </TouchableOpacity>
                 </View>
 
                 <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>

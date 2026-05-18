@@ -1,10 +1,10 @@
 import axiosClient from '@/api/axiosClient';
+import { LoginPromptModal } from '@/components/LoginPromptModal';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { LoginPromptModal } from '@/components/LoginPromptModal';
 import {
     Alert,
     Dimensions,
@@ -42,6 +42,7 @@ export default function HomeScreen() {
     const { user, unreadChatCount } = useAuth();
     const { itemCount, addToCart } = useCart();
     const [medicines, setMedicines] = useState<any[]>([]);
+    const [education, setEducation] = useState<any[]>([]); // Data edukasi dari DB
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -52,6 +53,7 @@ export default function HomeScreen() {
 
     useEffect(() => {
         fetchMedicines();
+        fetchEducation();
     }, []);
 
     const fetchMedicines = async () => {
@@ -64,6 +66,17 @@ export default function HomeScreen() {
             console.error('Error fetching medicines:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchEducation = async () => {
+        try {
+            const response = await axiosClient.get('/api/education');
+            if (response.data && response.data.data) {
+                setEducation(response.data.data.slice(0, 3)); // Ambil 3 saja untuk beranda
+            }
+        } catch (error) {
+            console.error('Error fetching education:', error);
         }
     };
 
@@ -81,7 +94,7 @@ export default function HomeScreen() {
         { id: '3', name: 'Pengingat', icon: 'bell-outline', color: '#F3E5F5', iconColor: '#7B1FA2', route: '/pengingat' },
         { id: '4', name: 'Alergi Saya', icon: 'heart-outline', color: '#FFEBEE', iconColor: '#D32F2F', route: '/alergi-obat' },
         { id: '5', name: 'Simulasi', icon: 'flask-outline', color: '#E8EAF6', iconColor: '#3F51B5', route: '/simulasi-obat' },
-        { id: '6', name: 'Edukasi', icon: 'book-open-variant', color: '#E8F5E9', iconColor: '#2E8B57', route: '/(tabs)/index' }, // Links to the section below or specific page
+        { id: '6', name: 'Edukasi', icon: 'book-open-variant', color: '#E8F5E9', iconColor: '#2E8B57', route: '/edukasi' }, 
     ];
 
     const categories = [
@@ -183,11 +196,12 @@ export default function HomeScreen() {
                             <Feather name="search" size={20} color={THEME.textMuted} />
                             <TextInput 
                                 placeholder="Cari obat, vitamin, atau gejala..."
-                                style={styles.searchInput}
+                                style={[styles.searchInput, { outlineStyle: 'none' } as any]}
                                 value={searchQuery}
                                 onChangeText={setSearchQuery}
                                 onSubmitEditing={handleSearch}
                                 returnKeyType="search"
+                                underlineColorAndroid="transparent"
                             />
                             {searchQuery.length > 0 && (
                                 <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -204,8 +218,8 @@ export default function HomeScreen() {
                         <View style={styles.welcomeTop}>
                             <MaterialCommunityIcons name="account-star" size={24} color={THEME.primary} />
                             <View style={styles.welcomeInfo}>
-                                <Text style={styles.welcomeMemberText}>Selamat Datang, Member!</Text>
-                                <Text style={styles.memberUserName}>{user?.name || 'Tamu Setia'}</Text>
+                                <Text style={styles.welcomeMemberText}>Selamat Datang!</Text>
+                                <Text style={styles.memberUserName}>{user?.name || 'di Apotek Permata'}</Text>
                             </View>
                         </View>
                         <View style={styles.memberDivider} />
@@ -361,19 +375,44 @@ export default function HomeScreen() {
                 {/* Edukasi / Artikel */}
                 <View style={[styles.sectionHeader, { marginTop: 10 }]}>
                     <Text style={styles.sectionTitle}>Edukasi Kesehatan</Text>
+                    <TouchableOpacity onPress={() => router.push('/edukasi' as any)}>
+                        <Text style={styles.seeMore}>Lihat Semua</Text>
+                    </TouchableOpacity>
                 </View>
                 <View style={styles.articleList}>
-                    <TouchableOpacity style={styles.articleCard}>
-                        <Image 
-                            source={{ uri: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?q=80&w=200&auto=format&fit=crop' }} 
-                            style={styles.articleImage} 
-                        />
-                        <View style={styles.articleContent}>
-                            <Text style={styles.articleTag}>TIPS KESEHATAN</Text>
-                            <Text style={styles.articleTitle}>Cara Alami Atasi Batuk Berdahak Tanpa Obat Kimia</Text>
-                            <Text style={styles.articleMeta}>Admin • 12 Mei 2026</Text>
-                        </View>
-                    </TouchableOpacity>
+                    {education.length > 0 ? (
+                        education.map((item) => (
+                            <TouchableOpacity 
+                                key={item.id} 
+                                style={styles.articleCard}
+                                onPress={() => router.push('/edukasi' as any)}
+                            >
+                                <Image 
+                                    source={{ uri: item.image_url || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?q=80&w=200&auto=format&fit=crop' }} 
+                                    style={styles.articleImage} 
+                                />
+                                <View style={styles.articleContent}>
+                                    <View style={styles.tagWrapper}>
+                                        <Text style={styles.articleTag}>{item.category?.toUpperCase() || 'TIPS'}</Text>
+                                    </View>
+                                    <Text style={styles.articleTitle} numberOfLines={2}>{item.title}</Text>
+                                    <Text style={styles.articleMeta}>{item.author || 'Admin'} • {new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</Text>
+                                </View>
+                            </TouchableOpacity>
+                        ))
+                    ) : (
+                        <TouchableOpacity style={styles.articleCard} onPress={() => router.push('/edukasi' as any)}>
+                            <Image 
+                                source={{ uri: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?q=80&w=200&auto=format&fit=crop' }} 
+                                style={styles.articleImage} 
+                            />
+                            <View style={styles.articleContent}>
+                                <Text style={styles.articleTag}>TIPS KESEHATAN</Text>
+                                <Text style={styles.articleTitle}>Cara Alami Atasi Batuk Berdahak Tanpa Obat Kimia</Text>
+                                <Text style={styles.articleMeta}>Admin • 12 Mei 2026</Text>
+                            </View>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 <View style={{ height: 40 }} />
@@ -642,7 +681,8 @@ const styles = StyleSheet.create({
     },
     articleImage: { width: 80, height: 80, borderRadius: 12 },
     articleContent: { flex: 1, marginLeft: 15, justifyContent: 'center' },
-    articleTag: { fontSize: 10, fontWeight: 'bold', color: THEME.secondary, marginBottom: 4 },
+    tagWrapper: { backgroundColor: '#E8F5E9', alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginBottom: 4 },
+    articleTag: { fontSize: 10, fontWeight: 'bold', color: THEME.primary, marginBottom: 0 },
     articleTitle: { fontSize: 14, fontWeight: 'bold', color: THEME.textDark, lineHeight: 20 },
     articleMeta: { fontSize: 10, color: THEME.textMuted, marginTop: 6 },
 });

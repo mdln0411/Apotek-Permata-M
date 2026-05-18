@@ -1,18 +1,19 @@
-import { useAuth } from '@/context/AuthContext';
 import axiosClient from '@/api/axiosClient';
+import { useAuth } from '@/context/AuthContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect } from 'expo-router';
-import React, { useEffect, useState, useCallback } from 'react';
-import { 
-    ActivityIndicator, 
-    Platform, 
-    SafeAreaView, 
-    ScrollView, 
-    StyleSheet, 
-    Text, 
-    TouchableOpacity, 
-    View,
-    RefreshControl
+import React, { useCallback, useState } from 'react';
+import {
+    ActivityIndicator,
+    Image,
+    Platform,
+    RefreshControl,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 export interface Order {
@@ -26,19 +27,33 @@ export interface Order {
     items?: any[];
 }
 
+export interface Prescription {
+    id: number;
+    image_url: string;
+    status: string;
+    notes: string | null;
+    created_at: string;
+}
+
 export default function PesananScreen() {
     const { user } = useAuth();
     const [orders, setOrders] = useState<Order[]>([]);
+    const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [activeTab, setActiveTab] = useState<'pesanan' | 'resep'>('pesanan');
 
     const fetchOrders = async () => {
         if (!user) return;
         try {
-            const res = await axiosClient.get('/api/orders');
-            setOrders(res.data.data);
+            const [orderRes, prescriptionRes] = await Promise.all([
+                axiosClient.get('/api/orders'),
+                axiosClient.get('/api/prescriptions')
+            ]);
+            setOrders(orderRes.data.data);
+            setPrescriptions(prescriptionRes.data.data || []);
         } catch (e) {
-            console.error('Failed to fetch orders', e);
+            console.error('Failed to fetch orders or prescriptions', e);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -101,6 +116,22 @@ export default function PesananScreen() {
                 <Text style={styles.headerTitle}>Riwayat Pesanan</Text>
             </View>
 
+            {/* Tab Swither */}
+            <View style={styles.tabContainer}>
+                <TouchableOpacity 
+                    style={[styles.tabButton, activeTab === 'pesanan' && styles.tabButtonActive]}
+                    onPress={() => setActiveTab('pesanan')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'pesanan' && styles.tabTextActive]}>Pesanan Saya</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[styles.tabButton, activeTab === 'resep' && styles.tabButtonActive]}
+                    onPress={() => setActiveTab('resep')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'resep' && styles.tabTextActive]}>Upload Resep</Text>
+                </TouchableOpacity>
+            </View>
+
             <ScrollView 
                 contentContainerStyle={styles.scrollContent} 
                 showsVerticalScrollIndicator={false}
@@ -110,44 +141,102 @@ export default function PesananScreen() {
             >
                 {loading && !refreshing ? (
                     <ActivityIndicator size="large" color="#2E8B57" style={{ marginTop: 40 }} />
-                ) : orders.length === 0 ? (
-                    <View style={styles.centered}>
-                        <Ionicons name="receipt-outline" size={80} color="#CCC" />
-                        <Text style={styles.emptyTitle}>Belum ada pesanan</Text>
-                        <Text style={styles.emptySubtitle}>Ayo mulai belanja obat sekarang!</Text>
-                    </View>
-                ) : (
-                    orders.map((order) => {
-                        const statusStyle = getStatusColor(order.status);
-                        return (
-                            <TouchableOpacity 
-                                key={order.id} 
-                                style={styles.orderCard}
-                                onPress={() => router.push({ pathname: '/detail-pesanan', params: { id: order.id } } as any)}
-                            >
-                                <View style={styles.cardHeader}>
-                                    <View style={styles.orderNumBadge}>
-                                        <Text style={styles.orderNumText}>{order.order_number}</Text>
+                ) : activeTab === 'pesanan' ? (
+                    orders.length === 0 ? (
+                        <View style={styles.centered}>
+                            <Ionicons name="receipt-outline" size={80} color="#CCC" />
+                            <Text style={styles.emptyTitle}>Belum ada pesanan</Text>
+                            <Text style={styles.emptySubtitle}>Ayo mulai belanja obat sekarang!</Text>
+                        </View>
+                    ) : (
+                        orders.map((order) => {
+                            const statusStyle = getStatusColor(order.status);
+                            return (
+                                <TouchableOpacity 
+                                    key={order.id} 
+                                    style={styles.orderCard}
+                                    onPress={() => router.push({ pathname: '/detail-pesanan', params: { id: order.id } } as any)}
+                                >
+                                    <View style={styles.cardHeader}>
+                                        <View style={styles.orderNumBadge}>
+                                            <Text style={styles.orderNumText}>{order.order_number}</Text>
+                                        </View>
+                                        <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+                                            <Text style={[styles.statusText, { color: statusStyle.text }]}>{order.status.toUpperCase()}</Text>
+                                        </View>
                                     </View>
-                                    <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-                                        <Text style={[styles.statusText, { color: statusStyle.text }]}>{order.status.toUpperCase()}</Text>
-                                    </View>
-                                </View>
 
-                                <View style={styles.cardBody}>
-                                    <View style={styles.iconBox}>
-                                        <Feather name="package" size={24} color="#2E8B57" />
+                                    <View style={styles.cardBody}>
+                                        <View style={styles.imageBox}>
+                                            {order.items && order.items.length > 0 && order.items[0].medicine?.image_url ? (
+                                                <Image 
+                                                    source={{ uri: order.items[0].medicine.image_url }} 
+                                                    style={styles.medicinePreview}
+                                                    resizeMode="cover"
+                                                />
+                                            ) : (
+                                                <Feather name="package" size={24} color="#2E8B57" />
+                                            )}
+                                        </View>
+                                        <View style={styles.infoBox}>
+                                            <Text style={styles.dateText}>{formatDate(order.created_at)}</Text>
+                                            <Text style={styles.addressText} numberOfLines={1}>{order.shipping_address}</Text>
+                                            <View style={styles.priceRow}>
+                                                <Text style={styles.totalPrice}>Rp {order.total_price.toLocaleString('id-ID')}</Text>
+                                                {order.items && order.items.length > 1 && (
+                                                    <Text style={styles.itemCountText}>+{order.items.length - 1} produk lainnya</Text>
+                                                )}
+                                            </View>
+                                        </View>
+                                        <Ionicons name="chevron-forward" size={20} color="#CCC" />
                                     </View>
-                                    <View style={styles.infoBox}>
-                                        <Text style={styles.dateText}>{formatDate(order.created_at)}</Text>
-                                        <Text style={styles.addressText} numberOfLines={1}>{order.shipping_address}</Text>
-                                        <Text style={styles.totalPrice}>Rp {order.total_price.toLocaleString('id-ID')}</Text>
-                                    </View>
-                                    <Ionicons name="chevron-forward" size={20} color="#CCC" />
-                                </View>
+                                </TouchableOpacity>
+                            );
+                        })
+                    )
+                ) : (
+                    // Resep Tab
+                    prescriptions.length === 0 ? (
+                        <View style={styles.centered}>
+                            <Ionicons name="document-text-outline" size={80} color="#CCC" />
+                            <Text style={styles.emptyTitle}>Belum ada resep</Text>
+                            <Text style={styles.emptySubtitle}>Upload resep dokter Anda di sini!</Text>
+                            <TouchableOpacity 
+                                style={styles.uploadNowBtn}
+                                onPress={() => router.push('/upload-resep')}
+                            >
+                                <Text style={styles.uploadNowBtnText}>Upload Sekarang</Text>
                             </TouchableOpacity>
-                        );
-                    })
+                        </View>
+                    ) : (
+                        prescriptions.map((prescription) => {
+                            const statusStyle = getStatusColor(prescription.status);
+                            return (
+                                <View key={prescription.id} style={styles.orderCard}>
+                                    <View style={styles.cardHeader}>
+                                        <View style={styles.orderNumBadge}>
+                                            <Text style={styles.orderNumText}>RESEP #{prescription.id}</Text>
+                                        </View>
+                                        <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+                                            <Text style={[styles.statusText, { color: statusStyle.text }]}>{prescription.status.toUpperCase()}</Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.cardBody}>
+                                        <View style={styles.iconBox}>
+                                            <Feather name="image" size={24} color="#2E8B57" />
+                                        </View>
+                                        <View style={styles.infoBox}>
+                                            <Text style={styles.dateText}>{formatDate(prescription.created_at)}</Text>
+                                            <Text style={styles.addressText} numberOfLines={1}>
+                                                {prescription.notes || 'Menunggu verifikasi apoteker'}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </View>
+                            );
+                        })
+                    )
                 )}
             </ScrollView>
         </SafeAreaView>
@@ -172,15 +261,55 @@ const styles = StyleSheet.create({
     loginBtn: { marginTop: 24, backgroundColor: '#2E8B57', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
     loginBtnText: { color: '#FFF', fontWeight: 'bold' },
     orderCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#EEE', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 },
+    tabContainer: {
+        flexDirection: 'row',
+        paddingHorizontal: 20,
+        backgroundColor: '#FFF',
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#EEE',
+    },
+    tabButton: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderBottomWidth: 2,
+        borderBottomColor: 'transparent',
+    },
+    tabButtonActive: {
+        borderBottomColor: '#2E8B57',
+    },
+    tabText: {
+        fontSize: 14,
+        color: '#888',
+        fontWeight: '600',
+    },
+    tabTextActive: {
+        color: '#2E8B57',
+    },
+    uploadNowBtn: {
+        marginTop: 20,
+        backgroundColor: '#2E8B57',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+    },
+    uploadNowBtnText: {
+        color: '#FFF',
+        fontWeight: 'bold',
+    },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, alignItems: 'center' },
     orderNumBadge: { backgroundColor: '#F0F4F0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
     orderNumText: { fontSize: 11, color: '#2E8B57', fontWeight: 'bold' },
     statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
     statusText: { fontSize: 10, fontWeight: 'bold' },
     cardBody: { flexDirection: 'row', alignItems: 'center' },
-    iconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F0F4F0', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+    imageBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F0F4F0', justifyContent: 'center', alignItems: 'center', marginRight: 12, overflow: 'hidden' },
+    medicinePreview: { width: '100%', height: '100%' },
     infoBox: { flex: 1 },
     dateText: { color: '#333', fontSize: 13, fontWeight: '500' },
     addressText: { color: '#999', fontSize: 12, marginTop: 2 },
-    totalPrice: { fontSize: 14, color: '#2E8B57', fontWeight: 'bold', marginTop: 4 }
+    priceRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    totalPrice: { fontSize: 14, color: '#2E8B57', fontWeight: 'bold', marginTop: 4 },
+    itemCountText: { fontSize: 10, color: '#999', marginTop: 4 }
 });
