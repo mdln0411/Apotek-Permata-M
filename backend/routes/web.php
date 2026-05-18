@@ -26,6 +26,7 @@ Route::middleware(['auth', 'role:apoteker'])->prefix('apoteker')->group(function
     Route::delete('/medicines/{medicine}', [ApotekerWebController::class, 'destroyMedicine']);
 
     Route::get('/prescriptions', [ApotekerWebController::class, 'prescriptions']);
+    Route::get('/prescriptions/export', [ApotekerWebController::class, 'exportPrescriptions']);
     Route::post('/prescriptions/{prescription}/status', [ApotekerWebController::class, 'updatePrescriptionStatus']);
     Route::get('/chat', [ApotekerWebController::class, 'chat']);
     Route::get('/chat/{consultation}/messages', [ApotekerWebController::class, 'getMessages']);

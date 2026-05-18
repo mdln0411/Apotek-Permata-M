@@ -45,6 +45,7 @@ export default function ValidasiResep() {
     const [refreshing, setRefreshing] = useState(false);
     const [selectedImg, setSelectedImg] = useState<string | null>(null);
     const [notes, setNotes] = useState('');
+    const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
     useEffect(() => {
         fetchPrescriptions();
@@ -63,6 +64,11 @@ export default function ValidasiResep() {
         }
     };
 
+    const filteredPrescriptions = prescriptions.filter(item => {
+        if (selectedStatus === 'all') return true;
+        return item.status === selectedStatus;
+    });
+
     const handleUpdateStatus = async (id: number, status: string) => {
         try {
             await axiosClient.put(`/api/prescriptions/${id}/status`, { status, notes });
@@ -77,8 +83,8 @@ export default function ValidasiResep() {
     const getImageUrl = (url: string) => {
         if (!url) return '';
         if (url.startsWith('http')) return url;
-        // Adjust storage path if needed
-        return `http://10.0.2.2:8000/storage/${url}`;
+        const host = Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000';
+        return `${host}/storage/${url}`;
     };
 
     return (
@@ -94,9 +100,37 @@ export default function ValidasiResep() {
                     </TouchableOpacity>
                     <View>
                         <Text style={styles.headerTitle}>Validasi Resep</Text>
-                        <Text style={styles.headerSub}>{prescriptions.length} Resep Menunggu Tinjauan</Text>
+                        <Text style={styles.headerSub}>{filteredPrescriptions.length} Resep Terfilter ({prescriptions.filter(p => p.status === 'pending').length} Menunggu)</Text>
                     </View>
                 </View>
+            </View>
+
+            {/* Filter Chips */}
+            <View style={styles.filterContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+                    {[
+                        { id: 'all', label: 'Semua Resep' },
+                        { id: 'pending', label: 'Menunggu' },
+                        { id: 'valid', label: 'Valid' },
+                        { id: 'rejected', label: 'Ditolak' }
+                    ].map(chip => (
+                        <TouchableOpacity
+                            key={chip.id}
+                            style={[
+                                styles.filterChip,
+                                selectedStatus === chip.id && styles.filterChipActive
+                            ]}
+                            onPress={() => setSelectedStatus(chip.id)}
+                        >
+                            <Text style={[
+                                styles.filterChipText,
+                                selectedStatus === chip.id && styles.filterChipTextActive
+                            ]}>
+                                {chip.label}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
             </View>
 
             <ScrollView 
@@ -108,13 +142,13 @@ export default function ValidasiResep() {
                     <View style={styles.loader}>
                         <ActivityIndicator size="large" color={THEME.primary} />
                     </View>
-                ) : prescriptions.length === 0 ? (
+                ) : filteredPrescriptions.length === 0 ? (
                     <View style={styles.emptyContainer}>
                         <MaterialCommunityIcons name="file-document-outline" size={80} color={THEME.border} />
                         <Text style={styles.emptyText}>Belum ada resep digital masuk</Text>
                     </View>
                 ) : (
-                    prescriptions.map((item) => (
+                    filteredPrescriptions.map((item) => (
                         <View key={item.id} style={styles.resepCard}>
                             <TouchableOpacity 
                                 activeOpacity={0.9}
@@ -296,5 +330,34 @@ const styles = StyleSheet.create({
     fullImg: { width: '90%', height: '80%' },
     closeModal: { position: 'absolute', top: 50, right: 25, padding: 10, zIndex: 10 },
     emptyContainer: { alignItems: 'center', marginTop: 100 },
-    emptyText: { color: THEME.textMuted, marginTop: 15, fontSize: 15, fontWeight: '500' }
+    emptyText: { color: THEME.textMuted, marginTop: 15, fontSize: 15, fontWeight: '500' },
+    filterContainer: {
+        backgroundColor: THEME.white,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: THEME.border,
+    },
+    filterScroll: {
+        paddingHorizontal: 20,
+        gap: 10,
+    },
+    filterChip: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: THEME.secondary,
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    filterChipActive: {
+        backgroundColor: THEME.primary,
+    },
+    filterChipText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: THEME.primary,
+    },
+    filterChipTextActive: {
+        color: THEME.white,
+    },
 });

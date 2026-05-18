@@ -23,9 +23,16 @@ class PrescriptionController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg|max:10240',
-        ]);
+        try {
+            $request->validate([
+                'image' => 'required|image|mimes:jpeg,png,jpg|max:10240',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Prescription validation failed', [
+                'errors' => $e->errors()
+            ]);
+            throw $e;
+        }
 
         $path = $request->file('image')->store('prescriptions', 'public');
 
@@ -34,6 +41,17 @@ class PrescriptionController extends Controller
             'image_url' => $path,
             'status' => 'pending'
         ]);
+
+        // Send database notification to the user
+        try {
+            $request->user()->notify(new \App\Notifications\AppNotification(
+                'Upload Resep Berhasil',
+                'Resep Anda berhasil diunggah dan sedang menunggu validasi dari Apoteker.',
+                'prescription'
+            ));
+        } catch (\Exception $e) {
+            \Log::error('Failed to send upload notification: ' . $e->getMessage());
+        }
 
         return response()->json([
             'status' => 'success',
@@ -54,6 +72,24 @@ class PrescriptionController extends Controller
             'status' => $request->status,
             'notes' => $request->notes
         ]);
+
+        // Send status update notification to the user
+        try {
+            $user = $prescription->user;
+            if ($user) {
+                $statusLabel = $request->status === 'valid' ? 'Diterima & Valid' : 'Ditolak';
+                $notifType = $request->status === 'valid' ? 'success' : 'error';
+                $notesText = $request->notes ? " (Catatan: {$request->notes})" : "";
+
+                $user->notify(new \App\Notifications\AppNotification(
+                    "Status Resep Diperbarui",
+                    "Resep Anda telah dinyatakan {$statusLabel} oleh Apoteker{$notesText}.",
+                    $notifType
+                ));
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to send prescription status notification: ' . $e->getMessage());
+        }
 
         return response()->json([
             'status' => 'success',

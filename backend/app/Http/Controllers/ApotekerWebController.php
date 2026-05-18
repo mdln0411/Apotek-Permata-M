@@ -168,10 +168,48 @@ class ApotekerWebController extends Controller
     }
 
 
-    public function prescriptions()
+    public function prescriptions(Request $request)
     {
-        $prescriptions = Prescription::with('user')->latest()->get();
+        $query = Prescription::with('user');
+        
+        if ($request->has('status') && $request->status != '') {
+            $query->where('status', $request->status);
+        }
+        
+        $prescriptions = $query->latest()->get();
         return view('apoteker.prescriptions', compact('prescriptions'));
+    }
+
+    public function exportPrescriptions(Request $request)
+    {
+        $query = Prescription::with('user');
+        
+        if ($request->has('status') && $request->status != '') {
+            $query->where('status', $request->status);
+        }
+        
+        $prescriptions = $query->latest()->get();
+        $filename = "laporan_resep_" . date('Y-m-d') . ".csv";
+        $handle = fopen('php://output', 'w');
+        
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        fputcsv($handle, ['ID Resep', 'Pasien', 'Email Pasien', 'Status', 'Catatan', 'Tanggal Diunggah']);
+
+        foreach ($prescriptions as $p) {
+            fputcsv($handle, [
+                $p->id,
+                $p->user ? $p->user->name : 'Guest',
+                $p->user ? $p->user->email : '-',
+                $p->status,
+                $p->notes ?? '-',
+                $p->created_at->format('Y-m-d H:i')
+            ]);
+        }
+
+        fclose($handle);
+        exit;
     }
 
     public function updatePrescriptionStatus(Request $request, Prescription $prescription)

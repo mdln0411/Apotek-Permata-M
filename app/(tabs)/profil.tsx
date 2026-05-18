@@ -86,6 +86,28 @@ export default function ProfilScreen() {
                     </View>
                 </View>
 
+                {/* Riwayat Transaksi */}
+                <Text style={styles.sectionTitle}>Riwayat Transaksi</Text>
+                <View style={styles.card}>
+                    <TouchableOpacity 
+                        style={styles.menuItem} 
+                        onPress={() => router.push({ pathname: '/(tabs)/pesanan', params: { tab: 'pesanan' } } as any)}
+                    >
+                        <Feather name="shopping-bag" size={18} color="#2E8B57" />
+                        <Text style={styles.menuText}>Riwayat Pesanan Obat</Text>
+                        <Feather name="chevron-right" size={18} color="#CCC" />
+                    </TouchableOpacity>
+                    <View style={styles.divider} />
+                    <TouchableOpacity 
+                        style={styles.menuItem} 
+                        onPress={() => router.push({ pathname: '/(tabs)/pesanan', params: { tab: 'resep' } } as any)}
+                    >
+                        <Feather name="file-text" size={18} color="#008080" />
+                        <Text style={styles.menuText}>Riwayat Upload Resep</Text>
+                        <Feather name="chevron-right" size={18} color="#CCC" />
+                    </TouchableOpacity>
+                </View>
+
                 {/* Pengaturan & Lainnya */}
                 <Text style={styles.sectionTitle}>Layanan & Keamanan</Text>
                 <View style={styles.card}>
