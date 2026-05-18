@@ -4,6 +4,7 @@ import { useCart } from '@/context/CartContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { LoginPromptModal } from '@/components/LoginPromptModal';
 import {
     ActivityIndicator,
     Alert,
@@ -52,10 +53,17 @@ export default function DetailObatScreen() {
     const [adding, setAdding] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [jumlah, setJumlah] = useState(1);
+    const [loginModalVisible, setLoginModalVisible] = useState(false);
+    const [loginModalMessage, setLoginModalMessage] = useState('');
 
     const handleAddToCart = async (checkout = false) => {
         if (!user) {
-            router.push('/login' as any);
+            setLoginModalMessage(
+                checkout 
+                    ? 'Untuk memesan obat ini, silakan masuk ke akun Anda terlebih dahulu.'
+                    : 'Untuk menambahkan obat ke keranjang belanja, silakan masuk ke akun Anda terlebih dahulu.'
+            );
+            setLoginModalVisible(true);
             return;
         }
         try {
@@ -383,6 +391,15 @@ export default function DetailObatScreen() {
                     )}
                 </TouchableOpacity>
             </View>
+
+            {/* Custom Login Prompt Popup */}
+            <LoginPromptModal
+                visible={loginModalVisible}
+                onClose={() => setLoginModalVisible(false)}
+                onConfirm={() => router.push('/login' as any)}
+                title="Login Diperlukan"
+                message={loginModalMessage}
+            />
         </SafeAreaView>
     );
 }

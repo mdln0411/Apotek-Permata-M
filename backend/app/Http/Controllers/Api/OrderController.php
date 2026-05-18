@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Notifications\AppNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -78,6 +79,13 @@ class OrderController extends Controller
 
             // Kosongkan keranjang
             $cart->items()->delete();
+
+            // Kirim Notifikasi
+            $user->notify(new AppNotification(
+                'Pesanan Berhasil',
+                "Pesanan {$order->order_number} telah berhasil dibuat. Silakan tunggu konfirmasi selanjutnya.",
+                'order'
+            ));
 
             return response()->json([
                 'status' => 'success',
@@ -174,6 +182,26 @@ class OrderController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Laporan Anda telah terkirim. Apoteker akan segera meninjau.',
+            'data' => $order
+        ]);
+    }
+
+    public function confirmPayment(Request $request, $id)
+    {
+        $order = Order::where('user_id', $request->user()->id)->findOrFail($id);
+        
+        if ($order->status !== 'pending') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pesanan ini sudah dibayar atau tidak berstatus pending.'
+            ], 400);
+        }
+
+        $order->update(['status' => 'diproses']);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Pembayaran berhasil dikonfirmasi! Pesanan Anda sedang diproses oleh apoteker.',
             'data' => $order
         ]);
     }

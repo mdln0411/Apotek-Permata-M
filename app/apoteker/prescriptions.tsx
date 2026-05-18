@@ -2,18 +2,17 @@ import axiosClient from '@/api/axiosClient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { 
-    SafeAreaView, 
-    ScrollView, 
-    StyleSheet, 
-    Text, 
-    TouchableOpacity, 
-    View, 
-    Platform,
+import {
+    ActivityIndicator,
     Image,
     Modal,
-    ActivityIndicator,
-    TextInput
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 export default function ValidasiResep() {
@@ -55,7 +54,7 @@ export default function ValidasiResep() {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                 <Text style={styles.sectionTitle}>Daftar Resep Masuk</Text>
-                
+
                 {loading ? (
                     <ActivityIndicator size="large" color="#2E8B57" style={{ marginTop: 50 }} />
                 ) : prescriptions.length === 0 ? (
@@ -63,15 +62,15 @@ export default function ValidasiResep() {
                 ) : prescriptions.map((item) => (
                     <View key={item.id} style={styles.resepCard}>
                         <TouchableOpacity onPress={() => setSelectedImg(item.image_url.startsWith('http') ? item.image_url : `http://127.0.0.1:8000/storage/${item.image_url}`)}>
-                            <Image 
-                                source={{ uri: item.image_url.startsWith('http') ? item.image_url : `http://127.0.0.1:8000/storage/${item.image_url}` }} 
-                                style={styles.resepImg} 
+                            <Image
+                                source={{ uri: item.image_url.startsWith('http') ? item.image_url : `http://127.0.0.1:8000/storage/${item.image_url}` }}
+                                style={styles.resepImg}
                             />
                             <View style={styles.zoomIcon}>
                                 <Feather name="search" size={20} color="#FFF" />
                             </View>
                         </TouchableOpacity>
-                        
+
                         <View style={styles.resepInfo}>
                             <View style={styles.cardHead}>
                                 <View>
@@ -86,10 +85,10 @@ export default function ValidasiResep() {
                             </View>
 
                             <Text style={styles.resepDate}>{new Date(item.created_at).toLocaleDateString('id-ID')}</Text>
-                            
+
                             {item.status === 'pending' && (
                                 <>
-                                    <TextInput 
+                                    <TextInput
                                         style={styles.noteInput}
                                         placeholder="Tambahkan catatan (opsional)..."
                                         value={notes}
@@ -135,7 +134,7 @@ const styles = StyleSheet.create({
     patientLabel: { fontSize: 12, color: '#999', marginBottom: 2 },
     patientName: { fontSize: 18, fontWeight: 'bold', color: '#333' },
     resepDate: { fontSize: 11, color: '#999', marginTop: 4, marginBottom: 15 },
-    noteInput: { backgroundColor: '#F9F9F9', borderSize: 1, borderColor: '#EEE', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 15, fontSize: 13 },
+    noteInput: { backgroundColor: '#F9F9F9', borderColor: '#EEE', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 15, fontSize: 13 },
     actionRow: { flexDirection: 'row', gap: 12 },
     actionBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
     btnReject: { backgroundColor: '#FFF', borderColor: '#FF5252', borderWidth: 1 },

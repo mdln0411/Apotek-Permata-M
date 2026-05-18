@@ -6,8 +6,10 @@ import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image'; // Gunakan expo-image untuk performa lebih baik
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
+import { LoginPromptModal } from '@/components/LoginPromptModal';
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
     RefreshControl,
     SafeAreaView,
@@ -28,6 +30,7 @@ export default function KatalogObatScreen() {
     const [selectedCategory, setSelectedCategory] = useState('Semua');
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
+    const [loginModalVisible, setLoginModalVisible] = useState(false);
 
     // Sinkronisasi searchQuery & Category dengan parameter URL saat masuk/berubah
     useEffect(() => {
@@ -55,7 +58,7 @@ export default function KatalogObatScreen() {
 
     const handleOpenModal = (item: MedicineListItem) => {
         if (!user) {
-            router.push('/login' as any);
+            setLoginModalVisible(true);
             return;
         }
         setSelectedMedicine(item);
@@ -244,12 +247,20 @@ export default function KatalogObatScreen() {
                 <View style={styles.headerRight}>
                     <TouchableOpacity 
                         style={styles.iconButton} 
-                        onPress={() => router.push('/notifikasi' as any)}
+                        onPress={() => {
+                            if (!user) {
+                                setLoginModalVisible(true);
+                            } else {
+                                router.push('/notifikasi' as any);
+                            }
+                        }}
                     >
                         <Ionicons name="notifications-outline" size={24} color="#FFF" />
-                        <View style={styles.badgeCount}>
-                            <Text style={styles.badgeCountText}>3</Text>
-                        </View>
+                        {user && (
+                            <View style={styles.badgeCount}>
+                                <Text style={styles.badgeCountText}>3</Text>
+                            </View>
+                        )}
                     </TouchableOpacity>
                 </View>
             </View>
@@ -339,6 +350,15 @@ export default function KatalogObatScreen() {
                 onClose={() => setModalVisible(false)}
                 onConfirm={handleConfirmAddToCart}
                 medicine={selectedMedicine}
+            />
+
+            {/* Custom Login Prompt Popup */}
+            <LoginPromptModal
+                visible={loginModalVisible}
+                onClose={() => setLoginModalVisible(false)}
+                onConfirm={() => router.push('/login' as any)}
+                title="Login Diperlukan"
+                message="Untuk menambahkan obat ke keranjang belanja, silakan masuk ke akun Anda terlebih dahulu."
             />
         </SafeAreaView>
     );

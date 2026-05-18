@@ -2,17 +2,15 @@ import { useAuth } from '@/context/AuthContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React, { useState } from 'react';
-import { 
-    SafeAreaView, 
-    ScrollView, 
-    StyleSheet, 
-    Text, 
-    TouchableOpacity, 
-    View,
-    TextInput,
+import {
+    Modal,
     Platform,
-    Alert,
-    Modal
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 export default function ProfilScreen() {
@@ -91,12 +89,6 @@ export default function ProfilScreen() {
                 {/* Pengaturan & Lainnya */}
                 <Text style={styles.sectionTitle}>Layanan & Keamanan</Text>
                 <View style={styles.card}>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/alergi-obat' as any)}>
-                        <Feather name="shield" size={18} color="#D32F2F" />
-                        <Text style={styles.menuText}>Riwayat Alergi Obat</Text>
-                        <Feather name="chevron-right" size={18} color="#CCC" />
-                    </TouchableOpacity>
-                    <View style={styles.divider} />
                     <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/pengingat' as any)}>
                         <Feather name="bell" size={18} color="#F57C00" />
                         <Text style={styles.menuText}>Pengingat Minum Obat</Text>
