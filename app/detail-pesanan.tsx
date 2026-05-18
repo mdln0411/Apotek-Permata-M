@@ -1,21 +1,21 @@
-import { useAuth } from '@/context/AuthContext';
 import axiosClient from '@/api/axiosClient';
+import { useAuth } from '@/context/AuthContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
+    Image,
+    Modal,
+    Platform,
     SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
-    View,
-    Image,
-    Platform,
-    Alert,
-    Modal,
-    TextInput
+    View
 } from 'react-native';
 
 
@@ -67,6 +67,7 @@ export default function DetailPesananScreen() {
     const fetchOrderDetail = async () => {
         try {
             const res = await axiosClient.get(`/api/orders/${id}`);
+            console.log('Order Detail Data:', JSON.stringify(res.data.data.items[0], null, 2));
             setOrder(res.data.data);
         } catch (e) {
             console.error('Failed to fetch order detail', e);
@@ -382,10 +383,19 @@ export default function DetailPesananScreen() {
                         <Text style={styles.sectionTitle}>Rincian Produk</Text>
                     </View>
                     {o.items.map((item) => (
-
                         <View key={item.id} style={styles.itemRow}>
-                            <View style={styles.itemIcon}>
-                                <Ionicons name="medical" size={20} color="#2E8B57" />
+                            <View style={styles.itemImageContainer}>
+                                {item.medicine?.image_url ? (
+                                    <Image 
+                                        source={{ uri: item.medicine.image_url }} 
+                                        style={styles.itemImage}
+                                        resizeMode="cover"
+                                    />
+                                ) : (
+                                    <View style={styles.fallbackIcon}>
+                                        <Ionicons name="medical" size={24} color="#2E8B57" />
+                                    </View>
+                                )}
                             </View>
                             <View style={styles.itemMain}>
                                 <Text style={styles.itemName}>{item.name}</Text>
@@ -501,7 +511,10 @@ export default function DetailPesananScreen() {
 
                 )}
 
-                <TouchableOpacity style={styles.btnHelp}>
+                <TouchableOpacity 
+                    style={styles.btnHelp}
+                    onPress={() => router.push('/pusat-bantuan')}
+                >
                     <Feather name="help-circle" size={18} color="#2E8B57" />
                     <Text style={styles.btnHelpText}>Butuh Bantuan?</Text>
                 </TouchableOpacity>
@@ -537,7 +550,8 @@ const styles = StyleSheet.create({
     notesLabel: { fontSize: 12, color: '#999', marginBottom: 2 },
     notesText: { fontSize: 13, color: '#333', fontStyle: 'italic' },
     itemRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-    itemIcon: { width: 40, height: 40, backgroundColor: '#F0F4F0', borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+    itemImageContainer: { width: 45, height: 45, backgroundColor: '#F0F4F0', borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12, overflow: 'hidden' },
+    itemImage: { width: '100%', height: '100%' },
     itemMain: { flex: 1 },
     itemName: { fontSize: 14, fontWeight: '500', color: '#333' },
     itemQty: { fontSize: 12, color: '#777', marginTop: 2 },
@@ -548,6 +562,7 @@ const styles = StyleSheet.create({
     totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
     totalLabel: { fontSize: 16, fontWeight: 'bold', color: '#333' },
     totalValue: { fontSize: 18, fontWeight: 'bold', color: '#2E8B57' },
+    fallbackIcon: { width: '100%', height: '100%', backgroundColor: '#F0F4F0', justifyContent: 'center', alignItems: 'center' },
     btnHelp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 10, paddingVertical: 12 },
     btnHelpText: { color: '#2E8B57', fontSize: 14, fontWeight: 'bold' },
     pharmacistSection: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 2, borderColor: '#E3F2FD' },

@@ -1,7 +1,11 @@
+import axiosClient from '@/api/axiosClient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Stack, router } from 'expo-router';
-import React, { useState } from 'react';
+import * as Notifications from 'expo-notifications';
+import { Stack, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
+    RefreshControl,
     SafeAreaView,
     ScrollView,
     StatusBar,
@@ -20,56 +24,111 @@ const THEME = {
     border: '#E0E6ED',
 };
 
-const INITIAL_NOTIFICATIONS = [
-    {
-        id: '1',
-        title: 'Kategori Obat Baru!',
-        desc: 'Sekarang tersedia kategori obat Demam, Vitamin, dan P3K di katalog kami.',
-        time: 'Baru saja',
-        icon: 'medical-bag',
-        color: '#E8F5E9',
-        iconColor: '#2E8B57',
-        isRead: false
-    },
-    {
-        id: '2',
-        title: 'Artikel Kesehatan Baru',
-        desc: 'Baca artikel: "Mengenal Jenis-Jenis Antibiotik" untuk wawasan kesehatan Anda.',
-        time: '10 mnt yang lalu',
-        icon: 'book-open-variant',
-        color: '#E3F2FD',
-        iconColor: '#1976D2',
-        isRead: false
-    },
-    {
-        id: '3',
-        title: 'Pesanan Diproses',
-        desc: 'Pesanan #ORD-1002 Anda sedang disiapkan oleh Apoteker Permata.',
-        time: '1 jam yang lalu',
-        icon: 'clock-outline',
-        color: '#FFF3E0',
-        iconColor: '#F57C00',
-        isRead: false
-    },
-    {
-        id: '4',
-        title: 'Promo Vitamin',
-        desc: 'Diskon 20% untuk semua jenis Vitamin hari ini!',
-        time: '5 jam yang lalu',
-        icon: 'sale',
-        color: '#F3E5F5',
-        iconColor: '#7B1FA2',
-        isRead: true
-    }
-];
+interface AppNotification {
+    id: string;
+    data: {
+        title: string;
+        message: string;
+        type: 'order' | 'info' | 'reminder' | 'promo';
+    };
+    read_at: string | null;
+    created_at: string;
+}
 
 export default function NotificationScreen() {
-    const [notifs, setNotifs] = useState(INITIAL_NOTIFICATIONS);
+    const router = useRouter();
+    const [notifs, setNotifs] = useState<AppNotification[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const markAllAsRead = () => {
-        setNotifs(prevNotifs => 
-            prevNotifs.map(notif => ({ ...notif, isRead: true }))
-        );
+    const fetchNotifications = async () => {
+        try {
+            const response = await axiosClient.get('/api/notifications');
+            if (response.data && response.data.data) {
+                setNotifs(response.data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching notifications:', error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    const markAsRead = async (id: string) => {
+        try {
+            await axiosClient.post(`/api/notifications/${id}/read`);
+            setNotifs(prev => 
+                prev.map(n => n.id === id ? { ...n, read_at: new Date().toISOString() } : n)
+            );
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+        }
+    };
+
+    const markAllAsRead = async () => {
+        try {
+            await axiosClient.post('/api/notifications/read-all');
+            setNotifs(prev => prev.map(n => ({ ...n, read_at: new Date().toISOString() })));
+        } catch (error) {
+            console.error('Error marking all as read:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchNotifications();
+
+        // Listen for incoming notifications while app is open
+        const subscription = Notifications.addNotificationReceivedListener(notification => {
+            const data = notification.request.content.data;
+            if (data && data.type) {
+                const newNotif: AppNotification = {
+                    id: Math.random().toString(),
+                    data: {
+                        title: data.title || notification.request.content.title || '',
+                        message: data.message || notification.request.content.body || '',
+                        type: data.type as any,
+                    },
+                    read_at: null,
+                    created_at: new Date().toISOString(),
+                };
+                setNotifs(prev => [newNotif, ...prev]);
+            }
+        });
+
+        return () => subscription.remove();
+    }, []);
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchNotifications();
+    };
+
+    const getIcon = (type: string) => {
+        switch (type) {
+            case 'order': return 'package-variant-closed';
+            case 'reminder': return 'bell-ring-outline';
+            case 'promo': return 'sale';
+            default: return 'information-outline';
+        }
+    };
+
+    const getIconColor = (type: string) => {
+        switch (type) {
+            case 'order': return '#1976D2';
+            case 'reminder': return '#7B1FA2';
+            case 'promo': return '#F57C00';
+            default: return '#2E8B57';
+        }
+    };
+
+    const getBgColor = (type: string) => {
+        switch (type) {
+            case 'order': return '#E3F2FD';
+            case 'reminder': return '#F3E5F5';
+            case 'promo': return '#FFF3E0';
+            default: return '#E8F5E9';
+        }
     };
 
     return (
@@ -95,64 +154,86 @@ export default function NotificationScreen() {
                 }} 
             />
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                {notifs.map((item) => (
-                    <TouchableOpacity 
-                        key={item.id} 
-                        style={[styles.notifItem, !item.isRead && styles.unreadItem]}
-                        onPress={() => {
-                            setNotifs(prev => prev.map(n => n.id === item.id ? {...n, isRead: true} : n))
-                        }}
-                    >
-                        <View style={[styles.iconBox, { backgroundColor: item.color }]}>
-                            <MaterialCommunityIcons name={item.icon as any} size={24} color={item.iconColor} />
-                        </View>
-                        <View style={styles.contentBox}>
-                            <View style={styles.contentHeader}>
-                                <Text style={styles.title}>{item.title}</Text>
-                                <Text style={styles.time}>{item.time}</Text>
+            <ScrollView 
+                showsVerticalScrollIndicator={false} 
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME.primary]} />}
+            >
+                {loading && !refreshing ? (
+                    <ActivityIndicator size="large" color={THEME.primary} style={{ marginTop: 50 }} />
+                ) : notifs.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                        <MaterialCommunityIcons name="bell-off-outline" size={80} color="#CCC" />
+                        <Text style={styles.emptyText}>Tidak ada notifikasi baru</Text>
+                    </View>
+                ) : (
+                    notifs.map((item) => (
+                        <TouchableOpacity 
+                            key={item.id} 
+                            style={[styles.notifItem, !item.read_at && styles.unreadItem]}
+                            onPress={() => markAsRead(item.id)}
+                        >
+                            <View style={[styles.iconBox, { backgroundColor: getBgColor(item.data.type) }]}>
+                                <MaterialCommunityIcons 
+                                    name={getIcon(item.data.type) as any} 
+                                    size={24} 
+                                    color={getIconColor(item.data.type)} 
+                                />
                             </View>
-                            <Text style={styles.description} numberOfLines={2}>
-                                {item.desc}
-                            </Text>
-                        </View>
-                        {!item.isRead && <View style={styles.dot} />}
-                    </TouchableOpacity>
-                ))}
+                            <View style={styles.contentBox}>
+                                <Text style={[styles.notifTitle, !item.read_at && styles.unreadTitle]}>{item.data.title}</Text>
+                                <Text style={styles.notifDesc}>{item.data.message}</Text>
+                                <Text style={styles.notifTime}>
+                                    {new Date(item.created_at).toLocaleDateString('id-ID', { 
+                                        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' 
+                                    })}
+                                </Text>
+                            </View>
+                            {!item.read_at && <View style={styles.unreadDot} />}
+                        </TouchableOpacity>
+                    ))
+                )}
             </ScrollView>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: THEME.white },
-    scrollContent: { paddingVertical: 10 },
+    container: { flex: 1, backgroundColor: THEME.background },
+    scrollContent: { padding: 15 },
     notifItem: {
         flexDirection: 'row',
+        backgroundColor: THEME.white,
+        borderRadius: 16,
         padding: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: THEME.border,
+        marginBottom: 12,
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'transparent',
     },
-    unreadItem: { backgroundColor: '#F9FCF9' },
+    unreadItem: {
+        borderColor: THEME.border,
+        backgroundColor: '#FFF',
+    },
     iconBox: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 50,
+        height: 50,
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 15,
     },
-    contentBox: { flex: 1 },
-    contentHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-    title: { fontSize: 15, fontWeight: 'bold', color: THEME.textDark },
-    time: { fontSize: 11, color: THEME.textMuted },
-    description: { fontSize: 13, color: THEME.textMuted, lineHeight: 18 },
-    dot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: THEME.primary,
-        marginLeft: 10,
-    }
+    contentBox: { flex: 1, marginLeft: 15 },
+    notifTitle: { fontSize: 16, fontWeight: 'bold', color: THEME.textDark, marginBottom: 4 },
+    unreadTitle: { color: '#000' },
+    notifDesc: { fontSize: 13, color: THEME.textMuted, lineHeight: 18 },
+    notifTime: { fontSize: 11, color: THEME.textMuted, marginTop: 8 },
+    unreadDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#E74C3C',
+        marginLeft: 8,
+    },
+    emptyContainer: { flex: 1, alignItems: 'center', marginTop: 100 },
+    emptyText: { marginTop: 20, fontSize: 16, color: '#999' }
 });

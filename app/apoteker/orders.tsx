@@ -1,7 +1,7 @@
 import axiosClient from '@/api/axiosClient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
     Platform,
@@ -122,7 +122,7 @@ export default function PesananMasuk() {
             {/* Header */}
             <View style={styles.header}>
                 <View style={styles.headerRow}>
-                    <TouchableOpacity style={styles.backBtn} onPress={() => router.push('/apoteker/dashboard')}>
+                    <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
                         <Ionicons name="chevron-back" size={24} color={THEME.white} />
                     </TouchableOpacity>
                     <View>

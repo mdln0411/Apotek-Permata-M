@@ -1,8 +1,8 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { CartProvider } from '../context/CartContext';
-import { ActivityIndicator, View } from 'react-native';
 
 function InitialLayout() {
   const { user, loading } = useAuth();
@@ -77,6 +77,7 @@ function InitialLayout() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" options={{ redirect: true, href: '/(tabs)' } as any} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="admin" options={{ headerShown: false }} />
       <Stack.Screen name="apoteker" options={{ headerShown: false }} />

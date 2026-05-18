@@ -1,19 +1,28 @@
-import React from 'react';
-import { Tabs } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import React from 'react';
 
 export default function ApotekerLayout() {
     return (
         <Tabs screenOptions={{
             tabBarActiveTintColor: '#2E8B57',
-            tabBarInactiveTintColor: '#999',
+            tabBarInactiveTintColor: '#9DA8B5',
+            tabBarLabelStyle: {
+                fontSize: 11,
+                fontWeight: '600',
+            },
             tabBarStyle: {
-                backgroundColor: '#FFF',
+                backgroundColor: '#FFFFFF',
                 borderTopWidth: 1,
-                borderTopColor: '#EEE',
-                height: 60,
-                paddingBottom: 8,
-                paddingTop: 8,
+                borderTopColor: '#E8ECEF',
+                height: 110,
+                paddingBottom: 40,
+                paddingTop: 10,
+                elevation: 20,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: -4 },
+                shadowOpacity: 0.05,
+                shadowRadius: 8
             },
             headerShown: false,
         }}>
@@ -57,8 +66,10 @@ export default function ApotekerLayout() {
             {/* Sembunyikan halaman yang bukan merupakan Tab utama */}
             <Tabs.Screen name="chat-room" options={{ href: null }} />
             <Tabs.Screen name="dashboard" options={{ href: null }} />
+            <Tabs.Screen name="orders" options={{ href: null }} />
             <Tabs.Screen name="manage-stock" options={{ href: null }} />
             <Tabs.Screen name="prescriptions" options={{ href: null }} />
+            <Tabs.Screen name="keamanan" options={{ href: null }} />
         </Tabs>
     );
 }

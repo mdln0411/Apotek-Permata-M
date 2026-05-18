@@ -269,12 +269,13 @@ export default function KatalogObatScreen() {
             <View style={styles.searchWrapper}>
                 <Feather name="search" size={18} color="#999" style={styles.searchIcon} />
                 <TextInput
-                    style={styles.searchInput}
+                    style={[styles.searchInput, { outlineStyle: 'none' } as any]}
                     placeholder="Cari nama obat..."
                     placeholderTextColor="#BBB"
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     returnKeyType="search"
+                    underlineColorAndroid="transparent"
                 />
                 {searchQuery.length > 0 && (
                     <TouchableOpacity onPress={() => setSearchQuery('')}>
