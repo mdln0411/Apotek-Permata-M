@@ -86,37 +86,29 @@ class ConsultationController extends Controller
 
     public function sendMessage(Request $request, $id)
     {
-        try {
-            $request->validate([
-                'message' => 'required|string'
-            ]);
+        $request->validate([
+            'message' => 'required|string'
+        ]);
 
-            $consultation = Consultation::findOrFail($id);
-            
-            // If pharmacist replies, assign them to this consultation
-            if ($request->user()->role === 'apoteker' && !$consultation->pharmacist_id) {
-                $consultation->update(['pharmacist_id' => $request->user()->id]);
-            }
-
-            $message = Message::create([
-                'consultation_id' => $id,
-                'sender_id' => $request->user()->id,
-                'message' => $request->message,
-                'is_read' => false
-            ]);
-
-            $consultation->touch(); // Update updated_at
-
-            return response()->json([
-                'status' => 'success',
-                'data' => $message->load('sender')
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], 500);
+        $consultation = Consultation::findOrFail($id);
+        
+        // If pharmacist replies, assign them to this consultation
+        if ($request->user()->role === 'apoteker' && !$consultation->pharmacist_id) {
+            $consultation->update(['pharmacist_id' => $request->user()->id]);
         }
+
+        $message = Message::create([
+            'consultation_id' => $id,
+            'sender_id' => $request->user()->id,
+            'message' => $request->message
+        ]);
+
+        $consultation->touch(); // Update updated_at
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $message->load('sender')
+        ], 201);
     }
     public function markAsRead(Request $request, $id)
     {
