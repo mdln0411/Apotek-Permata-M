@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Notifications\AppNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -78,6 +79,13 @@ class OrderController extends Controller
 
             // Kosongkan keranjang
             $cart->items()->delete();
+
+            // Kirim Notifikasi
+            $user->notify(new AppNotification(
+                'Pesanan Berhasil',
+                "Pesanan {$order->order_number} telah berhasil dibuat. Silakan tunggu konfirmasi selanjutnya.",
+                'order'
+            ));
 
             return response()->json([
                 'status' => 'success',

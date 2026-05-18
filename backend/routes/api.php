@@ -5,8 +5,10 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\EducationController;
+use App\Http\Controllers\MedicineReminderController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\ConsultationController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -101,5 +103,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/consultations/{id}/messages', [ConsultationController::class, 'sendMessage']);
     Route::post('/consultations/{id}/read', [ConsultationController::class, 'markAsRead']);
 
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
 
+    // Medicine Reminders
+    Route::prefix('medicine-reminders')->group(function () {
+        Route::get('/', [MedicineReminderController::class, 'index']);
+        Route::post('/', [MedicineReminderController::class, 'store']);
+        Route::put('/{id}', [MedicineReminderController::class, 'update']);
+        Route::delete('/{id}', [MedicineReminderController::class, 'destroy']);
+    });
 });
