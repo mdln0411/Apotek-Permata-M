@@ -75,6 +75,15 @@ export default function NotificationScreen() {
         }
     };
 
+    const deleteNotification = async (id: string) => {
+        try {
+            await axiosClient.delete(`/api/notifications/${id}`);
+            setNotifs(prev => prev.filter(n => n.id !== id));
+        } catch (error) {
+            console.error('Error deleting notification:', error);
+        }
+    };
+
     useEffect(() => {
         fetchNotifications();
 
@@ -189,7 +198,15 @@ export default function NotificationScreen() {
                                     })}
                                 </Text>
                             </View>
-                            {!item.read_at && <View style={styles.unreadDot} />}
+                            <View style={styles.rightActions}>
+                                <TouchableOpacity 
+                                    onPress={() => deleteNotification(item.id)}
+                                    style={styles.deleteBtn}
+                                >
+                                    <Ionicons name="trash-outline" size={20} color="#E74C3C" />
+                                </TouchableOpacity>
+                                {!item.read_at && <View style={styles.unreadDot} />}
+                            </View>
                         </TouchableOpacity>
                     ))
                 )}
@@ -232,7 +249,15 @@ const styles = StyleSheet.create({
         height: 10,
         borderRadius: 5,
         backgroundColor: '#E74C3C',
+    },
+    rightActions: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
         marginLeft: 8,
+    },
+    deleteBtn: {
+        padding: 6,
     },
     emptyContainer: { flex: 1, alignItems: 'center', marginTop: 100 },
     emptyText: { marginTop: 20, fontSize: 16, color: '#999' }

@@ -156,7 +156,7 @@ export default function HomeScreen() {
     ];
 
     const categories = [
-        { id: 'c1', name: 'Batuk Dan Flu', icon: 'weather-windy' },
+        { id: 'c1', name: 'Batuk', icon: 'weather-windy' },
         { id: 'c2', name: 'Demam', icon: 'thermometer' },
         { id: 'c3', name: 'Vitamin', icon: 'pill' },
         { id: 'c4', name: 'P3K', icon: 'medical-bag' },
@@ -214,9 +214,11 @@ export default function HomeScreen() {
             {/* Sticky Header Top */}
             <View style={styles.topHeader}>
                 <View style={styles.userInfoSide}>
-                    <View style={styles.logoCircle}>
-                        <MaterialCommunityIcons name="plus-box" size={28} color={THEME.white} />
-                    </View>
+                    <Image 
+                        source={require('../../assets/images/logoimk.png')} 
+                        style={{ width: 40, height: 40, borderRadius: 12, marginRight: 10 }}
+                        resizeMode="contain"
+                    />
                     <View style={styles.nameSection}>
                         <Text style={styles.appName}>APOTEK PERMATA</Text>
                         <Text style={styles.tagline}>Solusi Sehat Keluarga</Text>
@@ -453,6 +455,73 @@ export default function HomeScreen() {
                             </View>
                         </TouchableOpacity>
                     )}
+                </View>
+
+                {/* Informasi Apotek Permata (Premium Card Design) */}
+                <View style={styles.pharmacyInfoContainer}>
+                    <View style={styles.pharmacyInfoHeader}>
+                        <View>
+                            <Text style={styles.pharmacyInfoTitle}>Apotek Permata</Text>
+                            <Text style={styles.pharmacyInfoSubtitle}>Mitra Kesehatan Terpercaya Anda</Text>
+                        </View>
+                        {(() => {
+                            const now = new Date();
+                            const hours = now.getHours();
+                            const isOpen = hours >= 8 && hours < 23;
+                            return (
+                                <View style={[styles.statusBadge, !isOpen && styles.statusBadgeClosed]}>
+                                    <View style={[styles.statusDot, !isOpen && styles.statusDotClosed]} />
+                                    <Text style={[styles.statusText, !isOpen && styles.statusTextClosed]}>
+                                        {isOpen ? 'Buka' : 'Tutup'}
+                                    </Text>
+                                </View>
+                            );
+                        })()}
+                    </View>
+                    
+                    <View style={styles.infoDivider} />
+                    
+                    <View style={styles.infoDetailRow}>
+                        <View style={styles.infoIconBg}>
+                            <Feather name="map-pin" size={16} color={THEME.primary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.infoDetailLabel}>Alamat</Text>
+                            <Text style={styles.infoDetailValue}>Ujung Serdang, Kec. Tj. Morawa, Kabupaten Deli Serdang, Sumatera Utara 20362</Text>
+                        </View>
+                    </View>
+                    
+                    <View style={styles.infoDetailRow}>
+                        <View style={styles.infoIconBg}>
+                            <Feather name="phone" size={16} color={THEME.primary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.infoDetailLabel}>Telepon</Text>
+                            <Text style={styles.infoDetailValue}>0812-6484-7315</Text>
+                        </View>
+                    </View>
+                    
+                    <View style={styles.infoDetailRow}>
+                        <View style={styles.infoIconBg}>
+                            <Feather name="clock" size={16} color={THEME.primary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.infoDetailLabel}>Jam Operasional</Text>
+                            <View style={styles.operasionalRow}>
+                                <Text style={styles.infoDetailValue}>Buka pukul 08.00 • Tutup pukul 23.00</Text>
+                            </View>
+                        </View>
+                    </View>
+                    
+                    <View style={styles.infoDetailRow}>
+                        <View style={styles.infoIconBg}>
+                            <Feather name="globe" size={16} color={THEME.primary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.infoDetailLabel}>Provinsi</Text>
+                            <Text style={styles.infoDetailValue}>Sumatera Utara</Text>
+                        </View>
+                    </View>
                 </View>
 
                 <View style={{ height: 40 }} />
@@ -725,4 +794,103 @@ const styles = StyleSheet.create({
     articleTag: { fontSize: 10, fontWeight: 'bold', color: THEME.primary, marginBottom: 0 },
     articleTitle: { fontSize: 14, fontWeight: 'bold', color: THEME.textDark, lineHeight: 20 },
     articleMeta: { fontSize: 10, color: THEME.textMuted, marginTop: 6 },
+
+    pharmacyInfoContainer: {
+        marginHorizontal: 20,
+        marginTop: 24,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: '#E8EFE9',
+        shadowColor: '#2E8B57',
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 8 },
+        elevation: 4,
+    },
+    pharmacyInfoHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    pharmacyInfoTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#2C3E50',
+    },
+    pharmacyInfoSubtitle: {
+        fontSize: 12,
+        color: '#7F8C8D',
+        marginTop: 2,
+    },
+    statusBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#E8F5E9',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#C8E6C9',
+    },
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#2E8B57',
+        marginRight: 6,
+    },
+    statusText: {
+        fontSize: 12,
+        color: '#2E8B57',
+        fontWeight: 'bold',
+    },
+    statusBadgeClosed: {
+        backgroundColor: '#FFEBEE',
+        borderColor: '#FFCDD2',
+    },
+    statusDotClosed: {
+        backgroundColor: '#E74C3C',
+    },
+    statusTextClosed: {
+        color: '#E74C3C',
+    },
+    infoDivider: {
+        height: 1,
+        backgroundColor: '#F0F4F1',
+        marginVertical: 16,
+    },
+    infoDetailRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    infoIconBg: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: '#E8F5E9',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 14,
+    },
+    infoDetailLabel: {
+        fontSize: 11,
+        color: '#95A5A6',
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    infoDetailValue: {
+        fontSize: 13,
+        color: '#34495E',
+        fontWeight: '500',
+        lineHeight: 18,
+        marginTop: 2,
+    },
+    operasionalRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
 });

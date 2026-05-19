@@ -18,7 +18,16 @@ export default function KeamananScreen() {
 
             {/* Header Hijau */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <TouchableOpacity 
+                    onPress={() => {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/(tabs)/profil' as any);
+                        }
+                    }} 
+                    style={styles.backBtn}
+                >
                     <Ionicons name="chevron-back" size={24} color="#FFF" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Keamanan Akun</Text>
@@ -86,7 +95,16 @@ export default function KeamananScreen() {
                     </View>
                 </View>
 
-                <TouchableOpacity style={styles.saveBtn} onPress={() => router.back()}>
+                <TouchableOpacity 
+                    style={styles.saveBtn} 
+                    onPress={() => {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/(tabs)/profil' as any);
+                        }
+                    }}
+                >
                     <Text style={styles.saveBtnText}>Perbarui Kata Sandi</Text>
                 </TouchableOpacity>
             </ScrollView>

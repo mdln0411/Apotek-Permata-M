@@ -55,6 +55,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth Profile
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::post('/auth/profile', [AuthController::class, 'updateProfile']);
 
     // Cart System
     Route::prefix('cart')->group(function () {

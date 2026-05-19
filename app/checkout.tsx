@@ -176,7 +176,16 @@ export default function CheckoutScreen() {
                 <View style={styles.centered}>
                     <Ionicons name="cart-outline" size={80} color="#CCC" />
                     <Text style={styles.emptyTitle}>Tidak ada item untuk checkout</Text>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.loginBtn}>
+                    <TouchableOpacity 
+                        onPress={() => {
+                            if (router.canGoBack()) {
+                                router.back();
+                            } else {
+                                router.replace('/(tabs)/keranjang' as any);
+                            }
+                        }} 
+                        style={styles.loginBtn}
+                    >
                         <Text style={styles.loginBtnText}>Kembali ke Keranjang</Text>
                     </TouchableOpacity>
                 </View>
@@ -190,7 +199,16 @@ export default function CheckoutScreen() {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <TouchableOpacity 
+                    onPress={() => {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/(tabs)/keranjang' as any);
+                        }
+                    }} 
+                    style={styles.backBtn}
+                >
                     <Ionicons name="chevron-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Checkout</Text>
@@ -293,6 +311,32 @@ export default function CheckoutScreen() {
                         <Feather name="chevron-right" size={18} color="#999" />
                     </View>
                 </TouchableOpacity>
+
+                {selectedPayment && (selectedPayment.label === 'DANA' || selectedPayment.label === 'Bank Transfer') && (
+                    <View style={styles.paymentInstructionsCard}>
+                        <Text style={styles.instructionsTitle}>Petunjuk Pembayaran</Text>
+                        {selectedPayment.label === 'DANA' ? (
+                            <View style={styles.instructionsContent}>
+                                <Text style={styles.instructionText}>
+                                    Silakan lakukan transfer ke nomor DANA berikut:
+                                </Text>
+                                <Text style={styles.paymentAccountNum}>0812-6484-7315</Text>
+                                <Text style={styles.paymentAccountName}>A/N: Apotek Permata</Text>
+                            </View>
+                        ) : (
+                            <View style={styles.instructionsContent}>
+                                <Text style={styles.instructionText}>
+                                    Silakan lakukan transfer ke rekening Bank BCA berikut:
+                                </Text>
+                                <Text style={styles.paymentAccountNum}>1234567890</Text>
+                                <Text style={styles.paymentAccountName}>A/N: Apotek Permata</Text>
+                            </View>
+                        )}
+                        <Text style={styles.instructionsNote}>
+                            *Simpan bukti transfer Anda untuk diunggah/diperlihatkan ke apoteker saat verifikasi.
+                        </Text>
+                    </View>
+                )}
 
                 {/* Rincian Biaya */}
                 <View style={styles.priceSection}>
@@ -421,5 +465,50 @@ const styles = StyleSheet.create({
     modalTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
     paymentOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
     optionIconBg: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#F0FAF4', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-    optionLabel: { flex: 1, fontSize: 15, color: '#333', fontWeight: '500' }
+    optionLabel: { flex: 1, fontSize: 15, color: '#333', fontWeight: '500' },
+    paymentInstructionsCard: {
+        backgroundColor: '#FFF',
+        padding: 16,
+        marginHorizontal: 0,
+        marginBottom: 8,
+        borderTopWidth: 1,
+        borderBottomWidth: 1,
+        borderColor: '#EEE',
+    },
+    instructionsTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#2C3E50',
+        marginBottom: 8,
+    },
+    instructionsContent: {
+        backgroundColor: '#F9FAF9',
+        borderWidth: 1,
+        borderColor: '#E8EFE9',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 8,
+    },
+    instructionText: {
+        fontSize: 12,
+        color: '#555',
+        marginBottom: 4,
+    },
+    paymentAccountNum: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#2E8B57',
+        letterSpacing: 1,
+        marginVertical: 4,
+    },
+    paymentAccountName: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#333',
+    },
+    instructionsNote: {
+        fontSize: 11,
+        color: '#E74C3C',
+        fontStyle: 'italic',
+    }
 });

@@ -7,6 +7,7 @@ export interface User {
   role: 'member' | 'apoteker' | 'admin';
   phone?: string;
   address?: string;
+  profile_photo?: string;
 }
 
 export interface AuthResponse {
@@ -34,5 +35,14 @@ export const logout = async (): Promise<any> => {
 
 export const getMe = async (): Promise<{ status: string; data: User }> => {
   const response = await axiosClient.get('/api/auth/me');
+  return response.data;
+};
+
+export const updateProfile = async (formData: FormData): Promise<{ status: string; message: string; data: User }> => {
+  const response = await axiosClient.post('/api/auth/profile', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
