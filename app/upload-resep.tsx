@@ -128,7 +128,16 @@ export default function UploadResepScreen() {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <TouchableOpacity 
+                    onPress={() => {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/(tabs)');
+                        }
+                    }} 
+                    style={styles.backBtn}
+                >
                     <Ionicons name="chevron-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Upload Resep</Text>
@@ -209,7 +218,17 @@ export default function UploadResepScreen() {
                     )}
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()} disabled={loading}>
+                <TouchableOpacity 
+                    style={styles.cancelBtn} 
+                    onPress={() => {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/(tabs)');
+                        }
+                    }} 
+                    disabled={loading}
+                >
                     <Text style={styles.cancelBtnText}>Batal</Text>
                 </TouchableOpacity>
 

@@ -3,8 +3,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import React, { useEffect, useState } from 'react';
 import { LoginPromptModal } from '@/components/LoginPromptModal';
+import { SuccessToast } from '@/components/SuccessToast';
 import axiosClient from '@/api/axiosClient';
 import {
     ActivityIndicator,
@@ -94,6 +96,8 @@ export default function DetailObatScreen() {
     const [loginModalVisible, setLoginModalVisible] = useState(false);
     const [loginModalMessage, setLoginModalMessage] = useState('');
     const [orderedStatus, setOrderedStatus] = useState<{ status: string; date: string } | null>(null);
+    const [toastVisible, setToastVisible] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
 
     const handleAddToCart = async (checkout = false) => {
         if (!user) {
@@ -108,10 +112,26 @@ export default function DetailObatScreen() {
         try {
             setAdding(true);
             await addToCart(Number(id), jumlah);
+
+            // Trigger local push notification
+            try {
+                await Notifications.scheduleNotificationAsync({
+                    content: {
+                        title: "Keranjang Belanja 🛒",
+                        body: `${medicine?.name || 'Obat'} berhasil dimasukkan ke keranjang.`,
+                        sound: true,
+                    },
+                    trigger: null,
+                });
+            } catch (error) {
+                console.error('Error triggering notification:', error);
+            }
+
             if (checkout) {
                 router.push('/keranjang' as any);
             } else {
-                Alert.alert('Berhasil', 'Obat telah ditambahkan ke keranjang');
+                setToastMessage(`${medicine?.name || 'Obat'} berhasil dimasukkan ke keranjang.`);
+                setToastVisible(true);
             }
         } catch (e) {
             Alert.alert('Gagal', 'Terjadi kesalahan saat menambah ke keranjang');
@@ -119,6 +139,17 @@ export default function DetailObatScreen() {
             setAdding(false);
         }
     };
+
+    // Request permissions for notifications
+    useEffect(() => {
+        const requestPermissions = async () => {
+            const { status } = await Notifications.requestPermissionsAsync();
+            if (status !== 'granted') {
+                console.log('Izin notifikasi ditolak.');
+            }
+        };
+        requestPermissions();
+    }, []);
 
     const tambahJumlah = () => {
         if (medicine && jumlah < medicine.stock) setJumlah(jumlah + 1);
@@ -178,7 +209,16 @@ export default function DetailObatScreen() {
             <SafeAreaView style={styles.container}>
                 <Stack.Screen options={{ headerShown: false }} />
                 <View style={styles.header}>
-                    <TouchableOpacity style={styles.headerIconBtn} onPress={() => router.back()}>
+                    <TouchableOpacity 
+                        style={styles.headerIconBtn} 
+                        onPress={() => {
+                            if (router.canGoBack()) {
+                                router.back();
+                            } else {
+                                router.replace('/(tabs)/katalog-obat' as any);
+                            }
+                        }}
+                    >
                         <Ionicons name="chevron-back" size={24} color="#333" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Detail Obat</Text>
@@ -198,7 +238,16 @@ export default function DetailObatScreen() {
             <SafeAreaView style={styles.container}>
                 <Stack.Screen options={{ headerShown: false }} />
                 <View style={styles.header}>
-                    <TouchableOpacity style={styles.headerIconBtn} onPress={() => router.back()}>
+                    <TouchableOpacity 
+                        style={styles.headerIconBtn} 
+                        onPress={() => {
+                            if (router.canGoBack()) {
+                                router.back();
+                            } else {
+                                router.replace('/(tabs)/katalog-obat' as any);
+                            }
+                        }}
+                    >
                         <Ionicons name="chevron-back" size={24} color="#333" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Detail Obat</Text>
@@ -208,7 +257,16 @@ export default function DetailObatScreen() {
                     <Ionicons name="alert-circle-outline" size={64} color="#EF9A9A" />
                     <Text style={styles.errorTitle}>Terjadi Kesalahan</Text>
                     <Text style={styles.errorText}>{error}</Text>
-                    <TouchableOpacity style={styles.btnRetry} onPress={() => router.back()}>
+                    <TouchableOpacity 
+                        style={styles.btnRetry} 
+                        onPress={() => {
+                            if (router.canGoBack()) {
+                                router.back();
+                            } else {
+                                router.replace('/(tabs)/katalog-obat' as any);
+                            }
+                        }}
+                    >
                         <Text style={styles.btnRetryText}>Kembali</Text>
                     </TouchableOpacity>
                 </View>
@@ -235,7 +293,16 @@ export default function DetailObatScreen() {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.headerIconBtn} onPress={() => router.back()}>
+                <TouchableOpacity 
+                    style={styles.headerIconBtn} 
+                    onPress={() => {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/(tabs)/katalog-obat' as any);
+                        }
+                    }}
+                >
                     <Ionicons name="chevron-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Detail Obat</Text>
@@ -474,6 +541,13 @@ export default function DetailObatScreen() {
                 onConfirm={() => router.push('/login' as any)}
                 title="Login Diperlukan"
                 message={loginModalMessage}
+            />
+            
+            {/* Success Toast */}
+            <SuccessToast 
+                visible={toastVisible}
+                message={toastMessage}
+                onClose={() => setToastVisible(false)}
             />
         </SafeAreaView>
     );

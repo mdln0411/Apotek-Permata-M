@@ -46,7 +46,43 @@ class MedicineController extends Controller
 
         // --- FILTER berdasarkan kategori ---
         if ($request->filled('category')) {
-            $query->where('category', $request->category);
+            $category = $request->category;
+            if ($category === 'Lain-lain') {
+                $knownCategories = ['Batuk', 'Flu', 'Pilek', 'Demam', 'Lambung', 'P3K', 'Vitamin', 'Lansia', 'Bayi', 'Susu', 'Kecantikan', 'Hamil & Menyusui', 'Pereda Nyeri', 'Antibiotik'];
+                $query->where(function($q) use ($knownCategories) {
+                    foreach ($knownCategories as $known) {
+                        $q->where('category', 'not like', '%' . $known . '%');
+                    }
+                });
+            } else {
+                $query->where('category', 'like', '%' . $category . '%');
+            }
+        }
+
+        // --- SORT & ALPHABET RANGE ---
+        if ($request->filled('sort_by')) {
+            $sortBy = $request->sort_by;
+            if ($sortBy === 'A-Z') {
+                $query->orderBy('name', 'asc');
+            } elseif ($sortBy === 'Z-A') {
+                $query->orderBy('name', 'desc');
+            } elseif ($sortBy === 'A-G') {
+                $query->where(function($q) {
+                    for ($i = ord('A'); $i <= ord('G'); $i++) {
+                        $char = chr($i);
+                        $q->orWhere('name', 'like', $char . '%');
+                    }
+                })->orderBy('name', 'asc');
+            } elseif ($sortBy === 'G-Z') {
+                $query->where(function($q) {
+                    for ($i = ord('G'); $i <= ord('Z'); $i++) {
+                        $char = chr($i);
+                        $q->orWhere('name', 'like', $char . '%');
+                    }
+                })->orderBy('name', 'asc');
+            }
+        } else {
+            $query->orderBy('name', 'asc');
         }
 
         // --- FILTER perlu resep atau tidak ---
@@ -56,9 +92,7 @@ class MedicineController extends Controller
 
         // --- PAGINATION (default 10 per halaman) ---
         $perPage = $request->input('per_page', 10);
-        $medicines = $query
-            ->orderBy('name')
-            ->paginate($perPage);
+        $medicines = $query->paginate($perPage);
 
         // --- Format response ringkas untuk halaman katalog ---
         return response()->json([

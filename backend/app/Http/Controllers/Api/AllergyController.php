@@ -30,12 +30,14 @@ class AllergyController extends Controller
         $request->validate([
             'allergen_name' => 'required|string|max:255',
             'symptom' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
             'severity' => 'required|in:sedang,berat',
         ]);
 
         $allergy = Auth::user()->allergies()->create([
             'allergen_name' => $request->allergen_name,
             'symptom' => $request->symptom,
+            'description' => $request->description,
             'severity' => $request->severity,
         ]);
 

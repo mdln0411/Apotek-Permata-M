@@ -16,7 +16,7 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         $orders = Order::where('user_id', $request->user()->id)
-            ->with('items')
+            ->with('items.medicine')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -112,14 +112,14 @@ class OrderController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Order placed successfully',
-                'data' => $order->load('items')
+                'data' => $order->load('items.medicine')
             ], 201);
         });
     }
 
     public function show(Request $request, $id)
     {
-        $order = Order::with(['items', 'user'])->findOrFail($id);
+        $order = Order::with(['items.medicine', 'user'])->findOrFail($id);
 
 
         if ($order->user_id !== $request->user()->id && $request->user()->role === 'member') {
@@ -138,7 +138,7 @@ class OrderController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Forbidden'], 403);
         }
 
-        $orders = Order::with(['user', 'items'])
+        $orders = Order::with(['user', 'items.medicine'])
             ->orderBy('created_at', 'desc')
             ->get();
 

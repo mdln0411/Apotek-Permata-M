@@ -50,7 +50,16 @@ export default function SearchScreen() {
       {/* Header & Search Bar Container */}
       <View style={styles.headerContainer}>
         <View style={styles.headerTop}>
-          <Pressable onPress={() => router.back()} style={styles.closeButton}>
+          <Pressable 
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)');
+              }
+            }} 
+            style={styles.closeButton}
+          >
             <Ionicons name="close" size={28} color="#fff" />
           </Pressable>
           <Text style={styles.headerTitle}>Hasil Pencarian</Text>
