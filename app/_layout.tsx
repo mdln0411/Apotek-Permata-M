@@ -16,6 +16,7 @@ function InitialLayout() {
     'chat-room',
     'edit-profil',
     'detail-pesanan',
+    'detail-resep',
     'ubah-kata-sandi',
     'keamanan',
     'upload-resep',

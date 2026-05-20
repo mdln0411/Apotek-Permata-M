@@ -94,8 +94,8 @@ export default function NotificationScreen() {
                 const newNotif: AppNotification = {
                     id: Math.random().toString(),
                     data: {
-                        title: data.title || notification.request.content.title || '',
-                        message: data.message || notification.request.content.body || '',
+                        title: String(data.title || notification.request.content.title || ''),
+                        message: String(data.message || notification.request.content.body || ''),
                         type: data.type as any,
                     },
                     read_at: null,

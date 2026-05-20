@@ -546,12 +546,12 @@ export default function DetailPesananScreen() {
 
                 {/* User Actions */}
                 {/* User Actions */}
-                {user?.role === 'member' && (o.status === 'pending' || o.status === 'diproses' || o.status === 'dikirim' || o.status === 'selesai') && (
+                {user?.role === 'member' && (o.status === 'pending' || o.status === 'dikirim' || o.status === 'selesai') && (
                     <View style={styles.userActionSection}>
                         <Text style={styles.actionSectionTitle}>Aksi Pesanan</Text>
                         <View style={styles.actionRow}>
-                            {/* Member can cancel if status is pending or diproses */}
-                            {(o.status === 'pending' || o.status === 'diproses') && (
+                            {/* Member can cancel if status is pending */}
+                            {o.status === 'pending' && (
                                 <TouchableOpacity 
                                     style={[styles.btnAction, { backgroundColor: '#D32F2F' }]} 
                                     onPress={() => {

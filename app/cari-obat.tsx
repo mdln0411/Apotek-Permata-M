@@ -457,7 +457,8 @@ export default function CariObatScreen() {
       <LoginPromptModal 
         visible={loginModalVisible}
         onClose={() => setLoginModalVisible(false)}
-        promptMessage="Silakan masuk akun terlebih dahulu untuk menambahkan produk obat ke keranjang belanja Anda."
+        onConfirm={() => router.push('/login' as any)}
+        message="Silakan masuk akun terlebih dahulu untuk menambahkan produk obat ke keranjang belanja Anda."
       />
     </SafeAreaView >
   );

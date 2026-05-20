@@ -13,7 +13,8 @@ class Prescription extends Model
         'user_id',
         'image_url',
         'status',
-        'notes'
+        'notes',
+        'total_price'
     ];
 
     public function user()

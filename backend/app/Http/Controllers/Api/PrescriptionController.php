@@ -10,14 +10,31 @@ class PrescriptionController extends Controller
 {
     public function index(Request $request)
     {
-        // Pharmacist can see all pending/valid prescriptions
-        $prescriptions = Prescription::with('user')
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $query = Prescription::with('user');
+
+        if ($request->user()->role === 'member') {
+            $query->where('user_id', $request->user()->id);
+        }
+
+        $prescriptions = $query->orderBy('created_at', 'desc')->get();
 
         return response()->json([
             'status' => 'success',
             'data' => $prescriptions
+        ]);
+    }
+
+    public function show(Request $request, $id)
+    {
+        $prescription = Prescription::with('user')->findOrFail($id);
+
+        if ($prescription->user_id !== $request->user()->id && $request->user()->role === 'member') {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $prescription
         ]);
     }
 
@@ -64,13 +81,15 @@ class PrescriptionController extends Controller
     {
         $request->validate([
             'status' => 'required|in:pending,valid,rejected',
-            'notes' => 'nullable|string'
+            'notes' => 'required|string',
+            'total_price' => 'required_if:status,valid|nullable|numeric|min:0'
         ]);
 
         $prescription = Prescription::findOrFail($id);
         $prescription->update([
             'status' => $request->status,
-            'notes' => $request->notes
+            'notes' => $request->notes,
+            'total_price' => $request->status === 'valid' ? $request->total_price : null
         ]);
 
         // Send status update notification to the user

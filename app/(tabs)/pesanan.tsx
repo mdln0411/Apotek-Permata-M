@@ -261,7 +261,11 @@ export default function PesananScreen() {
                         prescriptions.map((prescription) => {
                             const statusStyle = getStatusColor(prescription.status);
                             return (
-                                <View key={prescription.id} style={styles.orderCard}>
+                                <TouchableOpacity 
+                                    key={prescription.id} 
+                                    style={styles.orderCard}
+                                    onPress={() => router.push({ pathname: '/detail-resep', params: { id: prescription.id } } as any)}
+                                >
                                     <View style={styles.cardHeader}>
                                         <View style={styles.orderNumBadge}>
                                             <Text style={styles.orderNumText}>RESEP #{prescription.id}</Text>
@@ -289,8 +293,9 @@ export default function PesananScreen() {
                                                 {prescription.notes || 'Menunggu verifikasi apoteker'}
                                             </Text>
                                         </View>
+                                        <Ionicons name="chevron-forward" size={20} color="#CCC" />
                                     </View>
-                                </View>
+                                </TouchableOpacity>
                             );
                         })
                     )

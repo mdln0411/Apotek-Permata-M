@@ -34,8 +34,8 @@ const FILTER_CATEGORIES = [
 const SORT_OPTIONS = [
     { label: 'A - Z', value: 'A-Z' },
     { label: 'Z - A', value: 'Z-A' },
-    { label: 'A - G', value: 'A-G' },
-    { label: 'G - Z', value: 'G-Z' }
+    { label: 'Harga Termurah - Termahal', value: 'price-asc' },
+    { label: 'Harga Termahal - Termurah', value: 'price-desc' }
 ];
 
 const renderMedicineImage = (item: any) => {
@@ -411,7 +411,7 @@ export default function KatalogObatScreen() {
                         )}
                         {sortBy !== 'A-Z' && (
                             <View style={styles.filterChip}>
-                                <Text style={styles.filterChipText}>Urut: {sortBy}</Text>
+                                <Text style={styles.filterChipText}>Urut: {SORT_OPTIONS.find(o => o.value === sortBy)?.label || sortBy}</Text>
                                 <TouchableOpacity onPress={() => setSortBy('A-Z')}>
                                     <Ionicons name="close-circle" size={14} color="#2E8B57" style={{ marginLeft: 4 }} />
                                 </TouchableOpacity>

@@ -37,7 +37,7 @@ export default function SearchScreen() {
     if (found) {
       setSearchQuery(query);
     } else {
-      router.push({ pathname: '/search-results', params: { q: query } });
+      router.push({ pathname: '/search-results' as any, params: { q: query } });
     }
   };
 
