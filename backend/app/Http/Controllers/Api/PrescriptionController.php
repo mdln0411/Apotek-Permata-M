@@ -10,7 +10,7 @@ class PrescriptionController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Prescription::with('user');
+        $query = Prescription::with(['user', 'order']);
 
         if ($request->user()->role === 'member') {
             $query->where('user_id', $request->user()->id);
@@ -26,7 +26,7 @@ class PrescriptionController extends Controller
 
     public function show(Request $request, $id)
     {
-        $prescription = Prescription::with('user')->findOrFail($id);
+        $prescription = Prescription::with(['user', 'order'])->findOrFail($id);
 
         if ($prescription->user_id !== $request->user()->id && $request->user()->role === 'member') {
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);

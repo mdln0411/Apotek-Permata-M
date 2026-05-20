@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Image,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -73,9 +74,18 @@ export default function LoginScreen() {
 
             {/* Header */}
             <View style={styles.header}>
-                <View style={styles.logoContainer}>
-                    <Ionicons name="medical" size={24} color="#FFF" />
-                    <Text style={styles.headerTitle}>Apotek Permata</Text>
+                <View style={styles.headerLeft}>
+                    <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.backButton}>
+                        <Ionicons name="arrow-back" size={24} color="#FFF" />
+                    </TouchableOpacity>
+                    <View style={styles.logoContainer}>
+                        <Image 
+                            source={require('../assets/images/logoimk.png')} 
+                            style={{ width: 28, height: 28 }}
+                            resizeMode="contain"
+                        />
+                        <Text style={styles.headerTitle}>Apotek Permata</Text>
+                    </View>
                 </View>
                 <TouchableOpacity onPress={() => router.push('/register' as any)}>
                     <Text style={styles.headerLink}>Daftar</Text>
@@ -87,7 +97,11 @@ export default function LoginScreen() {
                 {/* Logo & Title */}
                 <View style={styles.titleContainer}>
                     <View style={styles.iconWrapper}>
-                        <Ionicons name="medical" size={48} color="#2E8B57" />
+                        <Image 
+                            source={require('../assets/images/logoimk.png')} 
+                            style={{ width: 55, height: 55 }}
+                            resizeMode="contain"
+                        />
                     </View>
                     <Text style={styles.mainTitle}>Masuk ke Akun</Text>
                     <Text style={styles.subTitle}>Masuk untuk melanjutkan pembelian</Text>
@@ -171,6 +185,8 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F4F9F4' },
     header: { backgroundColor: '#2E8B57', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 16 },
+    headerLeft: { flexDirection: 'row', alignItems: 'center' },
+    backButton: { marginRight: 12 },
     logoContainer: { flexDirection: 'row', alignItems: 'center' },
     headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFF', marginLeft: 8 },
     headerLink: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },

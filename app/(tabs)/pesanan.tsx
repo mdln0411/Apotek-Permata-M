@@ -33,6 +33,11 @@ export interface Prescription {
     status: string;
     notes: string | null;
     created_at: string;
+    order?: {
+        id: number;
+        status: string;
+        order_number: string;
+    } | null;
 }
 
 export default function PesananScreen() {
@@ -259,7 +264,9 @@ export default function PesananScreen() {
                         </View>
                     ) : (
                         prescriptions.map((prescription) => {
-                            const statusStyle = getStatusColor(prescription.status);
+                            const statusStyle = prescription.order
+                                ? { bg: '#E3F2FD', text: '#1976D2' }
+                                : getStatusColor(prescription.status);
                             return (
                                 <TouchableOpacity 
                                     key={prescription.id} 
@@ -271,7 +278,9 @@ export default function PesananScreen() {
                                             <Text style={styles.orderNumText}>RESEP #{prescription.id}</Text>
                                         </View>
                                         <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-                                            <Text style={[styles.statusText, { color: statusStyle.text }]}>{prescription.status.toUpperCase()}</Text>
+                                            <Text style={[styles.statusText, { color: statusStyle.text }]}>
+                                                {prescription.order ? 'DICHECKOUT' : prescription.status.toUpperCase()}
+                                            </Text>
                                         </View>
                                     </View>
 

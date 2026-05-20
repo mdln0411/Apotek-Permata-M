@@ -28,6 +28,11 @@ interface PrescriptionDetail {
     total_price: string | null;
     created_at: string;
     updated_at: string;
+    order?: {
+        id: number;
+        status: string;
+        order_number: string;
+    } | null;
 }
 
 export default function DetailResepScreen() {
@@ -92,15 +97,17 @@ export default function DetailResepScreen() {
         }) + ' WIB';
     };
 
-    const getStatusInfo = (status: string) => {
+    const getStatusInfo = (status: string, hasOrder?: boolean) => {
         switch (status) {
             case 'valid':
                 return {
-                    label: 'Valid / Diterima',
-                    color: '#2E8B57',
-                    bg: '#E8F5E9',
+                    label: hasOrder ? 'Sudah Dicheckout' : 'Valid / Diterima',
+                    color: hasOrder ? '#1976D2' : '#2E8B57',
+                    bg: hasOrder ? '#E3F2FD' : '#E8F5E9',
                     icon: 'checkmark-circle',
-                    desc: 'Resep Anda telah diperiksa dan disetujui oleh Apoteker kami. Silakan lanjutkan ke checkout untuk menyelesaikan pesanan.'
+                    desc: hasOrder
+                        ? 'Resep Anda telah dicheckout dan diproses. Silakan lihat detail pesanan Anda.'
+                        : 'Resep Anda telah diperiksa dan disetujui oleh Apoteker kami. Silakan lanjutkan ke checkout untuk menyelesaikan pesanan.'
                 };
             case 'rejected':
                 return {
@@ -148,7 +155,7 @@ export default function DetailResepScreen() {
         );
     }
 
-    const statusInfo = getStatusInfo(prescription.status);
+    const statusInfo = getStatusInfo(prescription.status, !!prescription.order);
     const imageUrl = `${Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000'}/storage/${prescription.image_url}`;
 
     return (
@@ -224,15 +231,27 @@ export default function DetailResepScreen() {
 
                 {/* Instructions Guidance Section */}
                 {prescription.status === 'valid' && (
-                    <View style={styles.instructionCard}>
-                        <Ionicons name="information-circle-outline" size={24} color="#2E8B57" />
-                        <View style={styles.instructionTextContainer}>
-                            <Text style={styles.instructionTitle}>Petunjuk Pembayaran & Pengambilan</Text>
-                            <Text style={styles.instructionBody}>
-                                Klik tombol di bawah untuk melanjutkan ke checkout. Anda dapat memilih apakah obat ingin diantar ke rumah atau diambil sendiri ke Apotek Permata, serta memilih metode pembayaran (QRIS, Transfer Bank, atau DANA).
-                            </Text>
+                    prescription.order ? (
+                        <View style={[styles.instructionCard, { backgroundColor: '#E3F2FD' }]}>
+                            <Ionicons name="information-circle-outline" size={24} color="#1976D2" />
+                            <View style={styles.instructionTextContainer}>
+                                <Text style={[styles.instructionTitle, { color: '#1976D2' }]}>Resep Sudah Dicheckout</Text>
+                                <Text style={styles.instructionBody}>
+                                    Pesanan untuk resep ini telah dibuat dengan nomor pesanan {prescription.order?.order_number}. Anda dapat melihat status transaksi dan pengiriman obat pada halaman detail pesanan.
+                                </Text>
+                            </View>
                         </View>
-                    </View>
+                    ) : (
+                        <View style={styles.instructionCard}>
+                            <Ionicons name="information-circle-outline" size={24} color="#2E8B57" />
+                            <View style={styles.instructionTextContainer}>
+                                <Text style={styles.instructionTitle}>Petunjuk Pembayaran & Pengambilan</Text>
+                                <Text style={styles.instructionBody}>
+                                    Klik tombol di bawah untuk melanjutkan ke checkout. Anda dapat memilih apakah obat ingin diantar ke rumah atau diambil sendiri ke Apotek Permata, serta memilih metode pembayaran (QRIS, Transfer Bank, atau DANA).
+                                </Text>
+                            </View>
+                        </View>
+                    )
                 )}
 
             </ScrollView>
@@ -240,13 +259,23 @@ export default function DetailResepScreen() {
             {/* Bottom Actions */}
             <View style={styles.footer}>
                 {prescription.status === 'valid' ? (
-                    <TouchableOpacity 
-                        style={styles.checkoutBtn}
-                        onPress={() => router.push({ pathname: '/checkout', params: { prescription_id: prescription.id } } as any)}
-                    >
-                        <Text style={styles.checkoutBtnText}>Lanjutkan ke Pembayaran</Text>
-                        <Ionicons name="arrow-forward" size={18} color="#FFF" />
-                    </TouchableOpacity>
+                    prescription.order ? (
+                        <TouchableOpacity 
+                            style={[styles.checkoutBtn, { backgroundColor: '#1976D2' }]}
+                            onPress={() => router.push({ pathname: '/detail-pesanan', params: { id: prescription.order?.id } } as any)}
+                        >
+                            <Text style={styles.checkoutBtnText}>Lihat Detail Pesanan</Text>
+                            <Ionicons name="eye-outline" size={18} color="#FFF" />
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity 
+                            style={styles.checkoutBtn}
+                            onPress={() => router.push({ pathname: '/checkout', params: { prescription_id: prescription.id } } as any)}
+                        >
+                            <Text style={styles.checkoutBtnText}>Lanjutkan ke Pembayaran</Text>
+                            <Ionicons name="arrow-forward" size={18} color="#FFF" />
+                        </TouchableOpacity>
+                    )
                 ) : (
                     <TouchableOpacity 
                         style={[styles.checkoutBtn, { backgroundColor: '#F0FAF4', borderWidth: 1, borderColor: '#2E8B57' }]}

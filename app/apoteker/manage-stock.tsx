@@ -2,18 +2,18 @@ import axiosClient from '@/api/axiosClient';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { 
-    SafeAreaView, 
-    ScrollView, 
-    StyleSheet, 
-    Text, 
-    TouchableOpacity, 
-    View, 
-    TextInput,
+import {
     ActivityIndicator,
-    StatusBar,
     Platform,
-    RefreshControl
+    RefreshControl,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 const THEME = {
@@ -65,9 +65,9 @@ export default function ManageStock() {
         if (newStock < 0) return;
 
         try {
-            await axiosClient.put(`/api/medicines/${id}`, { 
+            await axiosClient.put(`/api/medicines/${id}`, {
                 _method: 'PUT',
-                stock: newStock 
+                stock: newStock
             });
             setMedicines(prev => prev.map(m => m.id === id ? { ...m, stock: newStock } : m));
         } catch (error) {
@@ -120,23 +120,23 @@ export default function ManageStock() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <View style={[styles.searchBox, { flex: 1, marginBottom: 0 }]}>
                             <Ionicons name="search-outline" size={20} color={THEME.textMuted} />
-                            <TextInput 
-                                placeholder="Cari obat..." 
-                                style={styles.searchInput} 
+                            <TextInput
+                                placeholder="Cari obat..."
+                                style={styles.searchInput}
                                 placeholderTextColor={THEME.textMuted}
                                 value={search}
                                 onChangeText={setSearch}
                             />
                         </View>
-                        <TouchableOpacity 
-                            style={styles.sortBtn} 
+                        <TouchableOpacity
+                            style={styles.sortBtn}
                             onPress={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                             activeOpacity={0.7}
                         >
-                            <MaterialCommunityIcons 
-                                name={sortOrder === 'asc' ? 'sort-alphabetical-ascending' : 'sort-alphabetical-descending'} 
-                                size={22} 
-                                color={THEME.primary} 
+                            <MaterialCommunityIcons
+                                name={sortOrder === 'asc' ? 'sort-alphabetical-ascending' : 'sort-alphabetical-descending'}
+                                size={22}
+                                color={THEME.primary}
                             />
                             <Text style={styles.sortBtnText}>{sortOrder === 'asc' ? 'A-Z' : 'Z-A'}</Text>
                         </TouchableOpacity>
@@ -150,9 +150,9 @@ export default function ManageStock() {
                 </View>
 
                 {/* Filter Status Bar */}
-                <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false} 
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.filterBar}
                 >
                     {[
@@ -164,7 +164,7 @@ export default function ManageStock() {
                         <TouchableOpacity
                             key={tab.key}
                             style={[
-                                styles.filterTab, 
+                                styles.filterTab,
                                 statusFilter === tab.key && styles.filterTabActive
                             ]}
                             onPress={() => setStatusFilter(tab.key as any)}
@@ -180,8 +180,8 @@ export default function ManageStock() {
                 </ScrollView>
             </View>
 
-            <ScrollView 
-                showsVerticalScrollIndicator={false} 
+            <ScrollView
+                showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchMedicines(); }} colors={[THEME.primary]} />
@@ -209,25 +209,25 @@ export default function ManageStock() {
                                         <Text style={styles.unitText}>Per {item.unit || 'Pcs'}</Text>
                                     </View>
                                 </View>
-                                
+
                                 <View style={styles.stockControl}>
-                                    <TouchableOpacity 
-                                        style={[styles.controlBtn, { borderColor: THEME.border }]} 
+                                    <TouchableOpacity
+                                        style={[styles.controlBtn, { borderColor: THEME.border }]}
                                         onPress={() => updateStock(item.id, item.stock, -1)}
                                         activeOpacity={0.6}
                                     >
                                         <Feather name="minus" size={18} color={THEME.textMuted} />
                                     </TouchableOpacity>
-                                    
+
                                     <View style={styles.stockDisplay}>
                                         <Text style={[styles.stockValue, item.stock < 10 && styles.lowStockValue]}>
                                             {item.stock}
                                         </Text>
                                         <Text style={styles.stockLabel}>Stok</Text>
                                     </View>
-                                    
-                                    <TouchableOpacity 
-                                        style={[styles.controlBtn, { backgroundColor: THEME.secondary, borderColor: THEME.primary }]} 
+
+                                    <TouchableOpacity
+                                        style={[styles.controlBtn, { backgroundColor: THEME.secondary, borderColor: THEME.primary }]}
                                         onPress={() => updateStock(item.id, item.stock, 1)}
                                         activeOpacity={0.6}
                                     >
@@ -235,7 +235,7 @@ export default function ManageStock() {
                                     </TouchableOpacity>
                                 </View>
                             </View>
-                            
+
                             {item.stock < 10 && (
                                 <View style={styles.lowStockBanner}>
                                     <Text style={styles.lowStockText}>Segera restok!</Text>
@@ -251,10 +251,10 @@ export default function ManageStock() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8F9FA' },
-    header: { 
-        backgroundColor: THEME.primary, 
-        paddingTop: Platform.OS === 'android' ? 60 : 40, 
-        paddingBottom: 20, 
+    header: {
+        backgroundColor: THEME.primary,
+        paddingTop: Platform.OS === 'android' ? 60 : 40,
+        paddingBottom: 20,
         paddingHorizontal: 20,
         borderBottomLeftRadius: 30,
         borderBottomRightRadius: 30,
@@ -292,10 +292,10 @@ const styles = StyleSheet.create({
     alertText: { color: THEME.white, fontSize: 12, fontWeight: 'bold', marginLeft: 6 },
     scrollContent: { padding: 20, paddingTop: 15 },
     loaderContainer: { marginTop: 100, alignItems: 'center' },
-    stockCard: { 
-        backgroundColor: THEME.white, 
-        borderRadius: 20, 
-        marginBottom: 16, 
+    stockCard: {
+        backgroundColor: THEME.white,
+        borderRadius: 20,
+        marginBottom: 16,
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: THEME.border,
@@ -309,13 +309,13 @@ const styles = StyleSheet.create({
     categoryText: { fontSize: 10, fontWeight: 'bold', color: THEME.primary },
     unitText: { fontSize: 11, color: THEME.textMuted },
     stockControl: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    controlBtn: { 
-        width: 36, 
-        height: 36, 
-        borderRadius: 12, 
-        borderWidth: 1, 
-        justifyContent: 'center', 
-        alignItems: 'center' 
+    controlBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 12,
+        borderWidth: 1,
+        justifyContent: 'center',
+        alignItems: 'center'
     },
     stockDisplay: { alignItems: 'center', minWidth: 40 },
     stockValue: { fontSize: 18, fontWeight: '800', color: THEME.textDark },
