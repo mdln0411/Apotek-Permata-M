@@ -88,7 +88,6 @@
                         </td>
                         <td class="px-8 py-6">
                             <p class="font-black text-slate-800">Rp {{ number_format($order->total_price, 0, ',', '.') }}</p>
-                            <p class="text-[10px] text-slate-400">Via Transfer Bank</p>
                         </td>
                         <td class="px-8 py-6">
                             @php
