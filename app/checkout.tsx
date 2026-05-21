@@ -59,13 +59,17 @@ export default function CheckoutScreen() {
     const { user } = useAuth();
     const { items, refreshCart } = useCart();
     
-    // Ambil item_ids terpilih dari query parameter
-    const { item_ids } = useLocalSearchParams<{ item_ids?: string }>();
+    // Ambil item_ids atau prescription_id terpilih dari query parameter
+    const { item_ids, prescription_id } = useLocalSearchParams<{ item_ids?: string, prescription_id?: string }>();
     
     const [metode, setMetode] = useState<'antar' | 'jemput'>('antar');
     const [jamJemput, setJamJemput] = useState('');
     const [alamatLengkap, setAlamatLengkap] = useState(user?.address || '');
     const [loading, setLoading] = useState(false);
+
+    // State untuk Resep Digital
+    const [prescription, setPrescription] = useState<any>(null);
+    const [loadingPrescription, setLoadingPrescription] = useState(false);
 
     // State untuk Pembayaran
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -77,6 +81,26 @@ export default function CheckoutScreen() {
         { id: '3', label: 'Bank Transfer', icon: 'home-outline', type: 'ionicon' },
         { id: '4', label: 'Bayar di Apotek (COD)', icon: 'cash-outline', type: 'ionicon' },
     ];
+
+    useEffect(() => {
+        if (prescription_id) {
+            const fetchPrescription = async () => {
+                try {
+                    setLoadingPrescription(true);
+                    const res = await axiosClient.get(`/api/prescriptions/${prescription_id}`);
+                    if (res.data.status === 'success') {
+                        setPrescription(res.data.data);
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch prescription in checkout:', e);
+                    Alert.alert('Error', 'Gagal memuat detail resep');
+                } finally {
+                    setLoadingPrescription(false);
+                }
+            };
+            fetchPrescription();
+        }
+    }, [prescription_id]);
 
     const handleSelectPayment = (option: any) => {
         setSelectedPayment(option);
@@ -96,16 +120,32 @@ export default function CheckoutScreen() {
     }, [item_ids]);
 
     const checkoutItems = useMemo(() => {
+        if (prescription) {
+            return [
+                {
+                    id: 999999,
+                    name: 'Obat Resep Digital #' + prescription.id,
+                    price: parseFloat(prescription.total_price),
+                    quantity: 1,
+                    subtotal: parseFloat(prescription.total_price),
+                    unit: 'Resep',
+                    image_url: null,
+                }
+            ];
+        }
         if (selectedItemIds) {
             return items.filter(item => selectedItemIds.includes(item.id));
         }
         return items;
-    }, [items, selectedItemIds]);
+    }, [items, selectedItemIds, prescription]);
 
     // Perhitungan Harga Dinamis berdasarkan item terpilih saja
     const subtotal = useMemo(() => {
+        if (prescription) {
+            return parseFloat(prescription.total_price);
+        }
         return checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    }, [checkoutItems]);
+    }, [checkoutItems, prescription]);
 
     const biayaLayanan = 2000;
     const ongkir = metode === 'antar' ? 10000 : 0;
@@ -127,11 +167,18 @@ export default function CheckoutScreen() {
 
         try {
             setLoading(true);
-            const res = await axiosClient.post('/api/orders', {
+            const payload: any = {
                 shipping_address: metode === 'antar' ? alamatLengkap : 'Ambil di Apotek',
                 notes: metode === 'jemput' ? `Jam Jemput: ${jamJemput}` : `Metode: ${selectedPayment.label}`,
-                item_ids: selectedItemIds || undefined, // Teruskan array ID item yang dicheckout
-            });
+            };
+
+            if (prescription_id) {
+                payload.prescription_id = parseInt(prescription_id);
+            } else {
+                payload.item_ids = selectedItemIds || undefined;
+            }
+
+            const res = await axiosClient.post('/api/orders', payload);
 
             if (res.data.status === 'success') {
                 console.log('Order created successfully:', res.data.data);
@@ -169,14 +216,35 @@ export default function CheckoutScreen() {
         }
     };
 
-    if (checkoutItems.length === 0) {
+    if (loadingPrescription) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <Stack.Screen options={{ headerShown: false }} />
+                <View style={styles.centered}>
+                    <ActivityIndicator size="large" color="#2E8B57" />
+                    <Text style={{ marginTop: 12, color: '#666', fontWeight: '500' }}>Memuat detail resep...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (!prescription_id && checkoutItems.length === 0) {
         return (
             <SafeAreaView style={styles.container}>
                 <Stack.Screen options={{ headerShown: false }} />
                 <View style={styles.centered}>
                     <Ionicons name="cart-outline" size={80} color="#CCC" />
                     <Text style={styles.emptyTitle}>Tidak ada item untuk checkout</Text>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.loginBtn}>
+                    <TouchableOpacity 
+                        onPress={() => {
+                            if (router.canGoBack()) {
+                                router.back();
+                            } else {
+                                router.replace('/(tabs)/keranjang' as any);
+                            }
+                        }} 
+                        style={styles.loginBtn}
+                    >
                         <Text style={styles.loginBtnText}>Kembali ke Keranjang</Text>
                     </TouchableOpacity>
                 </View>
@@ -190,7 +258,16 @@ export default function CheckoutScreen() {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <TouchableOpacity 
+                    onPress={() => {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/(tabs)/keranjang' as any);
+                        }
+                    }} 
+                    style={styles.backBtn}
+                >
                     <Ionicons name="chevron-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Checkout</Text>
@@ -293,6 +370,32 @@ export default function CheckoutScreen() {
                         <Feather name="chevron-right" size={18} color="#999" />
                     </View>
                 </TouchableOpacity>
+
+                {selectedPayment && (selectedPayment.label === 'DANA' || selectedPayment.label === 'Bank Transfer') && (
+                    <View style={styles.paymentInstructionsCard}>
+                        <Text style={styles.instructionsTitle}>Petunjuk Pembayaran</Text>
+                        {selectedPayment.label === 'DANA' ? (
+                            <View style={styles.instructionsContent}>
+                                <Text style={styles.instructionText}>
+                                    Silakan lakukan transfer ke nomor DANA berikut:
+                                </Text>
+                                <Text style={styles.paymentAccountNum}>0812-6484-7315</Text>
+                                <Text style={styles.paymentAccountName}>A/N: Apotek Permata</Text>
+                            </View>
+                        ) : (
+                            <View style={styles.instructionsContent}>
+                                <Text style={styles.instructionText}>
+                                    Silakan lakukan transfer ke rekening Bank BCA berikut:
+                                </Text>
+                                <Text style={styles.paymentAccountNum}>1234567890</Text>
+                                <Text style={styles.paymentAccountName}>A/N: Apotek Permata</Text>
+                            </View>
+                        )}
+                        <Text style={styles.instructionsNote}>
+                            *Simpan bukti transfer Anda untuk diunggah/diperlihatkan ke apoteker saat verifikasi.
+                        </Text>
+                    </View>
+                )}
 
                 {/* Rincian Biaya */}
                 <View style={styles.priceSection}>
@@ -421,5 +524,50 @@ const styles = StyleSheet.create({
     modalTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
     paymentOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
     optionIconBg: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#F0FAF4', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-    optionLabel: { flex: 1, fontSize: 15, color: '#333', fontWeight: '500' }
+    optionLabel: { flex: 1, fontSize: 15, color: '#333', fontWeight: '500' },
+    paymentInstructionsCard: {
+        backgroundColor: '#FFF',
+        padding: 16,
+        marginHorizontal: 0,
+        marginBottom: 8,
+        borderTopWidth: 1,
+        borderBottomWidth: 1,
+        borderColor: '#EEE',
+    },
+    instructionsTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#2C3E50',
+        marginBottom: 8,
+    },
+    instructionsContent: {
+        backgroundColor: '#F9FAF9',
+        borderWidth: 1,
+        borderColor: '#E8EFE9',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 8,
+    },
+    instructionText: {
+        fontSize: 12,
+        color: '#555',
+        marginBottom: 4,
+    },
+    paymentAccountNum: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#2E8B57',
+        letterSpacing: 1,
+        marginVertical: 4,
+    },
+    paymentAccountName: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#333',
+    },
+    instructionsNote: {
+        fontSize: 11,
+        color: '#E74C3C',
+        fontStyle: 'italic',
+    }
 });

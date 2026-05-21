@@ -13,7 +13,9 @@ import {
     Text, 
     TouchableOpacity, 
     View,
-    RefreshControl
+    RefreshControl,
+    Platform,
+    Modal
 } from 'react-native';
 
 const renderMedicineImage = (item: any) => {
@@ -54,9 +56,10 @@ const renderMedicineImage = (item: any) => {
 
 export default function KeranjangScreen() {
     const { user } = useAuth();
-    const { items, totalPrice, loading, refreshCart, removeFromCart, updateQty } = useCart();
+    const { items, totalPrice, loading, refreshCart, removeFromCart, removeMultipleFromCart, updateQty } = useCart();
     const [refreshing, setRefreshing] = useState(false);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [confirmModalVisible, setConfirmModalVisible] = useState(false);
 
     // Sinkronisasi otomatis agar semua item tercentang di awal/saat data keranjang termuat
     useEffect(() => {
@@ -172,25 +175,7 @@ export default function KeranjangScreen() {
                 {selectedIds.length > 0 && (
                     <TouchableOpacity 
                         style={styles.deleteSelectedBtn}
-                        onPress={async () => {
-                            Alert.alert(
-                                'Hapus Item',
-                                `Apakah Anda yakin ingin menghapus ${selectedIds.length} produk terpilih?`,
-                                [
-                                    { text: 'Batal', style: 'cancel' },
-                                    { 
-                                        text: 'Hapus', 
-                                        style: 'destructive',
-                                        onPress: async () => {
-                                            for (const id of selectedIds) {
-                                                await removeFromCart(id);
-                                            }
-                                            setSelectedIds([]);
-                                        }
-                                    }
-                                ]
-                            );
-                        }}
+                        onPress={() => setConfirmModalVisible(true)}
                     >
                         <Feather name="trash-2" size={14} color="#FF5252" />
                         <Text style={styles.deleteSelectedText}>Hapus Terpilih</Text>
@@ -306,6 +291,48 @@ export default function KeranjangScreen() {
                     )}
                 </TouchableOpacity>
             </View>
+
+            {/* Custom Deletion Confirmation Modal */}
+            <Modal
+                visible={confirmModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setConfirmModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <View style={styles.iconContainer}>
+                            <View style={styles.iconBackground}>
+                                <Feather name="trash-2" size={30} color="#FF5252" />
+                            </View>
+                        </View>
+                        
+                        <Text style={styles.modalTitleText}>Hapus Produk</Text>
+                        <Text style={styles.modalSubtitleText}>
+                            Apakah Anda yakin ingin menghapus {selectedIds.length} produk terpilih dari keranjang belanja Anda?
+                        </Text>
+                        
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity 
+                                style={[styles.modalButton, styles.cancelBtn]} 
+                                onPress={() => setConfirmModalVisible(false)}
+                            >
+                                <Text style={styles.cancelBtnText}>Batal</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalButton, styles.confirmBtn]} 
+                                onPress={async () => {
+                                    setConfirmModalVisible(false);
+                                    await removeMultipleFromCart(selectedIds);
+                                    setSelectedIds([]);
+                                }}
+                            >
+                                <Text style={styles.confirmBtnText}>Hapus</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -399,5 +426,80 @@ const styles = StyleSheet.create({
     checkboxChecked: {
         backgroundColor: '#2E8B57',
         borderColor: '#2E8B57',
+    },
+    // Custom Deletion Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    modalCard: {
+        backgroundColor: '#FFF',
+        borderRadius: 24,
+        padding: 24,
+        width: '90%',
+        maxWidth: 340,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    iconContainer: {
+        marginBottom: 16,
+    },
+    iconBackground: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        backgroundColor: '#FFEBEE',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalTitleText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 8,
+    },
+    modalSubtitleText: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+        lineHeight: 20,
+        marginBottom: 24,
+    },
+    modalActions: {
+        flexDirection: 'row',
+        gap: 12,
+        width: '100%',
+    },
+    modalButton: {
+        flex: 1,
+        height: 48,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    cancelBtn: {
+        backgroundColor: '#F5F5F5',
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    cancelBtnText: {
+        color: '#666',
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+    confirmBtn: {
+        backgroundColor: '#FF5252',
+    },
+    confirmBtnText: {
+        color: '#FFF',
+        fontSize: 14,
+        fontWeight: 'bold',
     },
 });

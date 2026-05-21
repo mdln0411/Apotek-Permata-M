@@ -15,7 +15,8 @@ import {
     View,
     Platform,
     StatusBar,
-    RefreshControl
+    RefreshControl,
+    Alert
 } from 'react-native';
 
 const THEME = {
@@ -44,8 +45,15 @@ export default function ValidasiResep() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [selectedImg, setSelectedImg] = useState<string | null>(null);
-    const [notes, setNotes] = useState('');
     const [selectedStatus, setSelectedStatus] = useState<string>('all');
+
+    // Action modal states
+    const [actionModalVisible, setActionModalVisible] = useState(false);
+    const [actionType, setActionType] = useState<'valid' | 'rejected' | null>(null);
+    const [selectedPrescription, setSelectedPrescription] = useState<any | null>(null);
+    const [modalNotes, setModalNotes] = useState('');
+    const [modalPrice, setModalPrice] = useState('');
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         fetchPrescriptions();
@@ -69,14 +77,50 @@ export default function ValidasiResep() {
         return item.status === selectedStatus;
     });
 
-    const handleUpdateStatus = async (id: number, status: string) => {
+    const handleUpdateStatus = async () => {
+        if (!selectedPrescription || !actionType) return;
+        
+        if (!modalNotes.trim()) {
+            Alert.alert('Error', 'Silakan isi catatan / alasan terlebih dahulu.');
+            return;
+        }
+
+        if (actionType === 'valid') {
+            if (!modalPrice.trim()) {
+                Alert.alert('Error', 'Silakan isi total harga terlebih dahulu.');
+                return;
+            }
+            const priceNum = parseFloat(modalPrice);
+            if (isNaN(priceNum) || priceNum < 0) {
+                Alert.alert('Error', 'Total harga harus berupa angka yang valid.');
+                return;
+            }
+        }
+
         try {
-            await axiosClient.put(`/api/prescriptions/${id}/status`, { status, notes });
-            alert(`Resep berhasil di${status === 'valid' ? 'validasi' : 'tolak'}`);
-            setNotes('');
+            setSubmitting(true);
+            const payload: any = {
+                status: actionType,
+                notes: modalNotes,
+            };
+            if (actionType === 'valid') {
+                payload.total_price = parseFloat(modalPrice);
+            }
+
+            await axiosClient.put(`/api/prescriptions/${selectedPrescription.id}/status`, payload);
+            
+            Alert.alert('Sukses', `Resep berhasil di${actionType === 'valid' ? 'validasi' : 'tolak'}`);
+            setActionModalVisible(false);
+            setModalNotes('');
+            setModalPrice('');
+            setSelectedPrescription(null);
+            setActionType(null);
             fetchPrescriptions();
-        } catch (error) {
-            alert('Gagal memperbarui status resep');
+        } catch (error: any) {
+            console.error('Failed to update status:', error.response?.data || error.message);
+            Alert.alert('Gagal', error.response?.data?.message || 'Gagal memperbarui status resep');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -191,25 +235,29 @@ export default function ValidasiResep() {
                                 {item.status === 'pending' && (
                                     <View style={styles.actionSection}>
                                         <View style={styles.divider} />
-                                        <TextInput
-                                            style={styles.noteInput}
-                                            placeholder="Catatan Apoteker (opsional)..."
-                                            placeholderTextColor={THEME.textMuted}
-                                            value={notes}
-                                            onChangeText={setNotes}
-                                            multiline
-                                        />
                                         <View style={styles.actionRow}>
                                             <TouchableOpacity 
                                                 style={[styles.actionBtn, styles.btnReject]} 
-                                                onPress={() => handleUpdateStatus(item.id, 'rejected')}
+                                                onPress={() => {
+                                                    setSelectedPrescription(item);
+                                                    setActionType('rejected');
+                                                    setModalNotes('');
+                                                    setModalPrice('');
+                                                    setActionModalVisible(true);
+                                                }}
                                             >
                                                 <Ionicons name="close-circle-outline" size={18} color={THEME.danger} />
                                                 <Text style={styles.btnRejectText}>Tolak Resep</Text>
                                             </TouchableOpacity>
                                             <TouchableOpacity 
                                                 style={[styles.actionBtn, styles.btnValid]} 
-                                                onPress={() => handleUpdateStatus(item.id, 'valid')}
+                                                onPress={() => {
+                                                    setSelectedPrescription(item);
+                                                    setActionType('valid');
+                                                    setModalNotes('');
+                                                    setModalPrice('');
+                                                    setActionModalVisible(true);
+                                                }}
                                             >
                                                 <Ionicons name="checkmark-circle-outline" size={18} color={THEME.white} />
                                                 <Text style={styles.btnValidText}>Validasi Sekarang</Text>
@@ -218,10 +266,22 @@ export default function ValidasiResep() {
                                     </View>
                                 )}
                                 
-                                {item.notes && (
+                                {(item.notes || (item.status === 'valid' && item.total_price)) && (
                                     <View style={styles.noteDisplay}>
-                                        <Text style={styles.noteLabel}>Catatan:</Text>
-                                        <Text style={styles.noteValue}>{item.notes}</Text>
+                                        {item.notes && (
+                                            <>
+                                                <Text style={styles.noteLabel}>Catatan / Rincian Obat:</Text>
+                                                <Text style={styles.noteValue}>{item.notes}</Text>
+                                            </>
+                                        )}
+                                        {item.status === 'valid' && item.total_price && (
+                                            <>
+                                                <Text style={[styles.noteLabel, { marginTop: item.notes ? 8 : 0 }]}>Total Harga Obat:</Text>
+                                                <Text style={[styles.noteValue, { fontWeight: 'bold', color: THEME.primary }]}>
+                                                    Rp {parseFloat(item.total_price).toLocaleString('id-ID')}
+                                                </Text>
+                                            </>
+                                        )}
                                     </View>
                                 )}
                             </View>
@@ -239,6 +299,74 @@ export default function ValidasiResep() {
                     {selectedImg && (
                         <Image source={{ uri: selectedImg }} style={styles.fullImg} resizeMode="contain" />
                     )}
+                </View>
+            </Modal>
+
+            {/* Validation / Rejection Form Modal */}
+            <Modal visible={actionModalVisible} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>
+                                {actionType === 'valid' ? 'Validasi Resep' : 'Tolak Resep'}
+                            </Text>
+                            <TouchableOpacity onPress={() => setActionModalVisible(false)}>
+                                <Ionicons name="close" size={24} color={THEME.textDark} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                            <Text style={styles.inputLabel}>
+                                {actionType === 'valid' ? 'Rincian Obat & Aturan Pakai:' : 'Alasan Penolakan:'}
+                            </Text>
+                            <TextInput
+                                style={styles.modalTextInput}
+                                placeholder={actionType === 'valid' ? 'Tulis nama obat, jumlah, dan dosis pemakaian...' : 'Tulis alasan penolakan resep secara jelas...'}
+                                placeholderTextColor={THEME.textMuted}
+                                value={modalNotes}
+                                onChangeText={setModalNotes}
+                                multiline
+                                numberOfLines={4}
+                            />
+
+                            {actionType === 'valid' && (
+                                <>
+                                    <Text style={styles.inputLabel}>Total Harga Obat (Rp):</Text>
+                                    <TextInput
+                                        style={styles.modalNumberInput}
+                                        placeholder="Contoh: 150000"
+                                        placeholderTextColor={THEME.textMuted}
+                                        value={modalPrice}
+                                        onChangeText={setModalPrice}
+                                        keyboardType="numeric"
+                                    />
+                                </>
+                            )}
+                        </ScrollView>
+
+                        <View style={styles.modalFooter}>
+                            <TouchableOpacity 
+                                style={[styles.modalBtn, { backgroundColor: '#F0F0F0' }]} 
+                                onPress={() => setActionModalVisible(false)}
+                                disabled={submitting}
+                            >
+                                <Text style={[styles.modalBtnText, { color: '#666' }]}>Batal</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalBtn, { backgroundColor: actionType === 'valid' ? THEME.primary : THEME.danger }]} 
+                                onPress={handleUpdateStatus}
+                                disabled={submitting}
+                            >
+                                {submitting ? (
+                                    <ActivityIndicator size="small" color="#FFF" />
+                                ) : (
+                                    <Text style={styles.modalBtnText}>
+                                        {actionType === 'valid' ? 'Konfirmasi Validasi' : 'Konfirmasi Tolak'}
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
                 </View>
             </Modal>
         </SafeAreaView>
@@ -297,18 +425,7 @@ const styles = StyleSheet.create({
     statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
     statusText: { fontSize: 10, fontWeight: '800' },
     divider: { height: 1, backgroundColor: THEME.border, marginVertical: 15 },
-    noteInput: { 
-        backgroundColor: '#F8F9FA', 
-        borderWidth: 1, 
-        borderColor: THEME.border, 
-        borderRadius: 12, 
-        padding: 12, 
-        fontSize: 14, 
-        color: THEME.textDark,
-        minHeight: 60,
-        textAlignVertical: 'top',
-        marginBottom: 15
-    },
+    actionSection: { marginTop: 5 },
     actionRow: { flexDirection: 'row', gap: 10 },
     actionBtn: { 
         flex: 1, 
@@ -359,5 +476,78 @@ const styles = StyleSheet.create({
     },
     filterChipTextActive: {
         color: THEME.white,
+    },
+    // Modal Overlay styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: THEME.white,
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
+        padding: 24,
+        maxHeight: '80%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: THEME.textDark,
+    },
+    modalBody: {
+        marginBottom: 20,
+    },
+    inputLabel: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: THEME.textDark,
+        marginBottom: 8,
+        marginTop: 12,
+    },
+    modalTextInput: {
+        backgroundColor: '#F8F9FA',
+        borderWidth: 1,
+        borderColor: THEME.border,
+        borderRadius: 12,
+        padding: 14,
+        fontSize: 14,
+        color: THEME.textDark,
+        minHeight: 100,
+        textAlignVertical: 'top',
+    },
+    modalNumberInput: {
+        backgroundColor: '#F8F9FA',
+        borderWidth: 1,
+        borderColor: THEME.border,
+        borderRadius: 12,
+        padding: 14,
+        fontSize: 14,
+        color: THEME.textDark,
+    },
+    modalFooter: {
+        flexDirection: 'row',
+        gap: 12,
+        borderTopWidth: 1,
+        borderTopColor: THEME.border,
+        paddingTop: 16,
+    },
+    modalBtn: {
+        flex: 1,
+        height: 50,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalBtnText: {
+        color: THEME.white,
+        fontWeight: 'bold',
+        fontSize: 14,
     },
 });

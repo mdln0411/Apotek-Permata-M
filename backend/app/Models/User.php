@@ -26,6 +26,7 @@ class User extends Authenticatable
         'role',
         'phone',
         'address',
+        'profile_photo',
     ];
 
     protected static function boot()

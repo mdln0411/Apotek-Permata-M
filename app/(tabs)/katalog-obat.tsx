@@ -4,13 +4,17 @@ import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image'; // Gunakan expo-image untuk performa lebih baik
+import * as Notifications from 'expo-notifications';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { LoginPromptModal } from '@/components/LoginPromptModal';
+import { SuccessToast } from '@/components/SuccessToast';
 import {
     ActivityIndicator,
     Alert,
     FlatList,
+    Modal,
+    Platform,
     RefreshControl,
     SafeAreaView,
     ScrollView,
@@ -20,6 +24,19 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+
+const FILTER_CATEGORIES = [
+    'Batuk', 'Flu', 'Pilek', 'Demam', 'Lambung', 'P3K', 'Vitamin', 
+    'Lansia', 'Bayi', 'Susu', 'Kecantikan', 'Hamil & Menyusui', 
+    'Pereda Nyeri', 'Antibiotik', 'Lain-lain'
+];
+
+const SORT_OPTIONS = [
+    { label: 'A - Z', value: 'A-Z' },
+    { label: 'Z - A', value: 'Z-A' },
+    { label: 'Harga Termurah - Termahal', value: 'price-asc' },
+    { label: 'Harga Termahal - Termurah', value: 'price-desc' }
+];
 
 const renderMedicineImage = (item: any) => {
     // Jika image_url adalah URL online lengkap, tampilkan gambar aslinya!
@@ -67,6 +84,28 @@ export default function KatalogObatScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [loginModalVisible, setLoginModalVisible] = useState(false);
+    const [toastVisible, setToastVisible] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+
+    // Filter Modal states
+    const [sortBy, setSortBy] = useState('A-Z');
+    const [filterModalVisible, setFilterModalVisible] = useState(false);
+    const [tempCategory, setTempCategory] = useState('Semua');
+    const [tempSortBy, setTempSortBy] = useState('A-Z');
+
+    const handleApplyFilter = () => {
+        setSelectedCategory(tempCategory);
+        setSortBy(tempSortBy);
+        setFilterModalVisible(false);
+    };
+
+    const handleResetFilter = () => {
+        setTempCategory('Semua');
+        setTempSortBy('A-Z');
+        setSelectedCategory('Semua');
+        setSortBy('A-Z');
+        setFilterModalVisible(false);
+    };
 
     // Sinkronisasi searchQuery & Category dengan parameter URL saat masuk/berubah
     useEffect(() => {
@@ -78,8 +117,10 @@ export default function KatalogObatScreen() {
 
         if (category) {
             setSelectedCategory(category);
+            setTempCategory(category);
         } else {
             setSelectedCategory('Semua');
+            setTempCategory('Semua');
         }
     }, [search, category]);
     const [refreshing, setRefreshing] = useState(false);
@@ -105,6 +146,23 @@ export default function KatalogObatScreen() {
         if (selectedMedicine) {
             await addToCart(selectedMedicine.id, quantity);
             setModalVisible(false);
+
+            // Trigger local push notification
+            try {
+                await Notifications.scheduleNotificationAsync({
+                    content: {
+                        title: "Keranjang Belanja 🛒",
+                        body: `${selectedMedicine.name} berhasil dimasukkan ke keranjang.`,
+                        sound: true,
+                    },
+                    trigger: null,
+                });
+            } catch (error) {
+                console.error('Error triggering notification:', error);
+            }
+
+            setToastMessage(`${selectedMedicine.name} berhasil dimasukkan ke keranjang.`);
+            setToastVisible(true);
         }
     };
 
@@ -129,6 +187,7 @@ export default function KatalogObatScreen() {
             const params: any = { page, per_page: 10 };
             if (searchQuery.trim()) params.search = searchQuery.trim();
             if (selectedCategory !== 'Semua') params.category = selectedCategory;
+            if (sortBy) params.sort_by = sortBy;
 
             const res = await getMedicines(params);
 
@@ -148,20 +207,29 @@ export default function KatalogObatScreen() {
             setLoadingMore(false);
             setRefreshing(false);
         }
-    }, [searchQuery, selectedCategory]);
+    }, [searchQuery, selectedCategory, sortBy]);
 
     // Load awal
     useEffect(() => {
         fetchCategories();
+        
+        // Request notification permissions
+        const requestPermissions = async () => {
+            const { status } = await Notifications.requestPermissionsAsync();
+            if (status !== 'granted') {
+                console.log('Izin notifikasi ditolak.');
+            }
+        };
+        requestPermissions();
     }, []);
 
-    // Fetch ulang jika search/kategori berubah
+    // Fetch ulang jika search/kategori/sort berubah
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchMedicines(1, true);
         }, 400); // debounce 400ms
         return () => clearTimeout(timer);
-    }, [searchQuery, selectedCategory]);
+    }, [searchQuery, selectedCategory, sortBy]);
 
     const onRefresh = () => {
         setRefreshing(true);
@@ -200,34 +268,37 @@ export default function KatalogObatScreen() {
 
             {/* Info */}
             <View style={styles.productInfo}>
-                <Text style={styles.productCategory}>{item.category}</Text>
-                <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-                {item.unit && (
-                    <Text style={styles.productUnit}>{item.unit}</Text>
-                )}
-                <View style={styles.productFooter}>
-                    <Text style={styles.productPrice}>{item.price_formatted}</Text>
-                    <Text style={[
-                        styles.productStock,
-                        item.stock < 10 && item.stock > 0 && styles.stockLow,
-                        item.stock === 0 && styles.stockEmpty,
-                    ]}>
-                        {item.stock === 0 ? 'Habis' : `Stok: ${item.stock}`}
-                    </Text>
+                <View>
+                    <Text style={styles.productCategory}>{item.category}</Text>
+                    <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+                    <Text style={styles.productUnit}>{item.unit || ' '}</Text>
                 </View>
 
-                {/* Tombol tambah keranjang */}
-                <TouchableOpacity
-                    style={[styles.btnAddCart, item.stock === 0 && styles.btnAddCartDisabled]}
-                    disabled={item.stock === 0}
-                    activeOpacity={0.8}
-                    onPress={() => handleOpenModal(item)}
-                >
-                    <Feather name="shopping-cart" size={13} color={item.stock === 0 ? '#AAA' : '#FFF'} />
-                    <Text style={[styles.btnAddCartText, item.stock === 0 && styles.btnAddCartTextDisabled]}>
-                        {item.stock === 0 ? 'Habis' : 'Keranjang'}
-                    </Text>
-                </TouchableOpacity>
+                <View>
+                    <View style={styles.productFooter}>
+                        <Text style={styles.productPrice}>{item.price_formatted}</Text>
+                        <Text style={[
+                            styles.productStock,
+                            item.stock < 10 && item.stock > 0 && styles.stockLow,
+                            item.stock === 0 && styles.stockEmpty,
+                        ]}>
+                            {item.stock === 0 ? 'Habis' : `Stok: ${item.stock}`}
+                        </Text>
+                    </View>
+
+                    {/* Tombol tambah keranjang */}
+                    <TouchableOpacity
+                        style={[styles.btnAddCart, item.stock === 0 && styles.btnAddCartDisabled]}
+                        disabled={item.stock === 0}
+                        activeOpacity={0.8}
+                        onPress={() => handleOpenModal(item)}
+                    >
+                        <Feather name="shopping-cart" size={13} color={item.stock === 0 ? '#AAA' : '#FFF'} />
+                        <Text style={[styles.btnAddCartText, item.stock === 0 && styles.btnAddCartTextDisabled]}>
+                            {item.stock === 0 ? 'Habis' : 'Keranjang'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </TouchableOpacity>
     );
@@ -259,12 +330,14 @@ export default function KatalogObatScreen() {
         <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
 
-            {/* Header Mirroring Home Screen */}
+             {/* Header Mirroring Home Screen */}
             <View style={styles.header}>
                 <View style={styles.logoContainer}>
-                    <View style={styles.logoIcon}>
-                        <MaterialCommunityIcons name="plus-box" size={24} color="#FFF" />
-                    </View>
+                    <Image 
+                        source={require('../../assets/images/logoimk.png')} 
+                        style={{ width: 36, height: 36, borderRadius: 10, marginRight: 10 }}
+                        resizeMode="contain"
+                    />
                     <View>
                         <Text style={styles.headerTitle}>APOTEK PERMATA</Text>
                         <Text style={styles.tagline}>Solusi Sehat Keluarga</Text>
@@ -291,45 +364,62 @@ export default function KatalogObatScreen() {
                 </View>
             </View>
 
-            {/* Search Bar */}
-            <View style={styles.searchWrapper}>
-                <Feather name="search" size={18} color="#999" style={styles.searchIcon} />
-                <TextInput
-                    style={[styles.searchInput, { outlineStyle: 'none' } as any]}
-                    placeholder="Cari nama obat..."
-                    placeholderTextColor="#BBB"
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    returnKeyType="search"
-                    underlineColorAndroid="transparent"
-                />
-                {searchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearchQuery('')}>
-                        <Feather name="x" size={18} color="#999" />
-                    </TouchableOpacity>
-                )}
+            {/* Search & Filter Row */}
+            <View style={styles.searchFilterRow}>
+                <View style={styles.searchWrapper}>
+                    <Feather name="search" size={18} color="#999" style={styles.searchIcon} />
+                    <TextInput
+                        style={[styles.searchInput, { outlineStyle: 'none' } as any]}
+                        placeholder="Cari nama obat..."
+                        placeholderTextColor="#BBB"
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        returnKeyType="search"
+                        underlineColorAndroid="transparent"
+                    />
+                    {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchQuery('')}>
+                            <Feather name="x" size={18} color="#999" />
+                        </TouchableOpacity>
+                    )}
+                </View>
+                <TouchableOpacity 
+                    style={styles.filterBtn} 
+                    onPress={() => {
+                        setTempCategory(selectedCategory);
+                        setTempSortBy(sortBy);
+                        setFilterModalVisible(true);
+                    }}
+                >
+                    <Ionicons name="funnel-outline" size={16} color="#FFF" />
+                    <Text style={styles.filterBtnText}>Filter</Text>
+                </TouchableOpacity>
             </View>
 
-            {/* Filter Kategori */}
-            <View style={styles.categoryWrapper}>
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.categoryScroll}
-                >
-                    {categories.map((cat) => (
-                        <TouchableOpacity
-                            key={cat}
-                            style={[styles.categoryPill, selectedCategory === cat && styles.categoryPillActive]}
-                            onPress={() => setSelectedCategory(cat)}
-                        >
-                            <Text style={[styles.categoryText, selectedCategory === cat && styles.categoryTextActive]}>
-                                {cat}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
-            </View>
+            {/* Active Filter Chips */}
+            {(selectedCategory !== 'Semua' || sortBy !== 'A-Z') && (
+                <View style={styles.activeFiltersRow}>
+                    <Text style={styles.activeFiltersLabel}>Filter:</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.activeFiltersScroll}>
+                        {selectedCategory !== 'Semua' && (
+                            <View style={styles.filterChip}>
+                                <Text style={styles.filterChipText}>{selectedCategory}</Text>
+                                <TouchableOpacity onPress={() => setSelectedCategory('Semua')}>
+                                    <Ionicons name="close-circle" size={14} color="#2E8B57" style={{ marginLeft: 4 }} />
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                        {sortBy !== 'A-Z' && (
+                            <View style={styles.filterChip}>
+                                <Text style={styles.filterChipText}>Urut: {SORT_OPTIONS.find(o => o.value === sortBy)?.label || sortBy}</Text>
+                                <TouchableOpacity onPress={() => setSortBy('A-Z')}>
+                                    <Ionicons name="close-circle" size={14} color="#2E8B57" style={{ marginLeft: 4 }} />
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </ScrollView>
+                </View>
+            )}
 
             {/* Judul & Total */}
             {!loading && (
@@ -387,6 +477,109 @@ export default function KatalogObatScreen() {
                 title="Login Diperlukan"
                 message="Untuk menambahkan obat ke keranjang belanja, silakan masuk ke akun Anda terlebih dahulu."
             />
+
+            {/* Modal Filter */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={filterModalVisible}
+                onRequestClose={() => setFilterModalVisible(false)}
+            >
+                <TouchableOpacity 
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setFilterModalVisible(false)}
+                >
+                    <TouchableOpacity 
+                        activeOpacity={1} 
+                        style={styles.filterModalContent}
+                    >
+                        <View style={styles.filterModalHeader}>
+                            <Text style={styles.filterModalTitle}>Filter & Urutkan</Text>
+                            <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                                <Ionicons name="close" size={24} color="#333" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView showsVerticalScrollIndicator={false} style={styles.filterScroll}>
+                            {/* Section 1: Urutan */}
+                            <Text style={styles.filterSectionTitle}>Urutan Abjad</Text>
+                            <View style={styles.sortOptionsRow}>
+                                {SORT_OPTIONS.map((opt) => (
+                                    <TouchableOpacity
+                                        key={opt.value}
+                                        style={[
+                                            styles.sortOptionPill,
+                                            tempSortBy === opt.value && styles.sortOptionPillActive
+                                        ]}
+                                        onPress={() => setTempSortBy(opt.value)}
+                                    >
+                                        <Text style={[
+                                            styles.sortOptionText,
+                                            tempSortBy === opt.value && styles.sortOptionTextActive
+                                        ]}>
+                                            {opt.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            {/* Section 2: Kategori */}
+                            <Text style={styles.filterSectionTitle}>Kategori Obat</Text>
+                            <View style={styles.categoryGrid}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.filterCategoryPill,
+                                        tempCategory === 'Semua' && styles.filterCategoryPillActive
+                                    ]}
+                                    onPress={() => setTempCategory('Semua')}
+                                >
+                                    <Text style={[
+                                        styles.filterCategoryText,
+                                        tempCategory === 'Semua' && styles.filterCategoryTextActive
+                                    ]}>
+                                        Semua Kategori
+                                    </Text>
+                                </TouchableOpacity>
+                                {FILTER_CATEGORIES.map((cat) => (
+                                    <TouchableOpacity
+                                        key={cat}
+                                        style={[
+                                            styles.filterCategoryPill,
+                                            tempCategory === cat && styles.filterCategoryPillActive
+                                        ]}
+                                        onPress={() => setTempCategory(cat)}
+                                    >
+                                        <Text style={[
+                                            styles.filterCategoryText,
+                                            tempCategory === cat && styles.filterCategoryTextActive
+                                        ]}>
+                                            {cat}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </ScrollView>
+
+                        {/* Footer Action Buttons */}
+                        <View style={styles.filterModalFooter}>
+                            <TouchableOpacity style={styles.resetBtn} onPress={handleResetFilter}>
+                                <Text style={styles.resetBtnText}>Reset</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.applyBtn} onPress={handleApplyFilter}>
+                                <Text style={styles.applyBtnText}>Terapkan</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            </Modal>
+            
+            {/* Success Toast */}
+            <SuccessToast 
+                visible={toastVisible}
+                message={toastMessage}
+                onClose={() => setToastVisible(false)}
+            />
         </SafeAreaView>
     );
 }
@@ -425,14 +618,21 @@ const styles = StyleSheet.create({
     loginText: { color: '#FFF', fontSize: 14, fontWeight: '600', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
 
     // Search
+    searchFilterRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingRight: 16,
+    },
     searchWrapper: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFF',
         borderRadius: 12,
         paddingHorizontal: 14,
         height: 48,
-        marginHorizontal: 16,
+        marginLeft: 16,
+        marginRight: 8,
         marginTop: 16,
         marginBottom: 12,
         elevation: 2,
@@ -443,6 +643,59 @@ const styles = StyleSheet.create({
     },
     searchIcon: { marginRight: 8 },
     searchInput: { flex: 1, fontSize: 15, color: '#333', paddingVertical: 0 },
+    filterBtn: {
+        backgroundColor: '#2E8B57',
+        height: 48,
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        marginTop: 4,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+    },
+    filterBtnText: {
+        color: '#FFF',
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+
+    // Active Filter Chips
+    activeFiltersRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        marginBottom: 12,
+    },
+    activeFiltersLabel: {
+        fontSize: 12,
+        color: '#777',
+        marginRight: 8,
+        fontWeight: '600',
+    },
+    activeFiltersScroll: {
+        gap: 6,
+    },
+    filterChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#E8F5E9',
+        borderWidth: 1,
+        borderColor: '#C8E6C9',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 16,
+    },
+    filterChipText: {
+        fontSize: 12,
+        color: '#2E8B57',
+        fontWeight: '500',
+    },
 
     // Kategori
     categoryWrapper: { marginBottom: 4 },
@@ -478,6 +731,7 @@ const styles = StyleSheet.create({
     // Kartu Produk
     productCard: {
         width: '48.5%',
+        height: 280,
         backgroundColor: '#FFF',
         borderRadius: 14,
         marginBottom: 14,
@@ -521,10 +775,10 @@ const styles = StyleSheet.create({
     },
     badgeHabisText: { fontSize: 9, fontWeight: 'bold', color: '#B71C1C' },
 
-    productInfo: { padding: 10 },
+    productInfo: { padding: 10, flex: 1, justifyContent: 'space-between' },
     productCategory: { fontSize: 10, color: '#2E8B57', fontWeight: '600', textTransform: 'uppercase', marginBottom: 2 },
-    productName: { fontSize: 13, fontWeight: 'bold', color: '#222', lineHeight: 18, marginBottom: 2 },
-    productUnit: { fontSize: 11, color: '#999', marginBottom: 6 },
+    productName: { fontSize: 13, fontWeight: 'bold', color: '#222', lineHeight: 18, height: 36, marginBottom: 2 },
+    productUnit: { fontSize: 11, color: '#999', height: 16, marginBottom: 6 },
     productFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
     productPrice: { fontSize: 13, fontWeight: 'bold', color: '#2E8B57' },
     productStock: { fontSize: 10, color: '#777' },
@@ -552,4 +806,138 @@ const styles = StyleSheet.create({
     emptyContainer: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 40 },
     emptyTitle: { fontSize: 18, fontWeight: 'bold', color: '#555', marginTop: 16, marginBottom: 8 },
     emptySubtitle: { fontSize: 14, color: '#999', textAlign: 'center', lineHeight: 20 },
+
+    // Modal Filter Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    filterModalContent: {
+        backgroundColor: '#FFF',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        width: '100%',
+        maxHeight: '80%',
+        padding: 24,
+        position: 'absolute',
+        bottom: 0,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -10 },
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 15,
+    },
+    filterModalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
+    },
+    filterModalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    filterScroll: {
+        marginBottom: 20,
+    },
+    filterSectionTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#555',
+        marginTop: 12,
+        marginBottom: 10,
+    },
+    sortOptionsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 16,
+    },
+    sortOptionPill: {
+        backgroundColor: '#F5F5F5',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#E8E8E8',
+    },
+    sortOptionPillActive: {
+        backgroundColor: '#E8F5E9',
+        borderColor: '#2E8B57',
+    },
+    sortOptionText: {
+        fontSize: 13,
+        color: '#666',
+        fontWeight: '500',
+    },
+    sortOptionTextActive: {
+        color: '#2E8B57',
+        fontWeight: 'bold',
+    },
+    categoryGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    filterCategoryPill: {
+        backgroundColor: '#F5F5F5',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#E8E8E8',
+        marginBottom: 4,
+    },
+    filterCategoryPillActive: {
+        backgroundColor: '#E8F5E9',
+        borderColor: '#2E8B57',
+    },
+    filterCategoryText: {
+        fontSize: 12,
+        color: '#666',
+        fontWeight: '500',
+    },
+    filterCategoryTextActive: {
+        color: '#2E8B57',
+        fontWeight: 'bold',
+    },
+    filterModalFooter: {
+        flexDirection: 'row',
+        gap: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#F0F0F0',
+        paddingTop: 16,
+    },
+    resetBtn: {
+        flex: 1,
+        height: 46,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#DDD',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    resetBtnText: {
+        fontSize: 14,
+        color: '#666',
+        fontWeight: 'bold',
+    },
+    applyBtn: {
+        flex: 2,
+        backgroundColor: '#2E8B57',
+        height: 46,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    applyBtnText: {
+        fontSize: 14,
+        color: '#FFF',
+        fontWeight: 'bold',
+    },
 });

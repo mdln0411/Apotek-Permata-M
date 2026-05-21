@@ -1,9 +1,12 @@
 import axiosClient from '@/api/axiosClient';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Device from 'expo-device';
+
+const DateTimePicker = Platform.OS === 'web' ? null : require('@react-native-community/datetimepicker').default;
 import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { SuccessToast } from '@/components/SuccessToast';
 import {
     ActivityIndicator,
     Alert,
@@ -29,7 +32,7 @@ Notifications.setNotificationHandler({
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldBadge: false,
-    }),
+    } as any),
 });
 
 interface Reminder {
@@ -49,6 +52,30 @@ export default function PengingatScreen() {
     const [newMed, setNewMed] = useState('');
     const [newTime, setNewTime] = useState('');
     const [newDosage, setNewDosage] = useState('');
+    const [selectedTime, setSelectedTime] = useState(new Date());
+    const [showTimePicker, setShowTimePicker] = useState(false);
+    const [toastVisible, setToastVisible] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+    const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+    const [reminderIdToDelete, setReminderIdToDelete] = useState<number | null>(null);
+
+    const onTimeChange = (event: any, selectedVal?: Date) => {
+        setShowTimePicker(Platform.OS === 'ios');
+        if (selectedVal) {
+            setSelectedTime(selectedVal);
+            const hours = selectedVal.getHours().toString().padStart(2, '0');
+            const minutes = selectedVal.getMinutes().toString().padStart(2, '0');
+            setNewTime(`${hours}:${minutes}`);
+        }
+    };
+
+    const showAlert = (title: string, message: string) => {
+        if (Platform.OS === 'web') {
+            window.alert(`${title}: ${message}`);
+        } else {
+            Alert.alert(title, message);
+        }
+    };
 
     useEffect(() => {
         fetchReminders();
@@ -104,7 +131,7 @@ export default function PengingatScreen() {
                             title: "Waktunya Minum Obat! 💊",
                             body: `Jangan lupa minum ${item.medicine_name} (${item.dosage || 'Dosis Sesuai Petunjuk'})`,
                             sound: true,
-                            priority: Notifications.AndroidImportance.HIGH,
+                            priority: Notifications.AndroidImportance.HIGH as any,
                             data: {
                                 type: 'reminder',
                                 title: "Waktunya Minum Obat! 💊",
@@ -112,10 +139,11 @@ export default function PengingatScreen() {
                             }
                         },
                         trigger: {
+                            type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
                             hour: hours,
                             minute: minutes,
                             repeats: true,
-                        },
+                        } as any,
                     });
                 }
             }
@@ -134,19 +162,19 @@ export default function PengingatScreen() {
             const updatedData = reminders.map(r => r.id === item.id ? { ...r, is_active: updatedActive } : r);
             scheduleAllNotifications(updatedData);
         } catch (error) {
-            Alert.alert('Gagal', 'Gagal memperbarui status pengingat');
+            showAlert('Gagal', 'Gagal memperbarui status pengingat');
         }
     };
 
     const handleAddReminder = async () => {
         if (!newMed || !newTime) {
-            Alert.alert('Error', 'Mohon isi nama obat dan waktu (HH:MM)');
+            showAlert('Error', 'Mohon isi nama obat dan waktu (HH:MM)');
             return;
         }
 
         const timeRegex = /^([01]?[0-9]|2[0-3])[:.][0-5][0-9]$/;
         if (!timeRegex.test(newTime)) {
-            Alert.alert('Error', 'Format waktu salah. Gunakan HH:MM atau HH.MM (contoh: 08:30 atau 08.00)');
+            showAlert('Error', 'Format waktu salah. Gunakan HH:MM atau HH.MM (contoh: 08:30 atau 08.00)');
             return;
         }
 
@@ -170,35 +198,34 @@ export default function PengingatScreen() {
             setNewDosage('');
             setModalVisible(false);
             fetchReminders();
-            Alert.alert('Berhasil', 'Pengingat berhasil ditambahkan');
+            setToastMessage('Jadwal pengingat minum obat berhasil disimpan!');
+            setToastVisible(true);
         } catch (error: any) {
             console.error('Error adding reminder:', error.response?.data || error.message);
-            Alert.alert('Gagal', error.response?.data?.message || 'Terjadi kesalahan saat menambah pengingat');
+            showAlert('Gagal', error.response?.data?.message || 'Terjadi kesalahan saat menambah pengingat');
         } finally {
             setLoading(false);
         }
     };
 
-    const deleteReminder = async (id: number) => {
-        Alert.alert(
-            "Hapus Pengingat",
-            "Apakah Anda yakin ingin menghapus jadwal ini?",
-            [
-                { text: "Batal", style: "cancel" },
-                { 
-                    text: "Hapus", 
-                    style: "destructive", 
-                    onPress: async () => {
-                        try {
-                            await axiosClient.delete(`/api/medicine-reminders/${id}`);
-                            setReminders(prev => prev.filter(r => r.id !== id));
-                        } catch (error) {
-                            Alert.alert('Gagal', 'Gagal menghapus pengingat');
-                        }
-                    }
-                }
-            ]
-        );
+    const deleteReminder = (id: number) => {
+        setReminderIdToDelete(id);
+        setDeleteModalVisible(true);
+    };
+
+    const confirmDeleteReminder = async () => {
+        if (!reminderIdToDelete) return;
+        try {
+            await axiosClient.delete(`/api/medicine-reminders/${reminderIdToDelete}`);
+            setReminders(prev => prev.filter(r => r.id !== reminderIdToDelete));
+            setToastMessage('Jadwal pengingat berhasil dihapus!');
+            setToastVisible(true);
+        } catch (error) {
+            showAlert('Gagal', 'Gagal menghapus pengingat');
+        } finally {
+            setDeleteModalVisible(false);
+            setReminderIdToDelete(null);
+        }
     };
 
     const onRefresh = () => {
@@ -212,7 +239,16 @@ export default function PengingatScreen() {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <TouchableOpacity 
+                    onPress={() => {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/(tabs)');
+                        }
+                    }} 
+                    style={styles.backBtn}
+                >
                     <Ionicons name="chevron-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Pengingat Obat</Text>
@@ -243,29 +279,43 @@ export default function PengingatScreen() {
                 ) : (
                     reminders.map((item) => (
                         <View key={item.id} style={[styles.reminderCard, !item.is_active && styles.inactiveCard]}>
-                            <View style={styles.cardMain}>
-                                <View style={styles.timeCircle}>
+                            <View style={styles.cardHeader}>
+                                <View style={styles.iconNameRow}>
+                                    <View style={styles.medIconBg}>
+                                        <MaterialCommunityIcons name="pill" size={20} color="#2E8B57" />
+                                    </View>
+                                    <Text style={styles.medName} numberOfLines={1}>{item.medicine_name}</Text>
+                                </View>
+                                <TouchableOpacity style={styles.trashBtn} onPress={() => deleteReminder(item.id)}>
+                                    <Feather name="trash-2" size={18} color="#FF5252" />
+                                </TouchableOpacity>
+                            </View>
+                            
+                            <View style={styles.cardBody}>
+                                <View style={styles.timeBadge}>
+                                    <Feather name="clock" size={14} color="#2E8B57" style={{ marginRight: 6 }} />
                                     <Text style={styles.timeText}>{item.reminder_time.substring(0, 5)}</Text>
                                 </View>
-                                <View style={styles.medInfo}>
-                                    <Text style={styles.medName}>{item.medicine_name}</Text>
-                                    <View style={styles.medDetailsRow}>
-                                        <Text style={styles.medDosage}>{item.dosage || 'Sesuai Resep'}</Text>
-                                        <View style={styles.dotSeparator} />
-                                        <Text style={styles.everyDayText}>Setiap Hari</Text>
-                                    </View>
+                                <View style={styles.dosageBadge}>
+                                    <Text style={styles.dosageText}>{item.dosage || 'Sesuai Resep'}</Text>
                                 </View>
-                                <Switch 
-                                    value={item.is_active} 
-                                    onValueChange={() => toggleReminder(item)}
-                                    trackColor={{ false: '#DDD', true: '#A5D6A7' }}
-                                    thumbColor={item.is_active ? '#2E8B57' : '#FFF'}
-                                />
                             </View>
-                            <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteReminder(item.id)}>
-                                <Feather name="trash-2" size={16} color="#FF5252" />
-                                <Text style={styles.deleteText}>Hapus</Text>
-                            </TouchableOpacity>
+
+                            <View style={styles.cardFooter}>
+                                <Text style={styles.repeatText}>Ulangi: Setiap Hari</Text>
+                                <View style={styles.switchContainer}>
+                                    <Text style={[styles.statusTextLabel, item.is_active ? styles.statusActiveLabel : styles.statusInactiveLabel]}>
+                                        {item.is_active ? 'Aktif' : 'Nonaktif'}
+                                    </Text>
+                                    <Switch 
+                                        value={item.is_active} 
+                                        onValueChange={() => toggleReminder(item)}
+                                        trackColor={{ false: '#DDD', true: '#A5D6A7' }}
+                                        thumbColor={item.is_active ? '#2E8B57' : '#FFF'}
+                                        style={{ transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] }}
+                                    />
+                                </View>
+                            </View>
                         </View>
                     ))
                 )}
@@ -284,14 +334,37 @@ export default function PengingatScreen() {
                             onChangeText={setNewMed}
                         />
 
-                        <Text style={styles.inputLabel}>Waktu (HH:MM)</Text>
-                        <TextInput 
-                            style={[styles.input, { outlineStyle: 'none' } as any]}
-                            placeholder="Contoh: 08:00"
-                            value={newTime}
-                            onChangeText={setNewTime}
-                            keyboardType="numbers-and-punctuation"
-                        />
+                        <Text style={styles.inputLabel}>Waktu Pengingat</Text>
+                        {Platform.OS === 'web' ? (
+                            <TextInput 
+                                style={[styles.input, { outlineStyle: 'none' } as any]}
+                                placeholder="Contoh: 08:30"
+                                value={newTime}
+                                onChangeText={setNewTime}
+                            />
+                        ) : (
+                            <>
+                                <TouchableOpacity 
+                                    style={styles.timeSelectButton}
+                                    onPress={() => setShowTimePicker(true)}
+                                >
+                                    <Feather name="clock" size={18} color="#2E8B57" style={{ marginRight: 10 }} />
+                                    <Text style={styles.timeSelectButtonText}>
+                                        {newTime ? newTime : 'Pilih Waktu'}
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {showTimePicker && DateTimePicker && (
+                                    <DateTimePicker
+                                        value={selectedTime}
+                                        mode="time"
+                                        is24Hour={true}
+                                        display="default"
+                                        onChange={onTimeChange}
+                                    />
+                                )}
+                            </>
+                        )}
 
                         <Text style={styles.inputLabel}>Dosis (Opsional)</Text>
                         <TextInput 
@@ -312,6 +385,46 @@ export default function PengingatScreen() {
                     </View>
                 </View>
             </Modal>
+
+            {/* Modal Konfirmasi Hapus Pengingat */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={deleteModalVisible}
+                onRequestClose={() => setDeleteModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.confirmModalContent}>
+                        <View style={styles.alertIconCircle}>
+                            <Feather name="trash-2" size={28} color="#FF5252" />
+                        </View>
+                        <Text style={styles.confirmModalTitle}>Hapus Pengingat?</Text>
+                        <Text style={styles.confirmModalDesc}>
+                            Apakah Anda yakin ingin menghapus jadwal pengingat obat ini? Tindakan ini tidak dapat dibatalkan.
+                        </Text>
+                        <View style={styles.confirmModalButtons}>
+                            <TouchableOpacity 
+                                style={styles.confirmCancelBtn} 
+                                onPress={() => setDeleteModalVisible(false)}
+                            >
+                                <Text style={styles.confirmCancelBtnText}>Batal</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={styles.confirmDeleteBtn} 
+                                onPress={confirmDeleteReminder}
+                            >
+                                <Text style={styles.confirmDeleteBtnText}>Hapus</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <SuccessToast 
+                visible={toastVisible} 
+                message={toastMessage} 
+                onClose={() => setToastVisible(false)} 
+            />
         </SafeAreaView>
     );
 }
@@ -345,49 +458,119 @@ const styles = StyleSheet.create({
     reminderCard: {
         backgroundColor: '#FFF',
         borderRadius: 20,
-        padding: 20,
-        marginBottom: 15,
+        padding: 18,
+        marginBottom: 16,
         elevation: 3,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 5,
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+        borderWidth: 1,
+        borderColor: '#EFEFEF',
     },
     inactiveCard: { opacity: 0.6 },
-    cardMain: { flexDirection: 'row', alignItems: 'center' },
-    timeCircle: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: '#F0F4F7',
-        justifyContent: 'center',
+    cardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#E0E6ED',
+        marginBottom: 14,
     },
-    timeText: { fontSize: 16, fontWeight: 'bold', color: '#2E8B57' },
-    medInfo: { flex: 1, marginLeft: 15 },
-    medName: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-    medDetailsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-    medDosage: { fontSize: 13, color: '#666' },
-    dotSeparator: { 
-        width: 4, 
-        height: 4, 
-        borderRadius: 2, 
-        backgroundColor: '#CCC', 
-        marginHorizontal: 8 
-    },
-    everyDayText: { fontSize: 13, color: '#2E8B57', fontWeight: '600' },
-    deleteBtn: {
+    iconNameRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'flex-end',
-        marginTop: 15,
-        paddingTop: 10,
-        borderTopWidth: 1,
-        borderTopColor: '#F5F5F5',
+        flex: 1,
+        marginRight: 10,
     },
-    deleteText: { fontSize: 12, color: '#FF5252', marginLeft: 5, fontWeight: 'bold' },
+    medIconBg: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: '#E8F5E9',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    medName: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#2C3E50',
+        flex: 1,
+    },
+    trashBtn: {
+        padding: 6,
+    },
+    cardBody: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 14,
+    },
+    timeBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#E8F5E9',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+        marginRight: 8,
+    },
+    timeText: {
+        fontSize: 13,
+        fontWeight: 'bold',
+        color: '#2E8B57',
+    },
+    dosageBadge: {
+        backgroundColor: '#F0F4F7',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+    },
+    dosageText: {
+        fontSize: 12,
+        color: '#555',
+        fontWeight: '500',
+    },
+    cardFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#F5F7FA',
+    },
+    repeatText: {
+        fontSize: 12,
+        color: '#888',
+    },
+    switchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    statusTextLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        marginRight: 6,
+    },
+    statusActiveLabel: {
+        color: '#2E8B57',
+    },
+    statusInactiveLabel: {
+        color: '#888',
+    },
+    timeSelectButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F5F7FA',
+        padding: 15,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E0E6ED',
+        marginBottom: 20,
+    },
+    timeSelectButtonText: {
+        fontSize: 15,
+        color: '#333',
+        fontWeight: '500',
+    },
     emptyState: { alignItems: 'center', marginTop: 80 },
     emptyText: { marginTop: 15, color: '#999', fontSize: 16 },
     modalOverlay: {
@@ -419,4 +602,67 @@ const styles = StyleSheet.create({
     cancelBtnText: { fontSize: 16, color: '#999', fontWeight: 'bold' },
     confirmBtn: { flex: 1, backgroundColor: '#2E8B57', paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
     confirmBtnText: { fontSize: 16, color: '#FFF', fontWeight: 'bold' },
+    confirmModalContent: {
+        backgroundColor: '#FFF',
+        borderRadius: 24,
+        padding: 24,
+        width: Math.min(SCREEN_WIDTH - 40, 320),
+        alignItems: 'center',
+    },
+    alertIconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#FFEBEE',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    confirmModalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    confirmModalDesc: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+        lineHeight: 20,
+        marginBottom: 24,
+    },
+    confirmModalButtons: {
+        flexDirection: 'row',
+        width: '100%',
+    },
+    confirmCancelBtn: {
+        flex: 1,
+        height: 48,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E0E6ED',
+        marginRight: 10,
+        backgroundColor: '#FFF',
+    },
+    confirmCancelBtnText: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#666',
+    },
+    confirmDeleteBtn: {
+        flex: 1,
+        height: 48,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 12,
+        backgroundColor: '#FF5252',
+    },
+    confirmDeleteBtnText: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#FFF',
+    },
 });

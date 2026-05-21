@@ -226,7 +226,16 @@ export default function CariObatScreen() {
 
       {/* Green Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
+        <TouchableOpacity 
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)');
+            }
+          }} 
+          style={styles.closeBtn}
+        >
           <Feather name="x" size={22} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Cari Obat</Text>
@@ -448,7 +457,8 @@ export default function CariObatScreen() {
       <LoginPromptModal 
         visible={loginModalVisible}
         onClose={() => setLoginModalVisible(false)}
-        promptMessage="Silakan masuk akun terlebih dahulu untuk menambahkan produk obat ke keranjang belanja Anda."
+        onConfirm={() => router.push('/login' as any)}
+        message="Silakan masuk akun terlebih dahulu untuk menambahkan produk obat ke keranjang belanja Anda."
       />
     </SafeAreaView >
   );

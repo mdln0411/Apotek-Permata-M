@@ -13,6 +13,7 @@ class Allergy extends Model
         'user_id',
         'allergen_name',
         'symptom',
+        'description',
         'severity',
     ];
 

@@ -13,12 +13,14 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
+    Modal
 } from 'react-native';
 
 export default function UploadResepScreen() {
     const [image, setImage] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [successModalVisible, setSuccessModalVisible] = useState(false);
 
     const pickImage = async () => {
         if (Platform.OS !== 'web') {
@@ -99,20 +101,7 @@ export default function UploadResepScreen() {
 
             console.log('Server Response:', uploadResponse.data);
 
-            Alert.alert(
-                'Berhasil!', 
-                'Resep Anda telah terkirim. Apoteker akan segera memverifikasi resep Anda.',
-                [
-                    { 
-                        text: 'Lihat Riwayat', 
-                        onPress: () => router.replace('/(tabs)/pesanan') 
-                    },
-                    { 
-                        text: 'OK', 
-                        onPress: () => router.replace('/(tabs)') 
-                    }
-                ]
-            );
+            setSuccessModalVisible(true);
         } catch (error: any) {
             console.error('Upload error:', error);
             const errorMsg = error.response?.data?.message || error.message || 'Terjadi kesalahan saat mengunggah resep. Silakan coba lagi.';
@@ -128,7 +117,16 @@ export default function UploadResepScreen() {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <TouchableOpacity 
+                    onPress={() => {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/(tabs)');
+                        }
+                    }} 
+                    style={styles.backBtn}
+                >
                     <Ionicons name="chevron-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Upload Resep</Text>
@@ -209,11 +207,65 @@ export default function UploadResepScreen() {
                     )}
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()} disabled={loading}>
+                <TouchableOpacity 
+                    style={styles.cancelBtn} 
+                    onPress={() => {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/(tabs)');
+                        }
+                    }} 
+                    disabled={loading}
+                >
                     <Text style={styles.cancelBtnText}>Batal</Text>
                 </TouchableOpacity>
 
             </ScrollView>
+
+            {/* Custom Success Modal */}
+            <Modal
+                visible={successModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setSuccessModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <View style={styles.iconContainer}>
+                            <View style={styles.successIconBackground}>
+                                <Ionicons name="checkmark-circle" size={48} color="#2E8B57" />
+                            </View>
+                        </View>
+                        
+                        <Text style={styles.modalTitleText}>Upload Berhasil!</Text>
+                        <Text style={styles.modalSubtitleText}>
+                            Resep Anda telah terkirim. Apoteker kami akan segera memeriksa dan memverifikasi resep Anda.
+                        </Text>
+                        
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity 
+                                style={[styles.modalButton, styles.secondaryBtn]} 
+                                onPress={() => {
+                                    setSuccessModalVisible(false);
+                                    router.replace('/(tabs)');
+                                }}
+                            >
+                                <Text style={styles.secondaryBtnText}>Ke Beranda</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalButton, styles.primaryBtn]} 
+                                onPress={() => {
+                                    setSuccessModalVisible(false);
+                                    router.replace('/(tabs)/pesanan');
+                                }}
+                            >
+                                <Text style={styles.primaryBtnText}>Lihat Riwayat</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -245,5 +297,80 @@ const styles = StyleSheet.create({
     submitBtn: { backgroundColor: '#2E8B57', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginBottom: 12 },
     submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
     cancelBtn: { paddingVertical: 12, alignItems: 'center' },
-    cancelBtnText: { color: '#999', fontSize: 14, fontWeight: '500' }
+    cancelBtnText: { color: '#999', fontSize: 14, fontWeight: '500' },
+    // Custom Success Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    modalCard: {
+        backgroundColor: '#FFF',
+        borderRadius: 24,
+        padding: 24,
+        width: '90%',
+        maxWidth: 340,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    iconContainer: {
+        marginBottom: 16,
+    },
+    successIconBackground: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#E8F5E9',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalTitleText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 8,
+    },
+    modalSubtitleText: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+        lineHeight: 20,
+        marginBottom: 24,
+    },
+    modalActions: {
+        flexDirection: 'row',
+        gap: 12,
+        width: '100%',
+    },
+    modalButton: {
+        flex: 1,
+        height: 48,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    secondaryBtn: {
+        backgroundColor: '#F5F5F5',
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    secondaryBtnText: {
+        color: '#666',
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+    primaryBtn: {
+        backgroundColor: '#2E8B57',
+    },
+    primaryBtnText: {
+        color: '#FFF',
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
 });

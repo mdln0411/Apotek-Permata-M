@@ -24,6 +24,7 @@ export default function AlergiObatScreen() {
     const [modalVisible, setModalVisible] = useState(false);
     const [allergenName, setAllergenName] = useState('');
     const [symptom, setSymptom] = useState('');
+    const [description, setDescription] = useState('');
     const [severity, setSeverity] = useState<'sedang' | 'berat'>('sedang');
     const [submitting, setSubmitting] = useState(false);
 
@@ -57,6 +58,7 @@ export default function AlergiObatScreen() {
             const response = await axiosClient.post('/api/allergies', {
                 allergen_name: allergenName.trim(),
                 symptom: symptom.trim() || null,
+                description: description.trim() || null,
                 severity: severity
             });
 
@@ -65,6 +67,7 @@ export default function AlergiObatScreen() {
                 setModalVisible(false);
                 setAllergenName('');
                 setSymptom('');
+                setDescription('');
                 setSeverity('sedang');
                 fetchAllergies();
             }
@@ -108,7 +111,16 @@ export default function AlergiObatScreen() {
             
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <TouchableOpacity 
+                    onPress={() => {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/(tabs)');
+                        }
+                    }} 
+                    style={styles.backButton}
+                >
                     <Ionicons name="chevron-back" size={24} color="#FFF" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Alergi Obat</Text>
@@ -147,6 +159,11 @@ export default function AlergiObatScreen() {
                                     <Text style={styles.symptomText}>
                                         {item.symptom ? `Gejala: ${item.symptom}` : 'Tidak ada catatan gejala'}
                                     </Text>
+                                    {item.description ? (
+                                        <Text style={styles.descriptionText}>
+                                            Deskripsi: {item.description}
+                                        </Text>
+                                    ) : null}
                                 </View>
                                 <TouchableOpacity 
                                     style={styles.deleteButton} 
@@ -217,6 +234,14 @@ export default function AlergiObatScreen() {
                             placeholder="Contoh: Ruam kulit, sesak napas, gatal..."
                             value={symptom}
                             onChangeText={setSymptom}
+                            style={[styles.input, { outlineStyle: 'none' } as any]}
+                        />
+
+                        <Text style={styles.inputLabel}>Deskripsi Alergi</Text>
+                        <TextInput
+                            placeholder="Catatan tambahan mengenai riwayat alergi..."
+                            value={description}
+                            onChangeText={setDescription}
                             style={[styles.input, { outlineStyle: 'none' } as any]}
                         />
 
@@ -357,6 +382,12 @@ const styles = StyleSheet.create({
     symptomText: {
         fontSize: 14,
         color: '#555',
+        marginBottom: 8,
+    },
+    descriptionText: {
+        fontSize: 13,
+        color: '#7F8C8D',
+        marginTop: 2,
         marginBottom: 8,
     },
     deleteButton: {

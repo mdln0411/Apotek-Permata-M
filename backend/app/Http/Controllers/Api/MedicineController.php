@@ -14,7 +14,7 @@ class MedicineController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Medicine::query();
+        $query = Medicine::query()->where('category', '!=', 'Resep');
 
         // --- SEARCH pintar berdasarkan kata kunci ---
         if ($request->filled('search')) {
@@ -46,7 +46,33 @@ class MedicineController extends Controller
 
         // --- FILTER berdasarkan kategori ---
         if ($request->filled('category')) {
-            $query->where('category', $request->category);
+            $category = $request->category;
+            if ($category === 'Lain-lain') {
+                $knownCategories = ['Batuk', 'Flu', 'Pilek', 'Demam', 'Lambung', 'P3K', 'Vitamin', 'Lansia', 'Bayi', 'Susu', 'Kecantikan', 'Hamil & Menyusui', 'Pereda Nyeri', 'Antibiotik'];
+                $query->where(function($q) use ($knownCategories) {
+                    foreach ($knownCategories as $known) {
+                        $q->where('category', 'not like', '%' . $known . '%');
+                    }
+                });
+            } else {
+                $query->where('category', 'like', '%' . $category . '%');
+            }
+        }
+
+        // --- SORT & ALPHABET RANGE ---
+        if ($request->filled('sort_by')) {
+            $sortBy = $request->sort_by;
+            if ($sortBy === 'A-Z') {
+                $query->orderBy('name', 'asc');
+            } elseif ($sortBy === 'Z-A') {
+                $query->orderBy('name', 'desc');
+            } elseif ($sortBy === 'price-asc' || $sortBy === 'A-G') {
+                $query->orderBy('price', 'asc');
+            } elseif ($sortBy === 'price-desc' || $sortBy === 'G-Z') {
+                $query->orderBy('price', 'desc');
+            }
+        } else {
+            $query->orderBy('name', 'asc');
         }
 
         // --- FILTER perlu resep atau tidak ---
@@ -56,9 +82,7 @@ class MedicineController extends Controller
 
         // --- PAGINATION (default 10 per halaman) ---
         $perPage = $request->input('per_page', 10);
-        $medicines = $query
-            ->orderBy('name')
-            ->paginate($perPage);
+        $medicines = $query->paginate($perPage);
 
         // --- Format response ringkas untuk halaman katalog ---
         return response()->json([
@@ -137,6 +161,7 @@ class MedicineController extends Controller
     public function categories()
     {
         $categories = Medicine::select('category')
+            ->where('category', '!=', 'Resep')
             ->distinct()
             ->orderBy('category')
             ->pluck('category');

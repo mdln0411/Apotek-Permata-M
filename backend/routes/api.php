@@ -55,6 +55,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth Profile
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::post('/auth/profile', [AuthController::class, 'updateProfile']);
 
     // Cart System
     Route::prefix('cart')->group(function () {
@@ -98,6 +99,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Prescription Routes
     Route::get('/prescriptions', [PrescriptionController::class, 'index']);
     Route::post('/prescriptions', [PrescriptionController::class, 'store']);
+    Route::get('/prescriptions/{id}', [PrescriptionController::class, 'show']);
     Route::put('/prescriptions/{id}/status', [PrescriptionController::class, 'updateStatus']);
 
     // Consultation Routes

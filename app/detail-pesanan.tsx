@@ -49,11 +49,13 @@ interface OrderDetail {
 
 
 const renderMedicineImage = (item: any) => {
-    // Jika image_url adalah URL online lengkap, tampilkan gambar aslinya!
-    if (item.image_url && (item.image_url.startsWith('http://') || item.image_url.startsWith('https://'))) {
+    if (item.image_url) {
+        const imageUrl = (item.image_url.startsWith('http://') || item.image_url.startsWith('https://'))
+            ? item.image_url
+            : `${Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000'}/storage/${item.image_url}`;
         return (
             <Image 
-                source={{ uri: item.image_url }} 
+                source={{ uri: imageUrl }} 
                 style={styles.itemImage || { width: '100%', height: '100%' }} 
                 resizeMode="cover"
             />
@@ -508,7 +510,7 @@ export default function DetailPesananScreen() {
                     {o.items.map((item) => (
                         <View key={item.id} style={styles.itemRow}>
                             <View style={styles.itemImageContainer}>
-                                {renderMedicineImage(item.medicine || { name: item.name, image_url: item.medicine?.image_url })}
+                                {renderMedicineImage((item as any).medicine || { name: item.name, image_url: (item as any).medicine?.image_url })}
                             </View>
                             <View style={styles.itemMain}>
                                 <Text style={styles.itemName}>{item.name}</Text>
@@ -544,12 +546,12 @@ export default function DetailPesananScreen() {
 
                 {/* User Actions */}
                 {/* User Actions */}
-                {user?.role === 'member' && (o.status === 'pending' || o.status === 'diproses' || o.status === 'dikirim' || o.status === 'selesai') && (
+                {user?.role === 'member' && (o.status === 'pending' || o.status === 'dikirim' || o.status === 'selesai') && (
                     <View style={styles.userActionSection}>
                         <Text style={styles.actionSectionTitle}>Aksi Pesanan</Text>
                         <View style={styles.actionRow}>
-                            {/* Member can cancel if status is pending or diproses */}
-                            {(o.status === 'pending' || o.status === 'diproses') && (
+                            {/* Member can cancel if status is pending */}
+                            {o.status === 'pending' && (
                                 <TouchableOpacity 
                                     style={[styles.btnAction, { backgroundColor: '#D32F2F' }]} 
                                     onPress={() => {

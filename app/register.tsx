@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { 
     ActivityIndicator, 
     Alert, 
+    Image,
     SafeAreaView, 
     ScrollView, 
     StyleSheet, 
@@ -69,7 +70,11 @@ export default function RegisterScreen() {
 
             <View style={styles.header}>
                 <View style={styles.logoContainer}>
-                    <Ionicons name="medical" size={24} color="#FFF" />
+                    <Image 
+                        source={require('../assets/images/logoimk.png')} 
+                        style={{ width: 28, height: 28 }}
+                        resizeMode="contain"
+                    />
                     <Text style={styles.headerTitle}>Apotek Permata</Text>
                 </View>
             </View>
@@ -150,6 +155,8 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F4F9F4' },
     header: { backgroundColor: '#2E8B57', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 16 },
+    headerLeft: { flexDirection: 'row', alignItems: 'center' },
+    backButton: { marginRight: 12 },
     logoContainer: { flexDirection: 'row', alignItems: 'center' },
     headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFF', marginLeft: 8 },
     scrollContent: { padding: 20, paddingBottom: 40 },

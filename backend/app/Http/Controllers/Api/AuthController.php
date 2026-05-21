@@ -136,6 +136,37 @@ class AuthController extends Controller
         return response()->json(['status' => 'success', 'message' => 'Data user berhasil diperbarui', 'data' => $user]);
     }
 
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'nullable|string',
+            'address' => 'nullable|string',
+            'profile_photo' => 'nullable|image|max:10240',
+        ]);
+
+        $data = [
+            'name' => $validated['name'],
+            'phone' => $validated['phone'],
+            'address' => $validated['address'],
+        ];
+
+        if ($request->hasFile('profile_photo')) {
+            $path = $request->file('profile_photo')->store('profile_photos', 'public');
+            $data['profile_photo'] = $path;
+        }
+
+        $user->update($data);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Profil berhasil diperbarui',
+            'data' => $user
+        ]);
+    }
+
     public function destroyUser($id)
     {
         $user = User::findOrFail($id);

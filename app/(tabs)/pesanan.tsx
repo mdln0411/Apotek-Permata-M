@@ -33,6 +33,11 @@ export interface Prescription {
     status: string;
     notes: string | null;
     created_at: string;
+    order?: {
+        id: number;
+        status: string;
+        order_number: string;
+    } | null;
 }
 
 export default function PesananScreen() {
@@ -43,6 +48,15 @@ export default function PesananScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState<'pesanan' | 'resep'>('pesanan');
+    const [subTab, setSubTab] = useState<'semua' | 'pending' | 'selesai' | 'dibatalkan'>('semua');
+
+    const filteredOrders = orders.filter(order => {
+        if (subTab === 'semua') return true;
+        if (subTab === 'pending') return order.status === 'pending';
+        if (subTab === 'selesai') return order.status === 'selesai';
+        if (subTab === 'dibatalkan') return order.status === 'dibatalkan';
+        return true;
+    });
 
     useEffect(() => {
         if (tab === 'resep' || tab === 'pesanan') {
@@ -143,6 +157,31 @@ export default function PesananScreen() {
                 </TouchableOpacity>
             </View>
 
+            {activeTab === 'pesanan' && (
+                <View style={styles.subTabContainer}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabScrollContent}>
+                        {(['semua', 'pending', 'selesai', 'dibatalkan'] as const).map((tabKey) => {
+                            const label = tabKey === 'semua' ? 'Semua' 
+                                        : tabKey === 'pending' ? 'Pending'
+                                        : tabKey === 'selesai' ? 'Selesai'
+                                        : 'Dibatalkan';
+                            const isActive = subTab === tabKey;
+                            return (
+                                <TouchableOpacity
+                                    key={tabKey}
+                                    style={[styles.subTabButton, isActive && styles.subTabButtonActive]}
+                                    onPress={() => setSubTab(tabKey)}
+                                >
+                                    <Text style={[styles.subTabText, isActive && styles.subTabTextActive]}>
+                                        {label}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </ScrollView>
+                </View>
+            )}
+
             <ScrollView 
                 contentContainerStyle={styles.scrollContent} 
                 showsVerticalScrollIndicator={false}
@@ -153,14 +192,18 @@ export default function PesananScreen() {
                 {loading && !refreshing ? (
                     <ActivityIndicator size="large" color="#2E8B57" style={{ marginTop: 40 }} />
                 ) : activeTab === 'pesanan' ? (
-                    orders.length === 0 ? (
+                    filteredOrders.length === 0 ? (
                         <View style={styles.centered}>
                             <Ionicons name="receipt-outline" size={80} color="#CCC" />
-                            <Text style={styles.emptyTitle}>Belum ada pesanan</Text>
-                            <Text style={styles.emptySubtitle}>Ayo mulai belanja obat sekarang!</Text>
+                            <Text style={styles.emptyTitle}>
+                                {subTab === 'semua' ? 'Belum ada pesanan' : `Tidak ada pesanan ${subTab}`}
+                            </Text>
+                            <Text style={styles.emptySubtitle}>
+                                {subTab === 'semua' ? 'Ayo mulai belanja obat sekarang!' : 'Coba ubah filter status pesanan Anda.'}
+                            </Text>
                         </View>
                     ) : (
-                        orders.map((order) => {
+                        filteredOrders.map((order) => {
                             const statusStyle = getStatusColor(order.status);
                             return (
                                 <TouchableOpacity 
@@ -221,15 +264,23 @@ export default function PesananScreen() {
                         </View>
                     ) : (
                         prescriptions.map((prescription) => {
-                            const statusStyle = getStatusColor(prescription.status);
+                            const statusStyle = prescription.order
+                                ? { bg: '#E3F2FD', text: '#1976D2' }
+                                : getStatusColor(prescription.status);
                             return (
-                                <View key={prescription.id} style={styles.orderCard}>
+                                <TouchableOpacity 
+                                    key={prescription.id} 
+                                    style={styles.orderCard}
+                                    onPress={() => router.push({ pathname: '/detail-resep', params: { id: prescription.id } } as any)}
+                                >
                                     <View style={styles.cardHeader}>
                                         <View style={styles.orderNumBadge}>
                                             <Text style={styles.orderNumText}>RESEP #{prescription.id}</Text>
                                         </View>
                                         <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-                                            <Text style={[styles.statusText, { color: statusStyle.text }]}>{prescription.status.toUpperCase()}</Text>
+                                            <Text style={[styles.statusText, { color: statusStyle.text }]}>
+                                                {prescription.order ? 'DICHECKOUT' : prescription.status.toUpperCase()}
+                                            </Text>
                                         </View>
                                     </View>
 
@@ -251,8 +302,9 @@ export default function PesananScreen() {
                                                 {prescription.notes || 'Menunggu verifikasi apoteker'}
                                             </Text>
                                         </View>
+                                        <Ionicons name="chevron-forward" size={20} color="#CCC" />
                                     </View>
-                                </View>
+                                </TouchableOpacity>
                             );
                         })
                     )
@@ -330,5 +382,36 @@ const styles = StyleSheet.create({
     addressText: { color: '#999', fontSize: 12, marginTop: 2 },
     priceRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     totalPrice: { fontSize: 14, color: '#2E8B57', fontWeight: 'bold', marginTop: 4 },
-    itemCountText: { fontSize: 10, color: '#999', marginTop: 4 }
+    itemCountText: { fontSize: 10, color: '#999', marginTop: 4 },
+    subTabContainer: {
+        backgroundColor: '#FFF',
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
+    },
+    subTabScrollContent: {
+        paddingHorizontal: 16,
+        gap: 10,
+        flexDirection: 'row',
+    },
+    subTabButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: '#F5F5F5',
+        borderWidth: 1,
+        borderColor: '#EEE',
+    },
+    subTabButtonActive: {
+        backgroundColor: '#E8F5E9',
+        borderColor: '#2E8B57',
+    },
+    subTabText: {
+        fontSize: 13,
+        color: '#666',
+        fontWeight: '600',
+    },
+    subTabTextActive: {
+        color: '#2E8B57',
+    },
 });

@@ -1,7 +1,9 @@
 import { useAuth } from '@/context/AuthContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { router, Stack } from 'expo-router';
-import React, { useState } from 'react';
+import { router, Stack, useFocusEffect } from 'expo-router';
+import React, { useState, useCallback } from 'react';
+import axiosClient from '@/api/axiosClient';
+import { Image } from 'expo-image';
 import {
     Modal,
     Platform,
@@ -15,7 +17,35 @@ import {
 
 export default function ProfilScreen() {
     const { user, logout } = useAuth();
+    
+    const getProfilePhotoUrl = (url?: string) => {
+        if (!url) return null;
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        const host = Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000';
+        return `${host}/storage/${url}`;
+    };
+
     const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+    const [allergies, setAllergies] = useState<any[]>([]);
+
+    const fetchAllergies = useCallback(async () => {
+        try {
+            const response = await axiosClient.get('/api/allergies');
+            if (response.data && response.data.data) {
+                setAllergies(response.data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching allergies in profile:', error);
+        }
+    }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            if (user) {
+                fetchAllergies();
+            }
+        }, [user, fetchAllergies])
+    );
 
     const handleLogout = async () => {
         setLogoutModalVisible(true);
@@ -54,7 +84,11 @@ export default function ProfilScreen() {
             <View style={styles.header}>
                 <View style={styles.headerContent}>
                     <View style={styles.avatarLarge}>
-                        <Ionicons name="person" size={40} color="#2E8B57" />
+                        {user.profile_photo ? (
+                            <Image source={{ uri: getProfilePhotoUrl(user.profile_photo) || undefined }} style={styles.avatarImageLarge} />
+                        ) : (
+                            <Ionicons name="person" size={40} color="#2E8B57" />
+                        )}
                     </View>
                     <Text style={styles.profileName}>{user.name}</Text>
                     <Text style={styles.profileEmail}>{user.email}</Text>
@@ -86,37 +120,50 @@ export default function ProfilScreen() {
                     </View>
                 </View>
 
-                {/* Riwayat Transaksi */}
-                <Text style={styles.sectionTitle}>Riwayat Transaksi</Text>
+                {/* Informasi Alergi Member */}
+                <Text style={styles.sectionTitle}>Informasi Alergi Member</Text>
                 <View style={styles.card}>
-                    <TouchableOpacity 
-                        style={styles.menuItem} 
-                        onPress={() => router.push({ pathname: '/(tabs)/pesanan', params: { tab: 'pesanan' } } as any)}
-                    >
-                        <Feather name="shopping-bag" size={18} color="#2E8B57" />
-                        <Text style={styles.menuText}>Riwayat Pesanan Obat</Text>
-                        <Feather name="chevron-right" size={18} color="#CCC" />
-                    </TouchableOpacity>
-                    <View style={styles.divider} />
-                    <TouchableOpacity 
-                        style={styles.menuItem} 
-                        onPress={() => router.push({ pathname: '/(tabs)/pesanan', params: { tab: 'resep' } } as any)}
-                    >
-                        <Feather name="file-text" size={18} color="#008080" />
-                        <Text style={styles.menuText}>Riwayat Upload Resep</Text>
-                        <Feather name="chevron-right" size={18} color="#CCC" />
-                    </TouchableOpacity>
+                    {allergies.length === 0 ? (
+                        <View style={styles.allergyEmptyContainer}>
+                            <Feather name="shield" size={16} color="#2E8B57" style={{ marginRight: 6 }} />
+                            <Text style={styles.allergyEmptyText}>Tidak ada riwayat alergi obat tercatat.</Text>
+                        </View>
+                    ) : (
+                        allergies.map((item, idx) => (
+                            <View key={item.id || idx}>
+                                {idx > 0 && <View style={styles.divider} />}
+                                <View style={styles.allergyItem}>
+                                    <View style={styles.allergyHeaderRow}>
+                                        <Text style={styles.allergyItemName}>{item.allergen_name}</Text>
+                                        <View style={[
+                                            styles.allergySeverityBadge, 
+                                            item.severity === 'berat' ? styles.badgeBerat : styles.badgeSedang
+                                        ]}>
+                                            <Text style={[
+                                                styles.allergySeverityText, 
+                                                item.severity === 'berat' ? styles.badgeTextBerat : styles.badgeTextSedang
+                                            ]}>
+                                                {item.severity ? item.severity.toUpperCase() : 'SEDANG'}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <Text style={styles.allergyDetailText}>
+                                        Gejala: <Text style={{ color: '#555' }}>{item.symptom || '-'}</Text>
+                                    </Text>
+                                    {item.description && (
+                                        <Text style={styles.allergyDetailText}>
+                                            Deskripsi: <Text style={{ color: '#555' }}>{item.description}</Text>
+                                        </Text>
+                                    )}
+                                </View>
+                            </View>
+                        ))
+                    )}
                 </View>
 
                 {/* Pengaturan & Lainnya */}
                 <Text style={styles.sectionTitle}>Layanan & Keamanan</Text>
                 <View style={styles.card}>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/pengingat' as any)}>
-                        <Feather name="bell" size={18} color="#F57C00" />
-                        <Text style={styles.menuText}>Pengingat Minum Obat</Text>
-                        <Feather name="chevron-right" size={18} color="#CCC" />
-                    </TouchableOpacity>
-                    <View style={styles.divider} />
                     <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/alergi-obat' as any)}>
                         <Feather name="heart" size={18} color="#D32F2F" />
                         <Text style={styles.menuText}>Alergi Obat Saya</Text>
@@ -195,7 +242,8 @@ const styles = StyleSheet.create({
         borderBottomRightRadius: 30,
     },
     headerContent: { alignItems: 'center' },
-    avatarLarge: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginBottom: 12, borderWidth: 3, borderColor: 'rgba(255,255,255,0.3)' },
+    avatarLarge: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginBottom: 12, borderWidth: 3, borderColor: 'rgba(255,255,255,0.3)', overflow: 'hidden' },
+    avatarImageLarge: { width: 74, height: 74, borderRadius: 37 },
     profileName: { fontSize: 20, fontWeight: 'bold', color: '#FFF', marginBottom: 4 },
     profileEmail: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 16 },
     editBtn: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
@@ -295,5 +343,54 @@ const styles = StyleSheet.create({
         color: '#FFF',
         fontWeight: 'bold',
         fontSize: 14
+    },
+    allergyEmptyContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+    },
+    allergyEmptyText: {
+        fontSize: 13,
+        color: '#7F8C8D',
+    },
+    allergyItem: {
+        paddingVertical: 10,
+    },
+    allergyHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    allergyItemName: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#2C3E50',
+    },
+    allergySeverityBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
+    },
+    allergySeverityText: {
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    badgeSedang: {
+        backgroundColor: '#FFF3E0',
+    },
+    badgeTextSedang: {
+        color: '#E65100',
+    },
+    badgeBerat: {
+        backgroundColor: '#FFEBEE',
+    },
+    badgeTextBerat: {
+        color: '#D32F2F',
+    },
+    allergyDetailText: {
+        fontSize: 13,
+        color: '#7F8C8D',
+        marginTop: 2,
     }
 });
