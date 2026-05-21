@@ -21,10 +21,13 @@ export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const handleLogin = async () => {
+        setErrorMessage(null);
+
         if (!email || !password) {
-            Alert.alert('Error', 'Email dan password harus diisi');
+            setErrorMessage('Email dan password harus diisi');
             return;
         }
 
@@ -49,13 +52,12 @@ export default function LoginScreen() {
                 }
             } as any);
 
-
         } catch (e: any) {
             console.error('Error Login Detail:', e);
             console.log('Response Error:', e.response?.data);
 
             const errorMsg = e.response?.data?.message || e.message || 'Terjadi kesalahan koneksi ke server';
-            Alert.alert('Login Gagal', errorMsg);
+            setErrorMessage(errorMsg);
         } finally {
             setLoading(false);
         }
@@ -65,6 +67,7 @@ export default function LoginScreen() {
     const fillDemo = (e: string) => {
         setEmail(e);
         setPassword('password');
+        setErrorMessage(null);
     };
 
 
@@ -106,6 +109,21 @@ export default function LoginScreen() {
                     <Text style={styles.mainTitle}>Masuk ke Akun</Text>
                     <Text style={styles.subTitle}>Masuk untuk melanjutkan pembelian</Text>
                 </View>
+
+                {errorMessage && (
+                    <View style={styles.errorBanner}>
+                        <Ionicons name="alert-circle" size={20} color="#D32F2F" />
+                        <View style={styles.bannerTextContainer}>
+                            <Text style={styles.errorTitle}>Login Gagal</Text>
+                            <Text style={styles.errorText}>{errorMessage}</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => setErrorMessage(null)} style={styles.bannerCloseBtn}>
+                            <Ionicons name="close" size={18} color="#D32F2F" />
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+
 
                 {/* Form Card */}
                 <View style={styles.card}>
@@ -184,6 +202,53 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F4F9F4' },
+    errorBanner: {
+        backgroundColor: '#FFEBEE',
+        borderLeftWidth: 4,
+        borderLeftColor: '#D32F2F',
+        borderRadius: 12,
+        padding: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    successBanner: {
+        backgroundColor: '#E8F5E9',
+        borderLeftWidth: 4,
+        borderLeftColor: '#2E7D32',
+        borderRadius: 12,
+        padding: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    bannerTextContainer: {
+        flex: 1,
+        marginLeft: 10,
+    },
+    errorTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#C62828',
+    },
+    errorText: {
+        fontSize: 12,
+        color: '#D32F2F',
+        marginTop: 2,
+    },
+    successTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#1B5E20',
+    },
+    successText: {
+        fontSize: 12,
+        color: '#2E7D32',
+        marginTop: 2,
+    },
+    bannerCloseBtn: {
+        padding: 4,
+    },
     header: { backgroundColor: '#2E8B57', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 16 },
     headerLeft: { flexDirection: 'row', alignItems: 'center' },
     backButton: { marginRight: 12 },

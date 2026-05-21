@@ -188,82 +188,84 @@ export default function ManageEducation() {
                 activePage="education" 
             />
 
-            <Modal
-                visible={modalVisible}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>{isEditing ? 'Edit Artikel' : 'Tulis Edukasi Baru'}</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)}>
-                                <Ionicons name="close" size={24} color="#333" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <ScrollView showsVerticalScrollIndicator={false} style={styles.formScroll}>
-                            <Text style={styles.inputLabel}>Judul Artikel *</Text>
-                            <TextInput 
-                                style={styles.input}
-                                placeholder="Masukkan judul"
-                                value={formData.title}
-                                onChangeText={(text) => setFormData({...formData, title: text})}
-                            />
-
-                            <Text style={styles.inputLabel}>Kategori</Text>
-                            <TextInput 
-                                style={styles.input}
-                                placeholder="Contoh: Tips Kesehatan"
-                                value={formData.category}
-                                onChangeText={(text) => setFormData({...formData, category: text})}
-                            />
-
-                            <Text style={styles.inputLabel}>Gambar Sampul</Text>
-                            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                                <TouchableOpacity style={[styles.input, { flex: 1, justifyContent: 'center' }]} onPress={pickImage}>
-                                    <Text style={{ color: imageUri ? '#2E8B57' : '#999' }}>
-                                        {imageUri ? 'Gambar Terpilih ✓' : 'Pilih dari Galeri'}
-                                    </Text>
+            {modalVisible && (
+                <Modal
+                    visible={modalVisible}
+                    animationType="slide"
+                    transparent={true}
+                    onRequestClose={() => setModalVisible(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>{isEditing ? 'Edit Artikel' : 'Tulis Edukasi Baru'}</Text>
+                                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                                    <Ionicons name="close" size={24} color="#333" />
                                 </TouchableOpacity>
-                                <Text>atau</Text>
-                                <TextInput 
-                                    style={[styles.input, { flex: 1 }]}
-                                    placeholder="Link URL"
-                                    value={formData.image_url}
-                                    onChangeText={(text) => {
-                                        setFormData({...formData, image_url: text});
-                                        setImageUri(null);
-                                    }}
-                                />
                             </View>
 
-                            <Text style={styles.inputLabel}>Konten Artikel *</Text>
-                            <TextInput 
-                                style={[styles.input, styles.textArea]}
-                                placeholder="Tulis isi edukasi di sini..."
-                                multiline
-                                numberOfLines={10}
-                                value={formData.content}
-                                onChangeText={(text) => setFormData({...formData, content: text})}
-                            />
+                            <ScrollView showsVerticalScrollIndicator={false} style={styles.formScroll}>
+                                <Text style={styles.inputLabel}>Judul Artikel *</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    placeholder="Masukkan judul"
+                                    value={formData.title}
+                                    onChangeText={(text) => setFormData({...formData, title: text})}
+                                />
 
-                            <Text style={styles.inputLabel}>Penulis</Text>
-                            <TextInput 
-                                style={styles.input}
-                                placeholder="Nama penulis"
-                                value={formData.author}
-                                onChangeText={(text) => setFormData({...formData, author: text})}
-                            />
-                        </ScrollView>
+                                <Text style={styles.inputLabel}>Kategori</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    placeholder="Contoh: Tips Kesehatan"
+                                    value={formData.category}
+                                    onChangeText={(text) => setFormData({...formData, category: text})}
+                                />
 
-                        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                            <Text style={styles.saveBtnText}>{isEditing ? 'Simpan Perubahan' : 'Terbitkan Sekarang'}</Text>
-                        </TouchableOpacity>
+                                <Text style={styles.inputLabel}>Gambar Sampul</Text>
+                                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                                    <TouchableOpacity style={[styles.input, { flex: 1, justifyContent: 'center' }]} onPress={pickImage}>
+                                        <Text style={{ color: imageUri ? '#2E8B57' : '#999' }}>
+                                            {imageUri ? 'Gambar Terpilih ✓' : 'Pilih dari Galeri'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <Text>atau</Text>
+                                    <TextInput 
+                                        style={[styles.input, { flex: 1 }]}
+                                        placeholder="Link URL"
+                                        value={formData.image_url}
+                                        onChangeText={(text) => {
+                                            setFormData({...formData, image_url: text});
+                                            setImageUri(null);
+                                        }}
+                                    />
+                                </View>
+
+                                <Text style={styles.inputLabel}>Konten Artikel *</Text>
+                                <TextInput 
+                                    style={[styles.input, styles.textArea]}
+                                    placeholder="Tulis isi edukasi di sini..."
+                                    multiline
+                                    numberOfLines={10}
+                                    value={formData.content}
+                                    onChangeText={(text) => setFormData({...formData, content: text})}
+                                />
+
+                                <Text style={styles.inputLabel}>Penulis</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    placeholder="Nama penulis"
+                                    value={formData.author}
+                                    onChangeText={(text) => setFormData({...formData, author: text})}
+                                />
+                            </ScrollView>
+
+                            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+                                <Text style={styles.saveBtnText}>{isEditing ? 'Simpan Perubahan' : 'Terbitkan Sekarang'}</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
-            </Modal>
+                </Modal>
+            )}
 
             <View style={styles.topBar}>
                 <View style={styles.headerLeft}>

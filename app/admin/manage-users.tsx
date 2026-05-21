@@ -134,94 +134,96 @@ export default function ManageUsers() {
             />
 
             {/* Modal Form */}
-            <Modal
-                visible={modalVisible}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>{isEditing ? 'Edit Pengguna' : 'Tambah Pengguna Baru'}</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)}>
-                                <Ionicons name="close" size={24} color="#333" />
+            {modalVisible && (
+                <Modal
+                    visible={modalVisible}
+                    animationType="slide"
+                    transparent={true}
+                    onRequestClose={() => setModalVisible(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>{isEditing ? 'Edit Pengguna' : 'Tambah Pengguna Baru'}</Text>
+                                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                                    <Ionicons name="close" size={24} color="#333" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <ScrollView showsVerticalScrollIndicator={false} style={styles.formScroll}>
+                                <Text style={styles.inputLabel}>Nama Lengkap *</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    placeholder="Masukkan nama lengkap"
+                                    value={formData.name}
+                                    onChangeText={(text) => setFormData({...formData, name: text})}
+                                />
+
+                                <Text style={styles.inputLabel}>Email *</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    placeholder="nama@mail.com"
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                    value={formData.email}
+                                    onChangeText={(text) => setFormData({...formData, email: text})}
+                                />
+
+                                <Text style={styles.inputLabel}>Nomor Telepon</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    placeholder="0812..."
+                                    keyboardType="phone-pad"
+                                    value={formData.phone}
+                                    onChangeText={(text) => setFormData({...formData, phone: text})}
+                                />
+
+                                <Text style={styles.inputLabel}>Alamat</Text>
+                                <TextInput 
+                                    style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                                    placeholder="Alamat lengkap"
+                                    multiline
+                                    numberOfLines={3}
+                                    value={formData.address}
+                                    onChangeText={(text) => setFormData({...formData, address: text})}
+                                />
+
+                                {!isEditing && (
+                                    <>
+                                        <Text style={styles.inputLabel}>Password *</Text>
+                                        <TextInput 
+                                            style={styles.input}
+                                            placeholder="Minimal 8 karakter"
+                                            secureTextEntry
+                                            value={formData.password}
+                                            onChangeText={(text) => setFormData({...formData, password: text})}
+                                        />
+                                    </>
+                                )}
+
+                                <Text style={styles.inputLabel}>Role / Peran *</Text>
+                                <View style={styles.roleSelection}>
+                                    {['member', 'apoteker', 'admin'].map((role) => (
+                                        <TouchableOpacity 
+                                            key={role}
+                                            style={[styles.roleOption, formData.role === role && styles.roleOptionActive]}
+                                            onPress={() => setFormData({...formData, role: role})}
+                                        >
+                                            <Text style={[styles.roleOptionText, formData.role === role && styles.roleOptionTextActive]}>
+                                                {role.toUpperCase()}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </ScrollView>
+
+                            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+                                <Text style={styles.saveBtnText}>{isEditing ? 'Simpan Perubahan' : 'Buat Akun'}</Text>
                             </TouchableOpacity>
                         </View>
-
-                        <ScrollView showsVerticalScrollIndicator={false} style={styles.formScroll}>
-                            <Text style={styles.inputLabel}>Nama Lengkap *</Text>
-                            <TextInput 
-                                style={styles.input}
-                                placeholder="Masukkan nama lengkap"
-                                value={formData.name}
-                                onChangeText={(text) => setFormData({...formData, name: text})}
-                            />
-
-                            <Text style={styles.inputLabel}>Email *</Text>
-                            <TextInput 
-                                style={styles.input}
-                                placeholder="nama@mail.com"
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                                value={formData.email}
-                                onChangeText={(text) => setFormData({...formData, email: text})}
-                            />
-
-                            <Text style={styles.inputLabel}>Nomor Telepon</Text>
-                            <TextInput 
-                                style={styles.input}
-                                placeholder="0812..."
-                                keyboardType="phone-pad"
-                                value={formData.phone}
-                                onChangeText={(text) => setFormData({...formData, phone: text})}
-                            />
-
-                            <Text style={styles.inputLabel}>Alamat</Text>
-                            <TextInput 
-                                style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-                                placeholder="Alamat lengkap"
-                                multiline
-                                numberOfLines={3}
-                                value={formData.address}
-                                onChangeText={(text) => setFormData({...formData, address: text})}
-                            />
-
-                            {!isEditing && (
-                                <>
-                                    <Text style={styles.inputLabel}>Password *</Text>
-                                    <TextInput 
-                                        style={styles.input}
-                                        placeholder="Minimal 8 karakter"
-                                        secureTextEntry
-                                        value={formData.password}
-                                        onChangeText={(text) => setFormData({...formData, password: text})}
-                                    />
-                                </>
-                            )}
-
-                            <Text style={styles.inputLabel}>Role / Peran *</Text>
-                            <View style={styles.roleSelection}>
-                                {['member', 'apoteker', 'admin'].map((role) => (
-                                    <TouchableOpacity 
-                                        key={role}
-                                        style={[styles.roleOption, formData.role === role && styles.roleOptionActive]}
-                                        onPress={() => setFormData({...formData, role: role})}
-                                    >
-                                        <Text style={[styles.roleOptionText, formData.role === role && styles.roleOptionTextActive]}>
-                                            {role.toUpperCase()}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        </ScrollView>
-
-                        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                            <Text style={styles.saveBtnText}>{isEditing ? 'Simpan Perubahan' : 'Buat Akun'}</Text>
-                        </TouchableOpacity>
                     </View>
-                </View>
-            </Modal>
+                </Modal>
+            )}
 
             {/* Header */}
             <View style={styles.topBar}>

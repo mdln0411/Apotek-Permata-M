@@ -2,7 +2,7 @@ import AdminSidebar from '@/components/AdminSidebar';
 import { useAuth } from '@/context/AuthContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     SafeAreaView, 
     ScrollView, 
@@ -12,27 +12,109 @@ import {
     View, 
     Dimensions,
     Platform,
-    Image
+    Image,
+    ActivityIndicator,
+    RefreshControl
 } from 'react-native';
+import { getAdminDashboardStats, DashboardData } from '@/api/dashboardService';
+import axiosClient from '@/api/axiosClient';
+import { Svg, Path, Circle, Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
+
+const formatRupiahShort = (num: number) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1).replace('.0', '')}Jt`;
+    if (num >= 1000) return `${(num / 1000).toFixed(0)}Rb`;
+    return `${num}`;
+};
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function AdminDashboard() {
     const { user, logout } = useAuth();
     const [sidebarVisible, setSidebarVisible] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+    const [lowStockCount, setLowStockCount] = useState(0);
 
-    const stats = [
-        { label: 'Total Penjualan', value: 'Rp 15.8Jt', icon: 'trending-up', color: '#E8F5E9', iconColor: '#2E8B57' },
-        { label: 'Total Pesanan', value: '156', icon: 'shopping-cart', color: '#E3F2FD', iconColor: '#1976D2' },
-        { label: 'Total Pelanggan', value: '89', icon: 'users', color: '#F3E5F5', iconColor: '#7B1FA2' },
-        { label: 'Pertumbuhan', value: '+12.5%', icon: 'activity', color: '#FFF3E0', iconColor: '#F57C00' },
+    const fetchDashboardData = async (isRefreshing = false) => {
+        if (isRefreshing) {
+            setRefreshing(true);
+        } else {
+            setLoading(true);
+        }
+        setError(null);
+        try {
+            const res = await getAdminDashboardStats();
+            if (res.status === 'success') {
+                setDashboardData(res.data);
+            } else {
+                setError('Gagal memuat data dari server');
+            }
+
+            // Fetch medicines to count low stock
+            const medRes = await axiosClient.get('/api/medicines?per_page=500');
+            const low = (medRes.data.data || []).filter((m: any) => m.stock < 10).length;
+            setLowStockCount(low);
+        } catch (e: any) {
+            console.error('Error fetching dashboard stats:', e);
+            setError(e.response?.data?.message || e.message || 'Terjadi kesalahan koneksi');
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
+
+    const onRefresh = () => {
+        fetchDashboardData(true);
+    };
+
+    if (loading && !refreshing) {
+        return (
+            <SafeAreaView style={styles.loadingContainer}>
+                <Stack.Screen options={{ headerShown: false }} />
+                <ActivityIndicator size="large" color="#2E8B57" />
+                <Text style={styles.loadingText}>Memuat data dasbor...</Text>
+            </SafeAreaView>
+        );
+    }
+
+    if (error && !dashboardData) {
+        return (
+            <SafeAreaView style={styles.loadingContainer}>
+                <Stack.Screen options={{ headerShown: false }} />
+                <Ionicons name="cloud-offline-outline" size={60} color="#D32F2F" />
+                <Text style={styles.errorTextTitle}>Gagal Memuat Data</Text>
+                <Text style={styles.errorTextSub}>{error}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={() => fetchDashboardData()}>
+                    <Text style={styles.retryButtonText}>Coba Lagi</Text>
+                </TouchableOpacity>
+            </SafeAreaView>
+        );
+    }
+
+    const stats = dashboardData?.stats || [
+        { label: 'Total Penjualan', value: 'Rp 0', icon: 'trending-up', color: '#E8F5E9', iconColor: '#2E8B57' },
+        { label: 'Total Pesanan', value: '0', icon: 'shopping-cart', color: '#E3F2FD', iconColor: '#1976D2' },
+        { label: 'Total Pelanggan', value: '0', icon: 'users', color: '#F3E5F5', iconColor: '#7B1FA2' },
+        { label: 'Pertumbuhan', value: '+0.0%', icon: 'activity', color: '#FFF3E0', iconColor: '#F57C00' },
     ];
 
-    const bestSellers = [
-        { id: '1', name: 'Paracetamol 500mg', sold: '245 terjual', income: 'Rp 3675k' },
-        { id: '2', name: 'Vitamin C 1000mg', sold: '180 terjual', income: 'Rp 6300k' },
-        { id: '3', name: 'Ibuprofen 400mg', sold: '156 terjual', income: 'Rp 3900k' },
-    ];
+    const bestSellers = dashboardData?.best_sellers || [];
+
+    const chartValues = dashboardData?.chart?.data || [0, 0, 0, 0, 0, 0, 0];
+    const chartLabels = dashboardData?.chart?.labels || ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+
+    const maxVal = Math.max(...chartValues);
+    const scaledHeights = chartValues.map(v => {
+        if (maxVal === 0) return 0;
+        const h = (v / maxVal) * 80;
+        return v > 0 ? Math.max(h, 4) : 0;
+    });
 
     return (
         <SafeAreaView style={styles.container}>
@@ -58,13 +140,36 @@ export default function AdminDashboard() {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <ScrollView 
+                showsVerticalScrollIndicator={false} 
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2E8B57']} />
+                }
+            >
                 
                 {/* Dashboard Header Banner */}
                 <View style={styles.bannerCard}>
                     <Text style={styles.bannerTitle}>Dashboard Admin</Text>
                     <Text style={styles.bannerSub}>Ringkasan sistem apotek</Text>
                 </View>
+
+                {lowStockCount > 0 && (
+                    <TouchableOpacity 
+                        style={styles.lowStockBanner}
+                        onPress={() => router.push('/admin/manage-medicines')}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="alert-circle" size={24} color="#FF5252" />
+                        <View style={styles.lowStockTextContainer}>
+                            <Text style={styles.lowStockTitle}>Pemberitahuan Stok Menipis</Text>
+                            <Text style={styles.lowStockDesc}>
+                                Ada {lowStockCount} obat dengan stok di bawah 10 item! Klik untuk mengelola stok.
+                            </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#FF5252" style={{ marginLeft: 'auto' }} />
+                    </TouchableOpacity>
+                )}
 
                 {/* Stats Grid */}
                 <View style={styles.statsGrid}>
@@ -81,23 +186,107 @@ export default function AdminDashboard() {
                     ))}
                 </View>
 
-                {/* Weekly Sales Chart Placeholder */}
+                {/* Weekly Sales Chart */}
                 <View style={styles.chartCard}>
                     <Text style={styles.cardTitle}>Penjualan Mingguan</Text>
                     <View style={styles.chartContainer}>
-                        {/* Simulasi Bar Chart */}
-                        <View style={styles.chartBars}>
-                            {[40, 25, 60, 65, 80, 55, 70].map((h, i) => (
-                                <View key={i} style={styles.barWrapper}>
-                                    <View style={[styles.bar, { height: h }]} />
-                                    <Text style={styles.barLabel}>{['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'][i]}</Text>
+                        {(() => {
+                            const width = SCREEN_WIDTH - 64; // Card width minus padding
+                            const height = 180;
+                            const paddingLeft = 20;
+                            const paddingRight = 20;
+                            const paddingTop = 25;
+                            const paddingBottom = 25;
+                            
+                            const chartWidth = width - paddingLeft - paddingRight;
+                            const chartHeight = height - paddingTop - paddingBottom;
+                            
+                            const points = chartValues.map((val, i) => {
+                                const x = paddingLeft + (i * (chartWidth / 6));
+                                const y = maxVal > 0 
+                                    ? paddingTop + chartHeight - ((val / maxVal) * chartHeight)
+                                    : paddingTop + chartHeight;
+                                return { x, y, val, label: chartLabels[i] };
+                            });
+                            
+                            const linePath = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
+                            const areaPath = points.length > 0 
+                                ? `${linePath} L ${points[points.length - 1].x} ${paddingTop + chartHeight} L ${points[0].x} ${paddingTop + chartHeight} Z`
+                                : '';
+                                
+                            return (
+                                <View style={{ width, height, overflow: 'visible' }}>
+                                    <Svg width={width} height={height}>
+                                        <Defs>
+                                            <LinearGradient id="gradientArea" x1="0" y1="0" x2="0" y2="1">
+                                                <Stop offset="0%" stopColor="#2E8B57" stopOpacity="0.25" />
+                                                <Stop offset="100%" stopColor="#2E8B57" stopOpacity="0.05" />
+                                            </LinearGradient>
+                                        </Defs>
+                                        
+                                        {/* Grid Lines (Horizontal) */}
+                                        {[0, 0.5, 1].map((ratio, index) => {
+                                            const y = paddingTop + (chartHeight * ratio);
+                                            return (
+                                                <Path 
+                                                    key={index} 
+                                                    d={`M ${paddingLeft} ${y} L ${width - paddingRight} ${y}`} 
+                                                    stroke="#F0F4F0" 
+                                                    strokeWidth={1} 
+                                                    strokeDasharray="4,4"
+                                                />
+                                            );
+                                        })}
+                                        
+                                        {/* Area Fill */}
+                                        {areaPath ? <Path d={areaPath} fill="url(#gradientArea)" /> : null}
+                                        
+                                        {/* Line Path */}
+                                        {linePath ? <Path d={linePath} fill="none" stroke="#2E8B57" strokeWidth={3} /> : null}
+                                        
+                                        {/* Nodes (Circles) and Labels */}
+                                        {points.map((p, i) => (
+                                            <React.Fragment key={i}>
+                                                {/* Node Point */}
+                                                <Circle 
+                                                    cx={p.x} 
+                                                    cy={p.y} 
+                                                    r={6} 
+                                                    fill="#2E8B57" 
+                                                    stroke="#FFF" 
+                                                    strokeWidth={2}
+                                                />
+                                                
+                                                {/* Node Price Tag (above node, if val > 0) */}
+                                                {p.val > 0 && (
+                                                    <SvgText
+                                                        x={p.x}
+                                                        y={p.y - 12}
+                                                        fontSize={9}
+                                                        fontWeight="bold"
+                                                        fill="#2E8B57"
+                                                        textAnchor="middle"
+                                                    >
+                                                        {formatRupiahShort(p.val)}
+                                                    </SvgText>
+                                                )}
+                                                
+                                                {/* Day Label (below grid) */}
+                                                <SvgText
+                                                    x={p.x}
+                                                    y={height - 2}
+                                                    fontSize={10}
+                                                    fill="#999"
+                                                    textAnchor="middle"
+                                                >
+                                                    {p.label}
+                                                </SvgText>
+                                            </React.Fragment>
+                                        ))}
+                                    </Svg>
                                 </View>
-                            ))}
-                        </View>
-                        {/* Grid Lines */}
-                        <View style={styles.gridLines}>
-                            <View style={styles.gridLine} /><View style={styles.gridLine} /><View style={styles.gridLine} />
-                        </View>
+                            );
+                        })()}
                     </View>
                 </View>
 
@@ -209,5 +398,42 @@ const styles = StyleSheet.create({
         shadowRadius: 5,
         elevation: 2
     },
-    navBtnText: { marginTop: 8, fontSize: 13, color: '#333', fontWeight: '500' }
+    navBtnText: { marginTop: 8, fontSize: 13, color: '#333', fontWeight: '500' },
+    loadingContainer: { flex: 1, backgroundColor: '#F8FBF8', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    loadingText: { marginTop: 12, fontSize: 14, color: '#666', fontWeight: '500' },
+    errorTextTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginTop: 16, marginBottom: 8 },
+    errorTextSub: { fontSize: 14, color: '#888', textAlign: 'center', marginBottom: 20 },
+    retryButton: { backgroundColor: '#2E8B57', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8 },
+    retryButtonText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
+    lowStockBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF5F5',
+        borderWidth: 1,
+        borderColor: '#FFE0E0',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+        elevation: 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+    },
+    lowStockTextContainer: {
+        flex: 1,
+        marginLeft: 12,
+        marginRight: 8,
+    },
+    lowStockTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#FF5252',
+        marginBottom: 2,
+    },
+    lowStockDesc: {
+        fontSize: 12,
+        color: '#7F8C8D',
+        lineHeight: 16,
+    },
 });

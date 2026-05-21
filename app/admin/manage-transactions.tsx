@@ -77,92 +77,94 @@ export default function ManageTransactions() {
             />
 
             {/* Modal Detail & Update Status */}
-            <Modal
-                visible={detailVisible}
-                animationType="fade"
-                transparent={true}
-                onRequestClose={() => setDetailVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Detail Transaksi</Text>
-                            <TouchableOpacity onPress={() => setDetailVisible(false)}>
-                                <Ionicons name="close" size={24} color="#333" />
-                            </TouchableOpacity>
-                        </View>
+            {detailVisible && (
+                <Modal
+                    visible={detailVisible}
+                    animationType="fade"
+                    transparent={true}
+                    onRequestClose={() => setDetailVisible(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Detail Transaksi</Text>
+                                <TouchableOpacity onPress={() => setDetailVisible(false)}>
+                                    <Ionicons name="close" size={24} color="#333" />
+                                </TouchableOpacity>
+                            </View>
 
-                        {selectedOrder && (
-                            <ScrollView showsVerticalScrollIndicator={false}>
-                                <View style={styles.section}>
-                                    <Text style={styles.sectionTitle}>Informasi Pesanan</Text>
-                                    <Text style={styles.label}>Order ID: <Text style={styles.value}>{selectedOrder.order_number}</Text></Text>
-                                    <Text style={styles.label}>Pelanggan: <Text style={styles.value}>{selectedOrder.user?.name}</Text></Text>
-                                    <Text style={styles.label}>Alamat: <Text style={styles.value}>{selectedOrder.shipping_address}</Text></Text>
-                                    <Text style={styles.label}>Catatan: <Text style={styles.value}>{selectedOrder.notes || '-'}</Text></Text>
-                                </View>
+                            {selectedOrder && (
+                                <ScrollView showsVerticalScrollIndicator={false}>
+                                    <View style={styles.section}>
+                                        <Text style={styles.sectionTitle}>Informasi Pesanan</Text>
+                                        <Text style={styles.label}>Order ID: <Text style={styles.value}>{selectedOrder.order_number}</Text></Text>
+                                        <Text style={styles.label}>Pelanggan: <Text style={styles.value}>{selectedOrder.user?.name}</Text></Text>
+                                        <Text style={styles.label}>Alamat: <Text style={styles.value}>{selectedOrder.shipping_address}</Text></Text>
+                                        <Text style={styles.label}>Catatan: <Text style={styles.value}>{selectedOrder.notes || '-'}</Text></Text>
+                                    </View>
 
-                                <View style={styles.section}>
-                                    <Text style={styles.sectionTitle}>Item Pesanan</Text>
-                                    {selectedOrder.items?.map((item: any, index: number) => (
-                                        <View key={index} style={styles.itemRow}>
-                                            <Text style={styles.itemName}>{item.name} x {item.quantity}</Text>
-                                            <Text style={styles.itemPrice}>Rp {item.subtotal.toLocaleString('id-ID')}</Text>
+                                    <View style={styles.section}>
+                                        <Text style={styles.sectionTitle}>Item Pesanan</Text>
+                                        {selectedOrder.items?.map((item: any, index: number) => (
+                                            <View key={index} style={styles.itemRow}>
+                                                <Text style={styles.itemName}>{item.name} x {item.quantity}</Text>
+                                                <Text style={styles.itemPrice}>Rp {item.subtotal.toLocaleString('id-ID')}</Text>
+                                            </View>
+                                        ))}
+                                        <View style={styles.totalRow}>
+                                            <Text style={styles.totalLabel}>Total Pembayaran</Text>
+                                            <Text style={styles.totalValue}>Rp {selectedOrder.total_price.toLocaleString('id-ID')}</Text>
                                         </View>
-                                    ))}
-                                    <View style={styles.totalRow}>
-                                        <Text style={styles.totalLabel}>Total Pembayaran</Text>
-                                        <Text style={styles.totalValue}>Rp {selectedOrder.total_price.toLocaleString('id-ID')}</Text>
                                     </View>
-                                </View>
 
-                                <View style={styles.section}>
-                                    <Text style={styles.sectionTitle}>Ubah Status</Text>
-                                    <View style={styles.statusButtons}>
-                                        <TouchableOpacity 
-                                            style={[styles.statusBtn, { borderColor: '#1976D2' }]} 
-                                            onPress={() => updateStatus(selectedOrder.id, 'pending')}
-                                        >
-                                            <Text style={{ color: '#1976D2' }}>Menunggu</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity 
-                                            style={[styles.statusBtn, { borderColor: '#F57C00' }]} 
-                                            onPress={() => updateStatus(selectedOrder.id, 'diproses')}
-                                        >
-                                            <Text style={{ color: '#F57C00' }}>Diproses</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity 
-                                            style={[styles.statusBtn, { borderColor: '#1976D2' }]} 
-                                            onPress={() => updateStatus(selectedOrder.id, 'dikirim')}
-                                        >
-                                            <Text style={{ color: '#1976D2' }}>Kirim</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity 
-                                            style={[styles.statusBtn, { borderColor: '#2E8B57' }]} 
-                                            onPress={() => updateStatus(selectedOrder.id, 'selesai')}
-                                        >
-                                            <Text style={{ color: '#2E8B57' }}>Selesai</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity 
-                                            style={[styles.statusBtn, { borderColor: '#FBC02D' }]} 
-                                            onPress={() => updateStatus(selectedOrder.id, 'dilaporkan')}
-                                        >
-                                            <Text style={{ color: '#FBC02D' }}>Dilaporkan</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity 
-                                            style={[styles.statusBtn, { borderColor: '#D32F2F' }]} 
-                                            onPress={() => updateStatus(selectedOrder.id, 'dibatalkan')}
-                                        >
-                                            <Text style={{ color: '#D32F2F' }}>Batal</Text>
-                                        </TouchableOpacity>
+                                    <View style={styles.section}>
+                                        <Text style={styles.sectionTitle}>Ubah Status</Text>
+                                        <View style={styles.statusButtons}>
+                                            <TouchableOpacity 
+                                                style={[styles.statusBtn, { borderColor: '#1976D2' }]} 
+                                                onPress={() => updateStatus(selectedOrder.id, 'pending')}
+                                            >
+                                                <Text style={{ color: '#1976D2' }}>Menunggu</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity 
+                                                style={[styles.statusBtn, { borderColor: '#F57C00' }]} 
+                                                onPress={() => updateStatus(selectedOrder.id, 'diproses')}
+                                            >
+                                                <Text style={{ color: '#F57C00' }}>Diproses</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity 
+                                                style={[styles.statusBtn, { borderColor: '#1976D2' }]} 
+                                                onPress={() => updateStatus(selectedOrder.id, 'dikirim')}
+                                            >
+                                                <Text style={{ color: '#1976D2' }}>Kirim</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity 
+                                                style={[styles.statusBtn, { borderColor: '#2E8B57' }]} 
+                                                onPress={() => updateStatus(selectedOrder.id, 'selesai')}
+                                            >
+                                                <Text style={{ color: '#2E8B57' }}>Selesai</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity 
+                                                style={[styles.statusBtn, { borderColor: '#FBC02D' }]} 
+                                                onPress={() => updateStatus(selectedOrder.id, 'dilaporkan')}
+                                            >
+                                                <Text style={{ color: '#FBC02D' }}>Dilaporkan</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity 
+                                                style={[styles.statusBtn, { borderColor: '#D32F2F' }]} 
+                                                onPress={() => updateStatus(selectedOrder.id, 'dibatalkan')}
+                                            >
+                                                <Text style={{ color: '#D32F2F' }}>Batal</Text>
+                                            </TouchableOpacity>
 
+                                        </View>
                                     </View>
-                                </View>
-                            </ScrollView>
-                        )}
+                                </ScrollView>
+                            )}
+                        </View>
                     </View>
-                </View>
-            </Modal>
+                </Modal>
+            )}
 
             {/* Header */}
             <View style={styles.topBar}>

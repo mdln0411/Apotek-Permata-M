@@ -479,100 +479,102 @@ export default function KatalogObatScreen() {
             />
 
             {/* Modal Filter */}
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={filterModalVisible}
-                onRequestClose={() => setFilterModalVisible(false)}
-            >
-                <TouchableOpacity 
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setFilterModalVisible(false)}
+            {filterModalVisible && (
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={filterModalVisible}
+                    onRequestClose={() => setFilterModalVisible(false)}
                 >
                     <TouchableOpacity 
-                        activeOpacity={1} 
-                        style={styles.filterModalContent}
+                        style={styles.modalOverlay}
+                        activeOpacity={1}
+                        onPress={() => setFilterModalVisible(false)}
                     >
-                        <View style={styles.filterModalHeader}>
-                            <Text style={styles.filterModalTitle}>Filter & Urutkan</Text>
-                            <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
-                                <Ionicons name="close" size={24} color="#333" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <ScrollView showsVerticalScrollIndicator={false} style={styles.filterScroll}>
-                            {/* Section 1: Urutan */}
-                            <Text style={styles.filterSectionTitle}>Urutan Abjad</Text>
-                            <View style={styles.sortOptionsRow}>
-                                {SORT_OPTIONS.map((opt) => (
-                                    <TouchableOpacity
-                                        key={opt.value}
-                                        style={[
-                                            styles.sortOptionPill,
-                                            tempSortBy === opt.value && styles.sortOptionPillActive
-                                        ]}
-                                        onPress={() => setTempSortBy(opt.value)}
-                                    >
-                                        <Text style={[
-                                            styles.sortOptionText,
-                                            tempSortBy === opt.value && styles.sortOptionTextActive
-                                        ]}>
-                                            {opt.label}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
+                        <TouchableOpacity 
+                            activeOpacity={1} 
+                            style={styles.filterModalContent}
+                        >
+                            <View style={styles.filterModalHeader}>
+                                <Text style={styles.filterModalTitle}>Filter & Urutkan</Text>
+                                <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                                    <Ionicons name="close" size={24} color="#333" />
+                                </TouchableOpacity>
                             </View>
 
-                            {/* Section 2: Kategori */}
-                            <Text style={styles.filterSectionTitle}>Kategori Obat</Text>
-                            <View style={styles.categoryGrid}>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.filterCategoryPill,
-                                        tempCategory === 'Semua' && styles.filterCategoryPillActive
-                                    ]}
-                                    onPress={() => setTempCategory('Semua')}
-                                >
-                                    <Text style={[
-                                        styles.filterCategoryText,
-                                        tempCategory === 'Semua' && styles.filterCategoryTextActive
-                                    ]}>
-                                        Semua Kategori
-                                    </Text>
-                                </TouchableOpacity>
-                                {FILTER_CATEGORIES.map((cat) => (
+                            <ScrollView showsVerticalScrollIndicator={false} style={styles.filterScroll}>
+                                {/* Section 1: Urutan */}
+                                <Text style={styles.filterSectionTitle}>Urutan Abjad</Text>
+                                <View style={styles.sortOptionsRow}>
+                                    {SORT_OPTIONS.map((opt) => (
+                                        <TouchableOpacity
+                                            key={opt.value}
+                                            style={[
+                                                styles.sortOptionPill,
+                                                tempSortBy === opt.value && styles.sortOptionPillActive
+                                            ]}
+                                            onPress={() => setTempSortBy(opt.value)}
+                                        >
+                                            <Text style={[
+                                                styles.sortOptionText,
+                                                tempSortBy === opt.value && styles.sortOptionTextActive
+                                            ]}>
+                                                {opt.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                {/* Section 2: Kategori */}
+                                <Text style={styles.filterSectionTitle}>Kategori Obat</Text>
+                                <View style={styles.categoryGrid}>
                                     <TouchableOpacity
-                                        key={cat}
                                         style={[
                                             styles.filterCategoryPill,
-                                            tempCategory === cat && styles.filterCategoryPillActive
+                                            tempCategory === 'Semua' && styles.filterCategoryPillActive
                                         ]}
-                                        onPress={() => setTempCategory(cat)}
+                                        onPress={() => setTempCategory('Semua')}
                                     >
                                         <Text style={[
                                             styles.filterCategoryText,
-                                            tempCategory === cat && styles.filterCategoryTextActive
+                                            tempCategory === 'Semua' && styles.filterCategoryTextActive
                                         ]}>
-                                            {cat}
+                                            Semua Kategori
                                         </Text>
                                     </TouchableOpacity>
-                                ))}
-                            </View>
-                        </ScrollView>
+                                    {FILTER_CATEGORIES.map((cat) => (
+                                        <TouchableOpacity
+                                            key={cat}
+                                            style={[
+                                                styles.filterCategoryPill,
+                                                tempCategory === cat && styles.filterCategoryPillActive
+                                            ]}
+                                            onPress={() => setTempCategory(cat)}
+                                        >
+                                            <Text style={[
+                                                styles.filterCategoryText,
+                                                tempCategory === cat && styles.filterCategoryTextActive
+                                            ]}>
+                                                {cat}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </ScrollView>
 
-                        {/* Footer Action Buttons */}
-                        <View style={styles.filterModalFooter}>
-                            <TouchableOpacity style={styles.resetBtn} onPress={handleResetFilter}>
-                                <Text style={styles.resetBtnText}>Reset</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.applyBtn} onPress={handleApplyFilter}>
-                                <Text style={styles.applyBtnText}>Terapkan</Text>
-                            </TouchableOpacity>
-                        </View>
+                            {/* Footer Action Buttons */}
+                            <View style={styles.filterModalFooter}>
+                                <TouchableOpacity style={styles.resetBtn} onPress={handleResetFilter}>
+                                    <Text style={styles.resetBtnText}>Reset</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.applyBtn} onPress={handleApplyFilter}>
+                                    <Text style={styles.applyBtnText}>Terapkan</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </TouchableOpacity>
                     </TouchableOpacity>
-                </TouchableOpacity>
-            </Modal>
+                </Modal>
+            )}
             
             {/* Success Toast */}
             <SuccessToast 

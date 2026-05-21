@@ -25,6 +25,7 @@ export default function ManageMedicines() {
     const [medicines, setMedicines] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [statusFilter, setStatusFilter] = useState<'semua' | 'habis' | 'menipis' | 'tersedia'>('semua');
     
     // Modal State
     const [modalVisible, setModalVisible] = useState(false);
@@ -198,9 +199,20 @@ export default function ManageMedicines() {
         }
     };
 
-    const filteredMedicines = Array.isArray(medicines) ? medicines.filter(m => 
-        m.name?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) : [];
+    const lowStockCount = Array.isArray(medicines) ? medicines.filter(m => m.stock < 10).length : 0;
+    const habisCount = Array.isArray(medicines) ? medicines.filter(m => m.stock === 0).length : 0;
+    const menipisCount = Array.isArray(medicines) ? medicines.filter(m => m.stock > 0 && m.stock < 10).length : 0;
+    const tersediaCount = Array.isArray(medicines) ? medicines.filter(m => m.stock >= 10).length : 0;
+
+    const filteredMedicines = Array.isArray(medicines) ? medicines.filter(m => {
+        const matchesSearch = (m.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+        if (!matchesSearch) return false;
+
+        if (statusFilter === 'habis') return m.stock === 0;
+        if (statusFilter === 'menipis') return m.stock > 0 && m.stock < 10;
+        if (statusFilter === 'tersedia') return m.stock >= 10;
+        return true;
+    }) : [];
 
     const sortedFilteredMedicines = [...filteredMedicines].sort((a, b) => {
         const nameA = (a.name || '').toLowerCase();
@@ -223,169 +235,171 @@ export default function ManageMedicines() {
             />
 
             {/* Modal Form */}
-            <Modal
-                visible={modalVisible}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>{isEditing ? 'Edit Obat' : 'Tambah Obat Baru'}</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)}>
-                                <Ionicons name="close" size={24} color="#333" />
+            {modalVisible && (
+                <Modal
+                    visible={modalVisible}
+                    animationType="slide"
+                    transparent={true}
+                    onRequestClose={() => setModalVisible(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>{isEditing ? 'Edit Obat' : 'Tambah Obat Baru'}</Text>
+                                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                                    <Ionicons name="close" size={24} color="#333" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <ScrollView showsVerticalScrollIndicator={false} style={styles.formScroll}>
+                                <Text style={styles.inputLabel}>Nama Obat *</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    placeholder="Masukkan nama obat"
+                                    value={formData.name}
+                                    onChangeText={(text) => setFormData({...formData, name: text})}
+                                />
+
+                                <View style={styles.rowInputs}>
+                                    <View style={{ flex: 1, marginRight: 10 }}>
+                                        <Text style={styles.inputLabel}>Kategori *</Text>
+                                        <TextInput 
+                                            style={styles.input}
+                                            placeholder="Kategori"
+                                            value={formData.category}
+                                            onChangeText={(text) => setFormData({...formData, category: text})}
+                                        />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.inputLabel}>Satuan (Pcs/Strip)</Text>
+                                        <TextInput 
+                                            style={styles.input}
+                                            placeholder="Pcs/Strip/Box"
+                                            value={formData.unit}
+                                            onChangeText={(text) => setFormData({...formData, unit: text})}
+                                        />
+                                    </View>
+                                </View>
+
+                                <View style={styles.rowInputs}>
+                                    <View style={{ flex: 1, marginRight: 10 }}>
+                                        <Text style={styles.inputLabel}>Harga (Rp) *</Text>
+                                        <TextInput 
+                                            style={styles.input}
+                                            placeholder="Contoh: 15000"
+                                            keyboardType="numeric"
+                                            value={formData.price}
+                                            onChangeText={(text) => setFormData({...formData, price: text})}
+                                        />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.inputLabel}>Stok *</Text>
+                                        <TextInput 
+                                            style={styles.input}
+                                            placeholder="Jumlah stok"
+                                            keyboardType="numeric"
+                                            value={formData.stock}
+                                            onChangeText={(text) => setFormData({...formData, stock: text})}
+                                        />
+                                    </View>
+                                </View>
+
+                                <Text style={styles.inputLabel}>Gambar Obat</Text>
+                                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                                    <TouchableOpacity style={[styles.input, { flex: 1, justifyContent: 'center' }]} onPress={pickImage}>
+                                        <Text style={{ color: imageUri ? '#2E8B57' : '#999' }}>
+                                            {imageUri ? 'Gambar Terpilih ✓' : 'Pilih dari Galeri'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <Text>atau</Text>
+                                    <TextInput 
+                                        style={[styles.input, { flex: 1 }]}
+                                        placeholder="Link URL Gambar"
+                                        value={formData.image_url}
+                                        onChangeText={(text) => {
+                                            setFormData({...formData, image_url: text});
+                                            setImageUri(null);
+                                        }}
+                                    />
+                                </View>
+
+                                <View style={styles.switchRow}>
+                                    <Text style={styles.inputLabel}>Perlu Resep Dokter?</Text>
+                                    <Switch 
+                                        value={formData.prescription_required}
+                                        onValueChange={(val) => setFormData({...formData, prescription_required: val})}
+                                        trackColor={{ false: '#DDD', true: '#A5D6A7' }}
+                                        thumbColor={formData.prescription_required ? '#2E8B57' : '#FFF'}
+                                    />
+                                </View>
+
+                                <Text style={styles.inputLabel}>Indikasi / Kegunaan</Text>
+                                <TextInput 
+                                    style={[styles.input, styles.textArea]}
+                                    placeholder="Jelaskan kegunaan obat..."
+                                    multiline
+                                    numberOfLines={3}
+                                    value={formData.indication}
+                                    onChangeText={(text) => setFormData({...formData, indication: text})}
+                                />
+
+                                <Text style={styles.inputLabel}>Aturan Pakai</Text>
+                                <TextInput 
+                                    style={[styles.input, styles.textArea]}
+                                    placeholder="Contoh: Sesudah makan..."
+                                    multiline
+                                    numberOfLines={2}
+                                    value={formData.usage_rules}
+                                    onChangeText={(text) => setFormData({...formData, usage_rules: text})}
+                                />
+
+                                <View style={styles.rowInputs}>
+                                    <View style={{ flex: 1, marginRight: 10 }}>
+                                        <Text style={styles.inputLabel}>Dosis</Text>
+                                        <TextInput 
+                                            style={styles.input}
+                                            placeholder="Contoh: 3 x 1"
+                                            value={formData.dosage}
+                                            onChangeText={(text) => setFormData({...formData, dosage: text})}
+                                        />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.inputLabel}>Lama Penggunaan</Text>
+                                        <TextInput 
+                                            style={styles.input}
+                                            placeholder="Contoh: 3-5 hari"
+                                            value={formData.usage_duration}
+                                            onChangeText={(text) => setFormData({...formData, usage_duration: text})}
+                                        />
+                                    </View>
+                                </View>
+
+                                <Text style={styles.inputLabel}>Efek Samping</Text>
+                                <TextInput 
+                                    style={[styles.input, styles.textArea]}
+                                    placeholder="Jelaskan efek samping jika ada..."
+                                    multiline
+                                    numberOfLines={2}
+                                    value={formData.side_effects}
+                                    onChangeText={(text) => setFormData({...formData, side_effects: text})}
+                                />
+
+                                <Text style={styles.inputLabel}>Komposisi</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    placeholder="Kandungan obat"
+                                    value={formData.composition}
+                                    onChangeText={(text) => setFormData({...formData, composition: text})}
+                                />
+                            </ScrollView>
+
+                            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+                                <Text style={styles.saveBtnText}>{isEditing ? 'Simpan Perubahan' : 'Terbitkan Obat'}</Text>
                             </TouchableOpacity>
                         </View>
-
-                        <ScrollView showsVerticalScrollIndicator={false} style={styles.formScroll}>
-                            <Text style={styles.inputLabel}>Nama Obat *</Text>
-                            <TextInput 
-                                style={styles.input}
-                                placeholder="Masukkan nama obat"
-                                value={formData.name}
-                                onChangeText={(text) => setFormData({...formData, name: text})}
-                            />
-
-                            <View style={styles.rowInputs}>
-                                <View style={{ flex: 1, marginRight: 10 }}>
-                                    <Text style={styles.inputLabel}>Kategori *</Text>
-                                    <TextInput 
-                                        style={styles.input}
-                                        placeholder="Kategori"
-                                        value={formData.category}
-                                        onChangeText={(text) => setFormData({...formData, category: text})}
-                                    />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.inputLabel}>Satuan (Pcs/Strip)</Text>
-                                    <TextInput 
-                                        style={styles.input}
-                                        placeholder="Pcs/Strip/Box"
-                                        value={formData.unit}
-                                        onChangeText={(text) => setFormData({...formData, unit: text})}
-                                    />
-                                </View>
-                            </View>
-
-                            <View style={styles.rowInputs}>
-                                <View style={{ flex: 1, marginRight: 10 }}>
-                                    <Text style={styles.inputLabel}>Harga (Rp) *</Text>
-                                    <TextInput 
-                                        style={styles.input}
-                                        placeholder="Contoh: 15000"
-                                        keyboardType="numeric"
-                                        value={formData.price}
-                                        onChangeText={(text) => setFormData({...formData, price: text})}
-                                    />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.inputLabel}>Stok *</Text>
-                                    <TextInput 
-                                        style={styles.input}
-                                        placeholder="Jumlah stok"
-                                        keyboardType="numeric"
-                                        value={formData.stock}
-                                        onChangeText={(text) => setFormData({...formData, stock: text})}
-                                    />
-                                </View>
-                            </View>
-
-                            <Text style={styles.inputLabel}>Gambar Obat</Text>
-                            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                                <TouchableOpacity style={[styles.input, { flex: 1, justifyContent: 'center' }]} onPress={pickImage}>
-                                    <Text style={{ color: imageUri ? '#2E8B57' : '#999' }}>
-                                        {imageUri ? 'Gambar Terpilih ✓' : 'Pilih dari Galeri'}
-                                    </Text>
-                                </TouchableOpacity>
-                                <Text>atau</Text>
-                                <TextInput 
-                                    style={[styles.input, { flex: 1 }]}
-                                    placeholder="Link URL Gambar"
-                                    value={formData.image_url}
-                                    onChangeText={(text) => {
-                                        setFormData({...formData, image_url: text});
-                                        setImageUri(null);
-                                    }}
-                                />
-                            </View>
-
-                            <View style={styles.switchRow}>
-                                <Text style={styles.inputLabel}>Perlu Resep Dokter?</Text>
-                                <Switch 
-                                    value={formData.prescription_required}
-                                    onValueChange={(val) => setFormData({...formData, prescription_required: val})}
-                                    trackColor={{ false: '#DDD', true: '#A5D6A7' }}
-                                    thumbColor={formData.prescription_required ? '#2E8B57' : '#FFF'}
-                                />
-                            </View>
-
-                            <Text style={styles.inputLabel}>Indikasi / Kegunaan</Text>
-                            <TextInput 
-                                style={[styles.input, styles.textArea]}
-                                placeholder="Jelaskan kegunaan obat..."
-                                multiline
-                                numberOfLines={3}
-                                value={formData.indication}
-                                onChangeText={(text) => setFormData({...formData, indication: text})}
-                            />
-
-                            <Text style={styles.inputLabel}>Aturan Pakai</Text>
-                            <TextInput 
-                                style={[styles.input, styles.textArea]}
-                                placeholder="Contoh: Sesudah makan..."
-                                multiline
-                                numberOfLines={2}
-                                value={formData.usage_rules}
-                                onChangeText={(text) => setFormData({...formData, usage_rules: text})}
-                            />
-
-                            <View style={styles.rowInputs}>
-                                <View style={{ flex: 1, marginRight: 10 }}>
-                                    <Text style={styles.inputLabel}>Dosis</Text>
-                                    <TextInput 
-                                        style={styles.input}
-                                        placeholder="Contoh: 3 x 1"
-                                        value={formData.dosage}
-                                        onChangeText={(text) => setFormData({...formData, dosage: text})}
-                                    />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.inputLabel}>Lama Penggunaan</Text>
-                                    <TextInput 
-                                        style={styles.input}
-                                        placeholder="Contoh: 3-5 hari"
-                                        value={formData.usage_duration}
-                                        onChangeText={(text) => setFormData({...formData, usage_duration: text})}
-                                    />
-                                </View>
-                            </View>
-
-                            <Text style={styles.inputLabel}>Efek Samping</Text>
-                            <TextInput 
-                                style={[styles.input, styles.textArea]}
-                                placeholder="Jelaskan efek samping jika ada..."
-                                multiline
-                                numberOfLines={2}
-                                value={formData.side_effects}
-                                onChangeText={(text) => setFormData({...formData, side_effects: text})}
-                            />
-
-                            <Text style={styles.inputLabel}>Komposisi</Text>
-                            <TextInput 
-                                style={styles.input}
-                                placeholder="Kandungan obat"
-                                value={formData.composition}
-                                onChangeText={(text) => setFormData({...formData, composition: text})}
-                            />
-                        </ScrollView>
-
-                        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                            <Text style={styles.saveBtnText}>{isEditing ? 'Simpan Perubahan' : 'Terbitkan Obat'}</Text>
-                        </TouchableOpacity>
                     </View>
-                </View>
-            </Modal>
+                </Modal>
+            )}
 
             {/* Header */}
             <View style={styles.topBar}>
@@ -418,7 +432,7 @@ export default function ManageMedicines() {
                 </View>
 
                 {/* Search Bar */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 }}>
                     <View style={[styles.searchContainer, { flex: 1, marginBottom: 0 }]}>
                         <Ionicons name="search-outline" size={20} color="#999" style={styles.searchIcon} />
                         <TextInput 
@@ -442,50 +456,108 @@ export default function ManageMedicines() {
                     </TouchableOpacity>
                 </View>
 
+                {lowStockCount > 0 && (
+                    <View style={styles.alertBar}>
+                        <Ionicons name="alert-circle" size={18} color="#FF5252" />
+                        <Text style={styles.alertText}>{lowStockCount} Item Menipis / Habis!</Text>
+                    </View>
+                )}
+
+                {/* Filter Status Bar */}
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.filterBar}
+                    style={{ marginBottom: 20 }}
+                >
+                    {[
+                        { key: 'semua', label: 'Semua', count: medicines.length },
+                        { key: 'habis', label: 'Habis', count: habisCount },
+                        { key: 'menipis', label: 'Menipis', count: menipisCount },
+                        { key: 'tersedia', label: 'Tersedia', count: tersediaCount },
+                    ].map(tab => (
+                        <TouchableOpacity
+                            key={tab.key}
+                            style={[
+                                styles.filterTab,
+                                statusFilter === tab.key && styles.filterTabActive
+                            ]}
+                            onPress={() => setStatusFilter(tab.key as any)}
+                        >
+                            <Text style={[
+                                styles.filterTabText,
+                                statusFilter === tab.key && styles.filterTabTextActive
+                            ]}>
+                                {tab.label} ({tab.count})
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+
                 {/* Medicine List */}
                 <View style={styles.listContainer}>
                     {loading ? (
                         <ActivityIndicator size="large" color="#2E8B57" style={{ marginTop: 20 }} />
                     ) : sortedFilteredMedicines.map((item) => (
-                        <View key={item.id} style={styles.medCard}>
-                            <View style={styles.medImageBg}>
-                                {item.image_url ? (
-                                    <Image 
-                                        source={{ 
-                                            uri: item.image_url.startsWith('http') 
-                                                ? item.image_url 
-                                                : `http://127.0.0.1:8000/storage/${item.image_url}` 
-                                        }} 
-                                        style={{ width: '100%', height: '100%', borderRadius: 12 }} 
-                                    />
-                                ) : (
-                                    <Ionicons name="medical-outline" size={30} color="#2E8B57" />
-                                )}
-                            </View>
-                            
-                            <View style={styles.medInfo}>
-                                <Text style={styles.medName}>{item.name}</Text>
-                                <View style={styles.badgeRow}>
-                                    <View style={styles.catBadge}>
-                                        <Text style={styles.catText}>{item.category}</Text>
-                                    </View>
-                                    {item.prescription_required === 1 && (
-                                        <View style={styles.resepBadge}>
-                                            <Text style={styles.resepText}>Resep</Text>
-                                        </View>
+                        <View key={item.id} style={[
+                            styles.medCard,
+                            Number(item.stock) < 10 && styles.lowStockCardBorder
+                        ]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                                <View style={styles.medImageBg}>
+                                    {item.image_url ? (
+                                        <Image 
+                                            source={{ 
+                                                uri: item.image_url.startsWith('http') 
+                                                    ? item.image_url 
+                                                    : `http://127.0.0.1:8000/storage/${item.image_url}` 
+                                            }} 
+                                            style={{ width: '100%', height: '100%', borderRadius: 12 }} 
+                                        />
+                                    ) : (
+                                        <Ionicons name="medical-outline" size={30} color="#2E8B57" />
                                     )}
                                 </View>
-                                <Text style={styles.medPrice}>Rp {item.price.toLocaleString('id-ID')} • <Text style={styles.medStock}>Stok: {item.stock}</Text></Text>
-                            </View>
+                                
+                                <View style={styles.medInfo}>
+                                    <Text style={styles.medName}>{item.name}</Text>
+                                    <View style={styles.badgeRow}>
+                                        <View style={styles.catBadge}>
+                                            <Text style={styles.catText}>{item.category}</Text>
+                                        </View>
+                                        {item.prescription_required === 1 && (
+                                            <View style={styles.resepBadge}>
+                                                <Text style={styles.resepText}>Resep</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                    <Text style={styles.medPrice}>
+                                        Rp {item.price.toLocaleString('id-ID')} •{' '}
+                                        <Text style={[
+                                            styles.medStock, 
+                                            Number(item.stock) < 10 && styles.lowStockTextCard
+                                        ]}>
+                                            Stok: {item.stock}
+                                        </Text>
+                                    </Text>
+                                </View>
 
-                            <View style={styles.actionBtns}>
-                                <TouchableOpacity style={styles.actionBtn} onPress={() => handleEdit(item)}>
-                                    <Feather name="edit-3" size={18} color="#999" />
-                                </TouchableOpacity>
-                                <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item.id)}>
-                                    <Feather name="trash-2" size={18} color="#FF5252" />
-                                </TouchableOpacity>
+                                <View style={styles.actionBtns}>
+                                    <TouchableOpacity style={styles.actionBtn} onPress={() => handleEdit(item)}>
+                                        <Feather name="edit-3" size={18} color="#999" />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item.id)}>
+                                        <Feather name="trash-2" size={18} color="#FF5252" />
+                                    </TouchableOpacity>
+                                </View>
                             </View>
+                            
+                            {Number(item.stock) < 10 && (
+                                <View style={styles.lowStockBanner}>
+                                    <Ionicons name="alert-circle" size={14} color="#FF5252" />
+                                    <Text style={styles.lowStockText}>Stok hampir habis! Segera restok.</Text>
+                                </View>
+                            )}
                         </View>
                     ))}
                 </View>
@@ -521,7 +593,7 @@ const styles = StyleSheet.create({
     searchIcon: { marginRight: 12 },
     searchInput: { flex: 1, fontSize: 15, color: '#333' },
     listContainer: { gap: 16 },
-    medCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 12, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#EEE' },
+    medCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 12, flexDirection: 'column', alignItems: 'stretch', borderWidth: 1, borderColor: '#EEE' },
     medImageBg: { width: 70, height: 70, borderRadius: 12, backgroundColor: '#F5F5F5', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
     medInfo: { flex: 1 },
     medName: { fontSize: 15, fontWeight: 'bold', color: '#333', marginBottom: 4 },
@@ -563,5 +635,70 @@ const styles = StyleSheet.create({
         fontSize: 9,
         fontWeight: 'bold',
         color: '#2E8B57',
+    },
+
+    // Stock Filters & Warnings
+    alertBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF5F5',
+        borderWidth: 1,
+        borderColor: '#FFE0E0',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
+        marginBottom: 16,
+    },
+    alertText: { 
+        color: '#FF5252', 
+        fontSize: 13, 
+        fontWeight: 'bold', 
+        marginLeft: 8 
+    },
+    filterBar: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    filterTab: {
+        backgroundColor: '#FFF',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#EEE',
+    },
+    filterTabActive: {
+        backgroundColor: '#2E8B57',
+        borderColor: '#2E8B57',
+    },
+    filterTabText: {
+        fontSize: 13,
+        fontWeight: 'bold',
+        color: '#555',
+    },
+    filterTabTextActive: {
+        color: '#FFF',
+    },
+    lowStockCardBorder: {
+        borderColor: '#FFE0E0',
+    },
+    lowStockTextCard: {
+        color: '#FF5252',
+        fontWeight: 'bold',
+    },
+    lowStockBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF5F5',
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderRadius: 8,
+        marginTop: 10,
+        gap: 6,
+    },
+    lowStockText: {
+        fontSize: 11,
+        color: '#FF5252',
+        fontWeight: '600',
     },
 });

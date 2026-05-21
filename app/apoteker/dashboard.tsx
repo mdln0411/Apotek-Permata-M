@@ -122,6 +122,23 @@ export default function ApotekerDashboard() {
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME.primary]} />}
             >
+                {stats.lowStock > 0 && (
+                    <TouchableOpacity 
+                        style={styles.lowStockBanner}
+                        onPress={() => router.push('/apoteker/manage-stock')}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="alert-circle" size={24} color={THEME.danger} />
+                        <View style={styles.lowStockTextContainer}>
+                            <Text style={styles.lowStockTitle}>Pemberitahuan Stok Menipis</Text>
+                            <Text style={styles.lowStockDesc}>
+                                Ada {stats.lowStock} obat dengan stok di bawah 10 item! Segera restok obat.
+                            </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color={THEME.danger} style={{ marginLeft: 'auto' }} />
+                    </TouchableOpacity>
+                )}
+
                 <Text style={styles.sectionTitle}>Menu Operasional</Text>
                 
                 <View style={styles.gridMenu}>
@@ -339,5 +356,37 @@ const styles = StyleSheet.create({
         color: '#1976D2',
         marginLeft: 10,
         lineHeight: 18,
+    },
+    lowStockBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF5F5',
+        borderWidth: 1,
+        borderColor: '#FFE0E0',
+        borderRadius: 16,
+        padding: 16,
+        marginTop: 15,
+        marginBottom: 5,
+        elevation: 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+    },
+    lowStockTextContainer: {
+        flex: 1,
+        marginLeft: 12,
+        marginRight: 8,
+    },
+    lowStockTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: THEME.danger,
+        marginBottom: 2,
+    },
+    lowStockDesc: {
+        fontSize: 12,
+        color: '#7F8C8D',
+        lineHeight: 16,
     },
 });

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\EducationController;
 use App\Http\Controllers\MedicineReminderController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\ConsultationController;
 use App\Http\Controllers\NotificationController;
@@ -92,6 +93,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users', [AuthController::class, 'storeUser']);
         Route::put('/users/{id}', [AuthController::class, 'updateUser']);
         Route::delete('/users/{id}', [AuthController::class, 'destroyUser']);
+        Route::get('/dashboard/stats', [DashboardController::class, 'index']);
     });
 
 
