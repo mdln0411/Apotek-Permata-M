@@ -39,11 +39,14 @@ const THEME = {
 };
 
 const renderMedicineImage = (item: any) => {
-    // Jika image_url adalah URL online lengkap, tampilkan gambar aslinya!
-    if (item.image_url && (item.image_url.startsWith('http://') || item.image_url.startsWith('https://'))) {
+    // Jika image_url ada, tampilkan gambar dengan URL lengkap atau fallback ke path storage backend
+    if (item.image_url) {
+        const imageUrl = item.image_url.startsWith('http') 
+            ? item.image_url 
+            : `${axiosClient.defaults.baseURL}/storage/${item.image_url}`;
         return (
             <Image 
-                source={{ uri: item.image_url }} 
+                source={{ uri: imageUrl }} 
                 style={styles.productImage || { width: '100%', height: '100%' }} 
                 resizeMode="contain"
             />

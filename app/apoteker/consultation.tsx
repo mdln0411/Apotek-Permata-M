@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: THEME.textDark,
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-        outlineStyle: 'none',
+        outlineStyle: 'none' as any,
     },
     scrollContent: { padding: 20, paddingTop: 10 },
     centerBox: { marginTop: 100, alignItems: 'center' },

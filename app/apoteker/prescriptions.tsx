@@ -425,7 +425,19 @@ const styles = StyleSheet.create({
     statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
     statusText: { fontSize: 10, fontWeight: '800' },
     divider: { height: 1, backgroundColor: THEME.border, marginVertical: 15 },
-    actionSection: { marginTop: 5 },
+    noteInput: { 
+        backgroundColor: '#F8F9FA', 
+        borderWidth: 1, 
+        borderColor: THEME.border, 
+        borderRadius: 12, 
+        padding: 12, 
+        fontSize: 14, 
+        color: THEME.textDark,
+        minHeight: 60,
+        textAlignVertical: 'top',
+        marginBottom: 15
+    },
+    actionSection: { marginTop: 15 },
     actionRow: { flexDirection: 'row', gap: 10 },
     actionBtn: { 
         flex: 1, 

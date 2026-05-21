@@ -7,7 +7,6 @@ import {
     ActivityIndicator,
     Alert,
     Image,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
@@ -15,6 +14,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
     const { login } = useAuth();
@@ -51,7 +51,7 @@ export default function LoginScreen() {
 
 
         } catch (e: any) {
-            console.error('Error Login Detail:', e);
+            console.log('Error Login Detail:', e);
             console.log('Response Error:', e.response?.data);
 
             const errorMsg = e.response?.data?.message || e.message || 'Terjadi kesalahan koneksi ke server';
@@ -61,10 +61,9 @@ export default function LoginScreen() {
         }
     };
 
-    // Fungsi helper untuk demo login
     const fillDemo = (e: string) => {
         setEmail(e);
-        setPassword('password');
+        setPassword('password123');
     };
 
 
@@ -164,16 +163,16 @@ export default function LoginScreen() {
                 {/* Demo Info Card */}
                 <View style={styles.card}>
                     <Text style={styles.demoTitle}>Coba login sebagai:</Text>
-                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('member@test.com')}>
-                        <Text style={styles.demoItem}>• Member: member@test.com</Text>
+                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('member@apotek.com')}>
+                        <Text style={styles.demoItem}>• Member: member@apotek.com</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('apoteker@test.com')}>
-                        <Text style={styles.demoItem}>• Apoteker: apoteker@test.com</Text>
+                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('apoteker@apotek.com')}>
+                        <Text style={styles.demoItem}>• Apoteker: apoteker@apotek.com</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('admin@permata.com')}>
-                        <Text style={styles.demoItem}>• Admin: admin@permata.com</Text>
+                    <TouchableOpacity style={styles.demoBtn} onPress={() => fillDemo('admin@apotek.com')}>
+                        <Text style={styles.demoItem}>• Admin: admin@apotek.com</Text>
                     </TouchableOpacity>
-                    <Text style={styles.demoNote}>Password: password</Text>
+                    <Text style={styles.demoNote}>Password: password123</Text>
                 </View>
 
 

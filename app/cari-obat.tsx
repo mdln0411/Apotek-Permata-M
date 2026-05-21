@@ -457,8 +457,11 @@ export default function CariObatScreen() {
       <LoginPromptModal 
         visible={loginModalVisible}
         onClose={() => setLoginModalVisible(false)}
-        onConfirm={() => router.push('/login' as any)}
         message="Silakan masuk akun terlebih dahulu untuk menambahkan produk obat ke keranjang belanja Anda."
+        onConfirm={() => {
+          setLoginModalVisible(false);
+          router.push('/login' as any);
+        }}
       />
     </SafeAreaView >
   );

@@ -1,13 +1,11 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 
-// Port 8000 = Laravel API
-// Emulator Android pakai 10.0.2.2, iOS/Web pakai localhost
-const BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:8000'
-    : 'http://localhost:8000';
-
+let BASE_URL = 'http://localhost:8000';
+if (Platform.OS === 'android') {
+  BASE_URL = 'http://10.0.2.2:8000';
+}
+// Note: Jika di HP fisik, ganti localhost dengan IP lokal komputer (misal: 192.168.1.x)
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const axiosClient = axios.create({
