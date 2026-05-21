@@ -1,7 +1,7 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function LupaPasswordScreen() {
     return (
@@ -26,20 +26,10 @@ export default function LupaPasswordScreen() {
                 </TouchableOpacity>
 
                 <Text style={styles.mainTitle}>Lupa Password</Text>
-                <Text style={styles.subTitle}>Masukkan email Anda untuk menerima link reset password</Text>
+                <Text style={styles.subTitle}>Jika password lupa maka hubungi nomor di bawah ini:</Text>
 
                 <View style={styles.card}>
-                    <Text style={styles.inputLabel}>Email</Text>
-                    <TextInput
-                        style={styles.textInput}
-                        placeholder="email@example.com"
-                        placeholderTextColor="#999"
-                        keyboardType="email-address"
-                    />
-
-                    <TouchableOpacity style={styles.primaryButton}>
-                        <Text style={styles.primaryButtonText}>Kirim Link Reset</Text>
-                    </TouchableOpacity>
+                    <Text style={styles.phoneNumber}>+62 812-3456-7890</Text>
                 </View>
 
             </ScrollView>
@@ -58,9 +48,6 @@ const styles = StyleSheet.create({
     backText: { fontSize: 14, color: '#333', marginLeft: 8, fontWeight: '500' },
     mainTitle: { fontSize: 24, fontWeight: 'bold', color: '#333', marginBottom: 8 },
     subTitle: { fontSize: 14, color: '#555', marginBottom: 24, lineHeight: 20 },
-    card: { backgroundColor: '#FFF', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#DCEBDE' },
-    inputLabel: { fontSize: 14, fontWeight: '500', color: '#333', marginBottom: 8 },
-    textInput: { height: 48, borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, paddingHorizontal: 16, fontSize: 15, color: '#333', backgroundColor: '#FAFAFA', marginBottom: 20 },
-    primaryButton: { backgroundColor: '#2E8B57', height: 48, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-    primaryButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+    card: { backgroundColor: '#FFF', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#DCEBDE', alignItems: 'center' },
+    phoneNumber: { fontSize: 18, fontWeight: 'bold', color: '#2E8B57' },
 });
