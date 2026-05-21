@@ -25,6 +25,7 @@ nav.scrolled{background:rgba(13,27,42,.97);backdrop-filter:blur(12px);box-shadow
 .nav-inner{max-width:1200px;margin:0 auto;padding:0 40px;height:70px;display:flex;align-items:center;justify-content:space-between}
 .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
 .nav-logo-icon{width:38px;height:38px;background:var(--green);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:900}
+.nav-logo-img{width:38px;height:38px;object-fit:cover;border-radius:8px;background:#fff;padding:2px;display:block}
 .nav-logo-text{color:#fff;font-weight:800;font-size:20px;letter-spacing:.5px}
 .nav-links{display:flex;align-items:center;gap:32px}
 .nav-links a{color:rgba(255,255,255,.8);text-decoration:none;font-size:14px;font-weight:500;transition:.2s;position:relative}
@@ -72,7 +73,7 @@ nav.scrolled{background:rgba(13,27,42,.97);backdrop-filter:blur(12px);box-shadow
 .tentang-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;position:relative;z-index:1}
 .tentang h2{font-size:44px;font-weight:900;color:#fff;margin-bottom:16px;line-height:1.2}
 .tentang-desc{color:rgba(255,255,255,.8);font-size:15px;line-height:1.8;margin-bottom:40px}
-.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0}
 .stat-box{text-align:center;padding:20px 10px}
 .stat-box:not(:last-child){border-right:1px solid rgba(255,255,255,.15)}
 .stat-icon{font-size:28px;margin-bottom:8px;display:block}
@@ -183,16 +184,262 @@ footer a:hover{text-decoration:underline}
 .reveal{opacity:0;transform:translateY(40px);transition:all .7s ease}
 .reveal.visible{opacity:1;transform:translateY(0)}
 
+/* MOBILE MENU TOGGLE BUTTON */
+.menu-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 24px;
+  height: 18px;
+  cursor: pointer;
+  z-index: 1100;
+}
+.menu-toggle span {
+  display: block;
+  height: 2px;
+  width: 100%;
+  background-color: #fff;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
 /* RESPONSIVE */
 @media(max-width:768px){
-  .hero-inner,.tentang-inner,.tab-content-inner{grid-template-columns:1fr}
-  .hero h1{font-size:36px}
-  .tentang h2{font-size:30px}
-  .hero-img{display:none}
-  .phone-mockup{display:none}
-  .nav-links{display:none}
-  .expand-grid{grid-template-columns:1fr}
-  .dl-cards{flex-direction:column;align-items:center}
+  /* Navbar adjustments */
+  .nav-inner {
+    padding: 0 20px;
+  }
+  .menu-toggle {
+    display: flex;
+  }
+  .nav-links {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 280px;
+    height: 100vh;
+    background: rgba(13, 27, 42, 0.98);
+    backdrop-filter: blur(20px);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.3);
+    z-index: 1050;
+    padding: 40px;
+  }
+  .nav-links.active {
+    right: 0;
+  }
+  .nav-links a {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  
+  /* Active Hamburger Menu Animation */
+  .menu-toggle.active span:nth-child(1) {
+    transform: translateY(8px) rotate(45deg);
+  }
+  .menu-toggle.active span:nth-child(2) {
+    opacity: 0;
+  }
+  .menu-toggle.active span:nth-child(3) {
+    transform: translateY(-8px) rotate(-45deg);
+  }
+
+  /* Grid Stack & Spacings */
+  .hero-inner, .tentang-inner, .tab-content-inner {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding: 40px 20px;
+  }
+  
+  /* Hero customizations */
+  .hero {
+    min-height: auto;
+    padding-top: 90px;
+    padding-bottom: 50px;
+  }
+  .hero h1 {
+    font-size: 38px;
+    text-align: center;
+  }
+  .hero-desc {
+    text-align: center;
+    margin: 0 auto 24px;
+  }
+  .hero-btns {
+    justify-content: center;
+    gap: 10px;
+  }
+  .btn-green, .btn-ghost {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 20px;
+  }
+  .hero-img {
+    display: block !important;
+    text-align: center;
+    margin-top: 20px;
+  }
+  .hero-img img {
+    max-height: 280px;
+    border-radius: 16px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+  }
+  .hero-float-card {
+    display: none !important; /* Hide float cards to prevent layout breaks */
+  }
+
+  /* Tentang Us Section */
+  .tentang {
+    padding: 60px 20px;
+  }
+  .tentang h2 {
+    font-size: 28px;
+    text-align: center;
+  }
+  .tentang-desc {
+    text-align: center;
+    font-size: 14px;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stat-num {
+    font-size: 26px !important;
+  }
+  .stat-label {
+    font-size: 10px;
+  }
+  .stat-box {
+    padding: 10px 2px;
+  }
+  .tentang-btns {
+    justify-content: center;
+  }
+  .btn-gold {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* Scrollable Services Tabs */
+  .tabs-inner {
+    overflow-x: auto;
+    white-space: nowrap;
+    display: flex;
+    gap: 8px;
+    padding: 12px 10px;
+    border-top: 1px solid rgba(255,255,255,.08);
+    -webkit-overflow-scrolling: touch;
+  }
+  .tabs-inner::-webkit-scrollbar {
+    display: none; /* Hide scrollbar on mobile */
+  }
+  .tab-btn {
+    flex-shrink: 0;
+    padding: 10px 18px;
+    font-size: 13px;
+  }
+
+  /* Tab content services */
+  .tab-content {
+    padding: 40px 20px;
+  }
+  .content-h2 {
+    font-size: 26px;
+    text-align: center;
+  }
+  .content-desc {
+    text-align: center;
+    font-size: 14px;
+  }
+  .features-list {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    max-width: 400px;
+    margin: 0 auto 24px;
+  }
+  .btn-blue {
+    width: 100%;
+    justify-content: center;
+  }
+  .baca-link {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+  }
+  .illus-card {
+    min-height: auto;
+    padding: 24px;
+  }
+  .illus-icon {
+    font-size: 48px;
+  }
+  .illus-title {
+    font-size: 16px;
+  }
+  .expand-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .expand-section {
+    padding: 0 20px 40px;
+  }
+  .expand-section.open {
+    max-height: 2000px !important;
+  }
+
+  /* Download Section */
+  .download-section {
+    padding: 60px 20px;
+  }
+  .download-section h2 {
+    font-size: 30px;
+  }
+  .download-desc {
+    font-size: 14px;
+    margin-bottom: 30px;
+  }
+  .dl-app-feats {
+    gap: 15px 25px;
+    margin-bottom: 40px;
+  }
+  .dl-feat-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+  .dl-cards {
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+  .qr-card {
+    display: none !important; /* Hide QR code on mobile as scanning own screen is impossible */
+  }
+  .store-links {
+    width: 100%;
+    max-width: 320px;
+  }
+  .store-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .store-rating {
+    justify-content: center;
+  }
+
+  /* Footer adjustments */
+  footer {
+    padding: 30px 20px;
+  }
+  footer p {
+    font-size: 12px;
+  }
 }
 </style>
 </head>
@@ -202,14 +449,17 @@ footer a:hover{text-decoration:underline}
 <nav id="navbar">
   <div class="nav-inner">
     <a href="#" class="nav-logo">
-      <div class="nav-logo-icon">+</div>
+      <img src="{{ asset('images/logo.png') }}" alt="Logo Apotek Permata" class="nav-logo-img" />
       <span class="nav-logo-text">Apotek Permata</span>
     </a>
+    <div class="menu-toggle" id="mobile-menu-btn">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
     <div class="nav-links">
       <a href="#tentang">Tentang Kami</a>
       <a href="#layanan">Layanan</a>
-      <a href="#download">Unduh App</a>
-      <a href="/login" class="nav-btn">Masuk Staff</a>
     </div>
   </div>
 </nav>
@@ -219,24 +469,23 @@ footer a:hover{text-decoration:underline}
   <div class="hero-inner">
     <div>
       <div class="hero-badge"><i class="fas fa-shield-alt"></i> Apotek Terpercaya & Berlisensi</div>
-      <h1>Platform Apotek<br><span class="gold">Terjangkau</span> <i class="fas fa-map-marker-alt" style="font-size:44px;color:#e74c3c"></i></h1>
-      <p class="hero-desc">Apotek Permata adalah solusi terlengkap untuk kebutuhan kesehatan harian Anda. Dapatkan semua kebutuhan kesehatan dengan mudah melalui ekosistem kami. Kami menyediakan 500+ produk dan layanan kesehatan terbaik untuk Anda.</p>
+      <h1>Platform Apotek<br><span class="gold">Tanjung Morawa</span></h1>
+      <p style="text-align: justify;" class="hero-desc">Bingung mencari obat di sekitar Tanjung Morawa? Dapatkan semua kebutuhan kesehatan dengan mudah melalui sistem kami. Kami menyediakan 500+ produk dan layanan kesehatan terbaik untuk Anda.</p>
       <div class="hero-btns">
         <a href="#tentang" class="btn-green"><i class="fas fa-info-circle"></i> Tentang Kami &nbsp;&rarr;</a>
-        <a href="#download" class="btn-ghost"><i class="fab fa-google-play"></i> Unduh Aplikasi</a>
       </div>
     </div>
     <div class="hero-img" style="position:relative">
       <img src="https://images.unsplash.com/photo-1576671081837-49000212a370?q=80&w=700&auto=format&fit=crop" alt="Apoteker Permata" />
       <div class="hero-float-card card1">
-        <div class="float-icon" style="background:#E8F5E9;font-size:22px">🏪</div>
+        <div class="float-icon" style="background:#E8F5E9;color:#2E8B57;font-size:20px"><i class="fa-solid fa-shop"></i></div>
         <div>
           <div class="float-num">500+</div>
           <div class="float-label">Produk Tersedia</div>
         </div>
       </div>
       <div class="hero-float-card card2">
-        <div class="float-icon" style="background:#E3F2FD;font-size:22px">💊</div>
+        <div class="float-icon" style="background:#E3F2FD;color:#1976D2;font-size:20px"><i class="fa-solid fa-pills"></i></div>
         <div>
           <div class="float-num">100+</div>
           <div class="float-label">Jenis Obat</div>
@@ -251,27 +500,21 @@ footer a:hover{text-decoration:underline}
   <div class="tentang-inner">
     <div class="reveal">
       <h2>Tentang Apotek Permata</h2>
-      <p class="tentang-desc">Apotek Permata adalah solusi terlengkap untuk kebutuhan kesehatan harian Anda. Dapatkan semua kebutuhan kesehatan Anda dengan mudah melalui ekosistem kami. Kami menyediakan 500+ produk dan menjangkau seluruh pelanggan kami.</p>
+      <p style="text-align: justify;" class="tentang-desc">Apotek Permata merupakan salah satu apotek yang berlokasi di Jalan Ujung Serdang, Dusun II, Kecamatan Tanjung Morawa, Kabupaten Deli Serdang, Sumatera Utara, tepatnya di kawasan sekitar Ruko Perumahan Griya Tamara. Apotek ini melayani kebutuhan obat dan produk kesehatan masyarakat dengan jam operasional pukul 09.00 hingga 22.00 WIB setiap harinya. Saat ini, Apotek Permata telah memanfaatkan layanan pesan antar melalui WhatsApp (0811-619-8884) sebagai bentuk adaptasi terhadap kebutuhan pelanggan yang menginginkan kemudahan dalam pemesanan obat tanpa harus datang langsung ke apotek.</p>
       <div class="stats-grid">
         <div class="stat-box">
-          <span class="stat-icon">🏪</span>
+          <span class="stat-icon" style="color:var(--gold)"><i class="fa-solid fa-shop"></i></span>
           <span class="stat-num" data-count="500">0</span><span style="font-size:28px;font-weight:900;color:#fff">+</span>
           <span class="stat-label">Produk Tersedia</span>
         </div>
         <div class="stat-box">
-          <span class="stat-icon">💊</span>
+          <span class="stat-icon" style="color:var(--gold)"><i class="fa-solid fa-pills"></i></span>
           <span class="stat-num" data-count="100">0</span><span style="font-size:28px;font-weight:900;color:#fff">+</span>
           <span class="stat-label">Jenis Obat</span>
         </div>
-        <div class="stat-box">
-          <span class="stat-icon">📍</span>
-          <span class="stat-num" data-count="24">0</span><span style="font-size:28px;font-weight:900;color:#fff">/7</span>
-          <span class="stat-label">Layanan Chat</span>
-        </div>
       </div>
       <div class="tentang-btns">
-        <a href="#layanan" class="btn-gold">Belanja Produk</a>
-        <a href="#download" class="btn-gold">Unduh Aplikasi</a>
+        <a href="#layanan" class="btn-gold">Berbagai Layanan</a>
       </div>
     </div>
     <div class="reveal">
@@ -285,7 +528,7 @@ footer a:hover{text-decoration:underline}
 <!-- TABS -->
 <div class="tabs-section" id="layanan">
   <div class="tabs-inner">
-    <button class="tab-btn active" data-tab="belanja">Belanja Produk</button>
+    <button class="tab-btn active" data-tab="belanja">Produk Lengkap</button>
     <button class="tab-btn" data-tab="konsultasi">Konsultasi Apoteker</button>
     <button class="tab-btn" data-tab="resep">Upload Resep</button>
   </div>
@@ -298,13 +541,12 @@ footer a:hover{text-decoration:underline}
   <div class="tab-content active" id="tab-belanja">
     <div class="tab-content-inner">
       <div class="reveal">
-        <div class="content-label">Belanja Produk</div>
+        <div class="content-label">Produk Lengkap</div>
         <h2 class="content-h2"><em>Marketplace</em> Khusus Untuk Produk Kesehatan</h2>
-        <p class="content-desc">Unduh aplikasi Apotek Permata dan temukan kemudahan akses ke lebih dari 500 produk kesehatan, mulai dari obat-obatan, vitamin, suplemen, hingga peralatan medis. Nikmati fitur-fitur unggulan seperti konsultasi online dengan apoteker, konsultasi dengan dokter, dan layanan antar cepat langsung ke rumah Anda.</p>
+        <p style="text-align: justify;" class="content-desc">Unduh aplikasi Apotek Permata dan temukan kemudahan akses ke lebih dari 500 produk kesehatan, mulai dari obat-obatan, vitamin, suplemen, hingga peralatan medis. Nikmati fitur-fitur unggulan seperti konsultasi online dengan apoteker, konsultasi dengan dokter, dan layanan antar cepat langsung ke rumah Anda.</p>
         <div class="features-list">
           <div class="feat-item"><div class="feat-check">✓</div> Pilihan produk yang lengkap</div>
           <div class="feat-item"><div class="feat-check">✓</div> Harga terjangkau</div>
-          <div class="feat-item"><div class="feat-check">✓</div> Bisa pilih apotek favorit</div>
           <div class="feat-item"><div class="feat-check">✓</div> Beragam pilihan pembayaran dan pengiriman</div>
           <div class="feat-item"><div class="feat-check">✓</div> Bisa tebus obat resep</div>
           <div class="feat-item"><div class="feat-check">✓</div> Konsultasi dengan apoteker profesional</div>
@@ -315,7 +557,7 @@ footer a:hover{text-decoration:underline}
       </div>
       <div class="reveal">
         <div class="illus-card">
-          <div class="illus-icon">🏥</div>
+          <div class="illus-icon" style="color:#2E8B57"><i class="fa-solid fa-hospital"></i></div>
           <div class="illus-title">Apotek Jauh?<br>Butuh Obat Cepat?<br>Beli Online Tapi Takut Obat Palsu?</div>
           <div class="illus-sub">Tenang! Apotek Permata menjamin keaslian setiap produk yang kami jual.</div>
           <a href="#download" class="btn-blue" style="margin-top:8px;font-size:13px;padding:12px 22px"><i class="fab fa-google-play"></i> Unduh Aplikasi Apotek Permata</a>
@@ -325,19 +567,19 @@ footer a:hover{text-decoration:underline}
     <div class="expand-section" id="expand-belanja">
       <div class="expand-grid">
         <div class="expand-card reveal">
-          <div class="expand-card-icon" style="background:#E8F5E9">🛒</div>
+          <div class="expand-card-icon" style="background:#E8F5E9;color:#2E8B57"><i class="fa-solid fa-cart-shopping"></i></div>
           <h3>Belanja Mudah & Aman</h3>
-          <p>Temukan ribuan produk kesehatan original dengan harga kompetitif. Pembayaran 100% aman dengan berbagai metode.</p>
+          <p style="text-align: justify;">Temukan ribuan produk kesehatan original dengan harga kompetitif. Pembayaran 100% aman dengan berbagai metode.</p>
         </div>
         <div class="expand-card reveal">
-          <div class="expand-card-icon" style="background:#E3F2FD">🚚</div>
+          <div class="expand-card-icon" style="background:#E3F2FD;color:#1976D2"><i class="fa-solid fa-truck-fast"></i></div>
           <h3>Pengiriman Cepat</h3>
-          <p>Pesanan Anda dikirim langsung dari apotek terdekat. Estimasi pengiriman hanya 15-30 menit ke rumah Anda.</p>
+          <p style="text-align: justify;">Pesanan Anda dikirim langsung dari apotek terdekat. Estimasi pengiriman hanya 15-30 menit ke rumah Anda.</p>
         </div>
         <div class="expand-card reveal">
-          <div class="expand-card-icon" style="background:#FFF3E0">⭐</div>
+          <div class="expand-card-icon" style="background:#FFF3E0;color:#FFA000"><i class="fa-solid fa-shield-halved"></i></div>
           <h3>Produk Terjamin Asli</h3>
-          <p>Semua produk kami bersumber langsung dari distributor resmi dan telah mendapatkan izin edar dari BPOM.</p>
+          <p style="text-align: justify;">Semua produk kami bersumber langsung dari distributor resmi dan telah mendapatkan izin edar dari BPOM.</p>
         </div>
       </div>
     </div>
@@ -349,7 +591,7 @@ footer a:hover{text-decoration:underline}
       <div class="reveal">
         <div class="content-label">Konsultasi Apoteker</div>
         <h2 class="content-h2">Chat Langsung dengan <em>Apoteker</em> Berpengalaman</h2>
-        <p class="content-desc">Tanya jawab seputar obat, dosis, efek samping, dan interaksi obat langsung dengan apoteker profesional kami. Layanan tersedia 24 jam sehari, 7 hari seminggu tanpa biaya tambahan.</p>
+        <p style="text-align: justify;" class="content-desc">Tanya jawab seputar obat, dosis, efek samping, dan interaksi obat langsung dengan apoteker profesional kami. Layanan tersedia mulai dari pukul 09.00 hingga 22.00 WIB setiap harinya tanpa biaya tambahan.</p>
         <div class="features-list">
           <div class="feat-item"><div class="feat-check">✓</div> Chat real-time dengan apoteker</div>
           <div class="feat-item"><div class="feat-check">✓</div> Gratis tanpa biaya konsultasi</div>
@@ -364,9 +606,9 @@ footer a:hover{text-decoration:underline}
       </div>
       <div class="reveal">
         <div class="illus-card">
-          <div class="illus-icon">💬</div>
+          <div class="illus-icon" style="color:#2E8B57"><i class="fa-solid fa-comment-medical"></i></div>
           <div class="illus-title">Punya Pertanyaan<br>Seputar Obat?</div>
-          <div class="illus-sub">Apoteker kami siap membantu Anda 24/7 melalui fitur chat di aplikasi.</div>
+          <div class="illus-sub">Apoteker kami siap membantu Anda mulai pukul 09.00 hingga 22.00 WIB setiap harinya melalui fitur chat di aplikasi.</div>
           <a href="#download" class="btn-blue" style="margin-top:8px;font-size:13px;padding:12px 22px"><i class="fab fa-google-play"></i> Unduh & Chat Sekarang</a>
         </div>
       </div>
@@ -374,19 +616,19 @@ footer a:hover{text-decoration:underline}
     <div class="expand-section" id="expand-konsultasi">
       <div class="expand-grid">
         <div class="expand-card reveal">
-          <div class="expand-card-icon" style="background:#E8F5E9">🩺</div>
+          <div class="expand-card-icon" style="background:#E8F5E9;color:#2E8B57"><i class="fa-solid fa-stethoscope"></i></div>
           <h3>Konsultasi Interaksi Obat</h3>
-          <p>Tanyakan kemungkinan interaksi antara obat-obatan yang sedang Anda konsumsi untuk keamanan optimal.</p>
+          <p style="text-align: justify;">Tanyakan kemungkinan interaksi antara obat-obatan yang sedang Anda konsumsi untuk keamanan optimal.</p>
         </div>
         <div class="expand-card reveal">
-          <div class="expand-card-icon" style="background:#E3F2FD">📋</div>
+          <div class="expand-card-icon" style="background:#E3F2FD;color:#1976D2"><i class="fa-solid fa-file-prescription"></i></div>
           <h3>Panduan Penggunaan Obat</h3>
-          <p>Dapatkan panduan lengkap cara penggunaan, dosis yang tepat, dan waktu terbaik untuk minum obat.</p>
+          <p style="text-align: justify;">Dapatkan panduan lengkap cara penggunaan, dosis yang tepat, dan waktu terbaik untuk minum obat.</p>
         </div>
         <div class="expand-card reveal">
-          <div class="expand-card-icon" style="background:#FCE4EC">❤️</div>
+          <div class="expand-card-icon" style="background:#FCE4EC;color:#e74c3c"><i class="fa-solid fa-heart-pulse"></i></div>
           <h3>Pemantauan Kesehatan</h3>
-          <p>Apoteker kami membantu memantau perkembangan kesehatan Anda dan memberikan rekomendasi terkini.</p>
+          <p style="text-align: justify;">Apoteker kami membantu memantau perkembangan kesehatan Anda dan memberikan rekomendasi terkini.</p>
         </div>
       </div>
     </div>
@@ -398,14 +640,12 @@ footer a:hover{text-decoration:underline}
       <div class="reveal">
         <div class="content-label">Upload Resep</div>
         <h2 class="content-h2">Tebus <em>Resep Dokter</em> Online dengan Mudah</h2>
-        <p class="content-desc">Tidak perlu repot antri di apotek. Cukup foto resep dokter Anda, upload melalui aplikasi, dan tim apoteker kami akan memproses serta mengirimkan obat langsung ke alamat Anda.</p>
+        <p style="text-align: justify;" class="content-desc">Tidak perlu repot antri di apotek. Cukup foto resep dokter Anda, upload melalui aplikasi, dan tim apoteker kami akan memproses serta mengirimkan obat langsung ke alamat Anda.</p>
         <div class="features-list">
           <div class="feat-item"><div class="feat-check">✓</div> Upload foto resep kapan saja</div>
           <div class="feat-item"><div class="feat-check">✓</div> Verifikasi oleh apoteker resmi</div>
-          <div class="feat-item"><div class="feat-check">✓</div> Proses cepat dalam 30 menit</div>
           <div class="feat-item"><div class="feat-check">✓</div> Dikirim ke alamat Anda</div>
           <div class="feat-item"><div class="feat-check">✓</div> Riwayat resep tersimpan</div>
-          <div class="feat-item"><div class="feat-check">✓</div> Harga sesuai resep dokter</div>
         </div>
         <a href="#download" class="btn-blue"><i class="fas fa-camera"></i> Upload Resep Sekarang</a>
         <br>
@@ -413,7 +653,7 @@ footer a:hover{text-decoration:underline}
       </div>
       <div class="reveal">
         <div class="illus-card">
-          <div class="illus-icon">📄</div>
+          <div class="illus-icon" style="color:#2E8B57"><i class="fa-solid fa-file-invoice"></i></div>
           <div class="illus-title">Punya Resep Dokter?<br>Tebus di Sini!</div>
           <div class="illus-sub">Foto dan upload resep Anda, kami proses dalam hitungan menit.</div>
           <a href="#download" class="btn-blue" style="margin-top:8px;font-size:13px;padding:12px 22px"><i class="fas fa-upload"></i> Upload Resep via App</a>
@@ -423,19 +663,19 @@ footer a:hover{text-decoration:underline}
     <div class="expand-section" id="expand-resep">
       <div class="expand-grid">
         <div class="expand-card reveal">
-          <div class="expand-card-icon" style="background:#E8F5E9">📸</div>
+          <div class="expand-card-icon" style="background:#E8F5E9;color:#2E8B57"><i class="fa-solid fa-camera"></i></div>
           <h3>Foto Resep Mudah</h3>
-          <p>Cukup ambil foto resep dokter Anda menggunakan kamera smartphone, resolusi rendah pun tetap terbaca.</p>
+          <p style="text-align: justify;">Cukup ambil foto resep dokter Anda menggunakan kamera smartphone, resolusi rendah pun tetap terbaca.</p>
         </div>
         <div class="expand-card reveal">
-          <div class="expand-card-icon" style="background:#FFF3E0">🔒</div>
+          <div class="expand-card-icon" style="background:#FFF3E0;color:#FFA000"><i class="fa-solid fa-user-shield"></i></div>
           <h3>Data Resep Aman</h3>
-          <p>Informasi resep dan data kesehatan Anda dienkripsi dan hanya dapat diakses oleh apoteker berwenang.</p>
+          <p style="text-align: justify;">Informasi resep dan data kesehatan Anda dienkripsi dan hanya dapat diakses oleh apoteker berwenang.</p>
         </div>
         <div class="expand-card reveal">
-          <div class="expand-card-icon" style="background:#F3E5F5">📦</div>
+          <div class="expand-card-icon" style="background:#F3E5F5;color:#8E24AA"><i class="fa-solid fa-box-open"></i></div>
           <h3>Pengiriman Terjamin</h3>
-          <p>Obat dikemas dengan standar farmasi dan dikirim dalam kondisi terbaik hingga ke tangan Anda.</p>
+          <p style="text-align: justify;">Obat dikemas dengan standar farmasi dan dikirim dalam kondisi terbaik hingga ke tangan Anda.</p>
         </div>
       </div>
     </div>
@@ -450,12 +690,12 @@ footer a:hover{text-decoration:underline}
     <h2>Unduh Aplikasi <span>Apotek Permata</span><br>Sekarang Juga!</h2>
     <p class="download-desc">Nikmati kemudahan belanja obat, konsultasi apoteker, pengingat minum obat, dan banyak fitur menarik lainnya langsung dari smartphone Anda.</p>
     <div class="dl-app-feats">
-      <div class="dl-feat"><div class="dl-feat-icon">🛒</div><div class="dl-feat-label">Belanja Mudah</div></div>
-      <div class="dl-feat"><div class="dl-feat-icon">💬</div><div class="dl-feat-label">Chat Apoteker</div></div>
-      <div class="dl-feat"><div class="dl-feat-icon">⏰</div><div class="dl-feat-label">Pengingat Obat</div></div>
-      <div class="dl-feat"><div class="dl-feat-icon">📋</div><div class="dl-feat-label">Upload Resep</div></div>
-      <div class="dl-feat"><div class="dl-feat-icon">🔔</div><div class="dl-feat-label">Notifikasi</div></div>
-      <div class="dl-feat"><div class="dl-feat-icon">💊</div><div class="dl-feat-label">Cek Alergi</div></div>
+      <div class="dl-feat"><div class="dl-feat-icon" style="color:#4CAF50"><i class="fa-solid fa-cart-shopping"></i></div><div class="dl-feat-label">Belanja Mudah</div></div>
+      <div class="dl-feat"><div class="dl-feat-icon" style="color:#2196F3"><i class="fa-solid fa-comments"></i></div><div class="dl-feat-label">Chat Apoteker</div></div>
+      <div class="dl-feat"><div class="dl-feat-icon" style="color:#FFC107"><i class="fa-solid fa-clock"></i></div><div class="dl-feat-label">Pengingat Obat</div></div>
+      <div class="dl-feat"><div class="dl-feat-icon" style="color:#E91E63"><i class="fa-solid fa-file-prescription"></i></div><div class="dl-feat-label">Upload Resep</div></div>
+      <div class="dl-feat"><div class="dl-feat-icon" style="color:#9C27B0"><i class="fa-solid fa-bell"></i></div><div class="dl-feat-label">Notifikasi</div></div>
+      <div class="dl-feat"><div class="dl-feat-icon" style="color:#F44336"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="dl-feat-label">Cek Alergi</div></div>
     </div>
     <div class="dl-cards">
       <div class="qr-card">
@@ -465,18 +705,18 @@ footer a:hover{text-decoration:underline}
       </div>
       <div class="store-links">
         <a href="#" class="store-btn">
-          <span class="store-btn-icon">▶</span>
+          <span class="store-btn-icon"><i class="fa-brands fa-google-play" style="color:#fff"></i></span>
           <div class="store-btn-text">
             <span class="sub">GET IT ON</span>
             <span class="name">Google Play</span>
           </div>
         </a>
         <div class="store-rating">
-          <span class="stars">★★★★★</span>
+          <span class="stars" style="color:var(--gold)"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></span>
           <span class="rating-text">4.9 · 10K+ Ulasan</span>
         </div>
         <a href="#" class="store-btn" style="margin-top:8px">
-          <span class="store-btn-icon"></span>
+          <span class="store-btn-icon"><i class="fa-brands fa-apple" style="color:#fff"></i></span>
           <div class="store-btn-text">
             <span class="sub">DOWNLOAD ON THE</span>
             <span class="name">App Store</span>
@@ -489,10 +729,28 @@ footer a:hover{text-decoration:underline}
 
 <footer>
   <p>© 2026 <strong style="color:rgba(255,255,255,.6)">Apotek Permata</strong>. Solusi Sehat Keluarga Indonesia.</p>
-  <p>Khusus Staff Apotek? <a href="/login">Klik di sini untuk Login Dashboard</a></p>
 </footer>
 
 <script>
+// MOBILE MENU TOGGLE
+const menuToggle = document.getElementById('mobile-menu-btn');
+const navLinks = document.querySelector('.nav-links');
+
+if (menuToggle && navLinks) {
+  menuToggle.addEventListener('click', () => {
+    menuToggle.classList.toggle('active');
+    navLinks.classList.toggle('active');
+  });
+
+  // Close menu when clicking links
+  navLinks.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => {
+      menuToggle.classList.remove('active');
+      navLinks.classList.remove('active');
+    });
+  });
+}
+
 // NAV SCROLL
 window.addEventListener('scroll',()=>{
   document.getElementById('navbar').classList.toggle('scrolled',window.scrollY>50);
