@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect } from 'expo-router';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
     Alert,
     Dimensions,
@@ -255,7 +255,7 @@ export default function HomeScreen() {
                         <View style={styles.searchBar}>
                             <Feather name="search" size={20} color={THEME.textMuted} />
                             <TextInput 
-                                placeholder="Cari obat, vitamin, atau gejala..."
+                                placeholder="Cari obat, vitamin, dan lain-lain..."
                                 style={[styles.searchInput, { outlineStyle: 'none' } as any]}
                                 value={searchQuery}
                                 onChangeText={setSearchQuery}
@@ -897,3 +897,4 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
 });
+
