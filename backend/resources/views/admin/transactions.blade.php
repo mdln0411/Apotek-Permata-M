@@ -45,18 +45,27 @@
                     </td>
                     <td class="px-8 py-6 font-black text-blue-700">Rp {{ number_format($order->total_price, 0, ',', '.') }}</td>
                     <td class="px-8 py-6">
-                        @php
-                            $statusClasses = [
-                                'menunggu' => 'bg-amber-100 text-amber-700 border-amber-200',
-                                'diproses' => 'bg-indigo-100 text-indigo-700 border-indigo-200',
-                                'selesai' => 'bg-emerald-100 text-emerald-700 border-emerald-200',
-                                'dibatalkan' => 'bg-red-100 text-red-700 border-red-200',
-                            ];
-                            $cls = $statusClasses[$order->status] ?? 'bg-slate-100 text-slate-700 border-slate-200';
-                        @endphp
-                        <span class="px-3 py-1 rounded-full text-[8px] font-bold uppercase border {{ $cls }}">
-                            {{ $order->status }}
-                        </span>
+                          @php
+                                $isBatalUser = $order->status === 'dibatalkan' && (str_contains(strtolower($order->notes), 'pengguna') || str_contains(strtolower($order->notes), 'pembeli') || (!str_contains(strtolower($order->notes), 'apoteker') && !str_contains(strtolower($order->notes), 'admin')));
+                                $statusText = $isBatalUser ? 'Batal Pasien' : $order->status;
+                                $statusClasses = [
+                                    'menunggu' => 'bg-amber-100 text-amber-700 border-amber-200',
+                                    'diproses' => 'bg-blue-100 text-blue-700 border-blue-200',
+                                    'selesai' => 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                                    'dibatalkan' => 'bg-red-100 text-red-700 border-red-200',
+                                    'dilaporkan' => 'bg-purple-100 text-purple-700 border-purple-200',
+                                ];
+                                $cls = $statusClasses[$order->status] ?? 'bg-slate-100 text-slate-700 border-slate-200';
+                                if ($isBatalUser) {
+                                    $cls = 'bg-slate-100 text-slate-600 border-slate-300';
+                                }
+                            @endphp
+                            <span class="px-3 py-1 rounded-full text-[8px] font-bold uppercase border {{ $cls }}">
+                                {{ $statusText }}
+                            </span>
+                            @if($order->notes)
+                                <p class="text-[9px] text-slate-500 mt-1.5 max-w-[160px] truncate italic" title="{{ $order->notes }}">{{ $order->notes }}</p>
+                            @endif
                     </td>
                     <td class="px-8 py-6 text-right text-slate-400 text-xs">
                         {{ $order->created_at->format('d M Y, H:i') }}

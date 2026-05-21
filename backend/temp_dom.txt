@@ -1,0 +1,38 @@
+﻿<current_dom_explanation>
+This is a temporary snapshot of the current page's DOM structure. The DOM will change if you navigate to or interact with another page. Use a tool like browser_get_dom to capture and preserve the DOM in your trajectory if needed for later reference.
+</current_dom_explanation>
+<current_dom>
+[0] (146,55)<a class='nav-logo' href='#' />
+	[1] (77,55)<div >+ />
+	[2] (165,55)<span >Apotek Permata />
+[3] (559,55)<a href='#tentang'>Tentang Kami />
+[4] (642,55)<a href='#layanan'>Layanan />
+[5] (718,55)<a href='#download'>Unduh App />
+[6] (791,55)<a href='#kontak'>Kontak />
+[7] (886,55)<a class='nav-btn' href='/login'>Masuk Staff />
+Aplikasi Mobile Tersedia
+Unduh Aplikasi
+Apotek Permata
+Sekarang Juga!
+Nikmati kemudahan belanja obat, konsultasi apoteker, pengingat minum obat, dan banyak fitur menarik lainnya langsung dari smartphone Anda.
+ðŸ›’
+Belanja Mudah
+ðŸ’¬
+Chat Apoteker
+â°
+Pengingat Obat
+ðŸ“‹
+Upload Resep
+ðŸ””
+Notifikasi
+ðŸ’Š
+Cek Alergi
+[8] (622,866)<a class='store-btn' href='#' />
+	[9] (570,866)<span >â–¶ />
+	[10] (640,866)<div  />
+		[11] (640,847)<span >GET IT ON />
+		[12] (640,876)<span >Google Play />
+â˜…â˜…â˜…â˜…â˜…
+4.9 Â· 10K+ Ulasan
+
+</current_dom>
