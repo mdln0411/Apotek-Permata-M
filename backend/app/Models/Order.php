@@ -20,4 +20,9 @@ class Order extends Model
     {
         return $this->hasMany(OrderItem::class);
     }
+
+    public function prescription()
+    {
+        return $this->belongsTo(Prescription::class);
+    }
 }

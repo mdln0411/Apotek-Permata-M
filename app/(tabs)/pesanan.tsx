@@ -33,6 +33,11 @@ export interface Prescription {
     status: string;
     notes: string | null;
     created_at: string;
+    order?: {
+        id: number;
+        status: string;
+        order_number: string;
+    } | null;
 }
 
 export default function PesananScreen() {
@@ -259,15 +264,23 @@ export default function PesananScreen() {
                         </View>
                     ) : (
                         prescriptions.map((prescription) => {
-                            const statusStyle = getStatusColor(prescription.status);
+                            const statusStyle = prescription.order
+                                ? { bg: '#E3F2FD', text: '#1976D2' }
+                                : getStatusColor(prescription.status);
                             return (
-                                <View key={prescription.id} style={styles.orderCard}>
+                                <TouchableOpacity 
+                                    key={prescription.id} 
+                                    style={styles.orderCard}
+                                    onPress={() => router.push({ pathname: '/detail-resep', params: { id: prescription.id } } as any)}
+                                >
                                     <View style={styles.cardHeader}>
                                         <View style={styles.orderNumBadge}>
                                             <Text style={styles.orderNumText}>RESEP #{prescription.id}</Text>
                                         </View>
                                         <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-                                            <Text style={[styles.statusText, { color: statusStyle.text }]}>{prescription.status.toUpperCase()}</Text>
+                                            <Text style={[styles.statusText, { color: statusStyle.text }]}>
+                                                {prescription.order ? 'DICHECKOUT' : prescription.status.toUpperCase()}
+                                            </Text>
                                         </View>
                                     </View>
 
@@ -289,8 +302,9 @@ export default function PesananScreen() {
                                                 {prescription.notes || 'Menunggu verifikasi apoteker'}
                                             </Text>
                                         </View>
+                                        <Ionicons name="chevron-forward" size={20} color="#CCC" />
                                     </View>
-                                </View>
+                                </TouchableOpacity>
                             );
                         })
                     )

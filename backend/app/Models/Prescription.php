@@ -13,11 +13,17 @@ class Prescription extends Model
         'user_id',
         'image_url',
         'status',
-        'notes'
+        'notes',
+        'total_price'
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function order()
+    {
+        return $this->hasOne(Order::class);
     }
 }

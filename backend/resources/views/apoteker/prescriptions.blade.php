@@ -3,6 +3,27 @@
 @section('page_title', 'Validasi Resep Digital')
 
 @section('content')
+@if(session('success'))
+    <div class="mb-6 p-4 bg-emerald-100 text-emerald-700 rounded-2xl font-bold flex items-center gap-3">
+        <i data-lucide="check-circle" class="w-5 h-5"></i>
+        {{ session('success') }}
+    </div>
+@endif
+
+@if($errors->any())
+    <div class="mb-6 p-4 bg-red-100 text-red-700 rounded-2xl font-bold space-y-1">
+        <div class="flex items-center gap-3 mb-1">
+            <i data-lucide="alert-circle" class="w-5 h-5"></i>
+            <span>Ups! Ada kesalahan pengisian:</span>
+        </div>
+        <ul class="list-disc list-inside text-xs font-medium ml-8">
+            @foreach($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+
 <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
     <!-- Prescription List -->
     <div class="xl:col-span-2 space-y-6">
@@ -55,20 +76,26 @@
                             </div>
                             
                             @if($p->status == 'pending')
-                            <div class="mt-4 flex gap-2">
-                                <form action="/apoteker/prescriptions/{{ $p->id }}/status" method="POST" class="flex-1">
-                                    @csrf
-                                    <input type="hidden" name="status" value="valid">
-                                    <button class="w-full bg-emerald-600 text-white py-2 rounded-xl text-[10px] font-bold hover:bg-emerald-700 transition-all">VALIDASI</button>
-                                </form>
-                                <form action="/apoteker/prescriptions/{{ $p->id }}/status" method="POST" class="flex-1">
-                                    @csrf
-                                    <input type="hidden" name="status" value="rejected">
-                                    <button class="w-full bg-white border border-red-200 text-red-600 py-2 rounded-xl text-[10px] font-bold hover:bg-red-50 transition-all">TOLAK</button>
-                                </form>
-                            </div>
+                            <form action="/apoteker/prescriptions/{{ $p->id }}/status" method="POST" class="mt-4 space-y-3">
+                                @csrf
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Catatan Obat / Alasan Penolakan:</label>
+                                    <textarea name="notes" rows="2" placeholder="Tulis obat & dosis jika VALID, atau alasan jika DITOLAK..." class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" required></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Total Harga Obat (Rp):</label>
+                                    <input type="number" name="total_price" placeholder="Contoh: 45000 (kosongkan jika ditolak)" class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                                <div class="flex gap-2 pt-1">
+                                    <button type="submit" name="status" value="valid" class="flex-1 bg-emerald-600 text-white py-2 rounded-xl text-[10px] font-bold hover:bg-emerald-700 transition-all">VALIDASI</button>
+                                    <button type="submit" name="status" value="rejected" class="flex-1 bg-white border border-red-200 text-red-600 py-2 rounded-xl text-[10px] font-bold hover:bg-red-50 transition-all">TOLAK</button>
+                                </div>
+                            </form>
                             @else
                                 <p class="text-[10px] text-slate-500 italic mt-2">Catatan: {{ $p->notes ?? 'Tidak ada catatan' }}</p>
+                                @if($p->status == 'valid' && $p->total_price)
+                                    <p class="text-[10px] text-emerald-600 font-bold mt-1">Total Harga: Rp {{ number_format($p->total_price, 0, ',', '.') }}</p>
+                                 @endif
                             @endif
                         </div>
                     </div>

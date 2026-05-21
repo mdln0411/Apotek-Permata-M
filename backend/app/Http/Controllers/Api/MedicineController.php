@@ -14,7 +14,7 @@ class MedicineController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Medicine::query();
+        $query = Medicine::query()->where('category', '!=', 'Resep');
 
         // --- SEARCH pintar berdasarkan kata kunci ---
         if ($request->filled('search')) {
@@ -66,20 +66,10 @@ class MedicineController extends Controller
                 $query->orderBy('name', 'asc');
             } elseif ($sortBy === 'Z-A') {
                 $query->orderBy('name', 'desc');
-            } elseif ($sortBy === 'A-G') {
-                $query->where(function($q) {
-                    for ($i = ord('A'); $i <= ord('G'); $i++) {
-                        $char = chr($i);
-                        $q->orWhere('name', 'like', $char . '%');
-                    }
-                })->orderBy('name', 'asc');
-            } elseif ($sortBy === 'G-Z') {
-                $query->where(function($q) {
-                    for ($i = ord('G'); $i <= ord('Z'); $i++) {
-                        $char = chr($i);
-                        $q->orWhere('name', 'like', $char . '%');
-                    }
-                })->orderBy('name', 'asc');
+            } elseif ($sortBy === 'price-asc' || $sortBy === 'A-G') {
+                $query->orderBy('price', 'asc');
+            } elseif ($sortBy === 'price-desc' || $sortBy === 'G-Z') {
+                $query->orderBy('price', 'desc');
             }
         } else {
             $query->orderBy('name', 'asc');
@@ -171,6 +161,7 @@ class MedicineController extends Controller
     public function categories()
     {
         $categories = Medicine::select('category')
+            ->where('category', '!=', 'Resep')
             ->distinct()
             ->orderBy('category')
             ->pluck('category');

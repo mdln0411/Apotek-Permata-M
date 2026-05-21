@@ -33,9 +33,80 @@ class OrderController extends Controller
             'notes' => 'nullable|string',
             'item_ids' => 'nullable|array',
             'item_ids.*' => 'integer',
+            'prescription_id' => 'nullable|integer|exists:prescriptions,id',
         ]);
 
         $user = $request->user();
+
+        if ($request->filled('prescription_id')) {
+            $prescription = \App\Models\Prescription::where('user_id', $user->id)->findOrFail($request->prescription_id);
+            if ($prescription->status !== 'valid') {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Resep ini belum divalidasi atau ditolak oleh apoteker.'
+                ], 400);
+            }
+
+            // Check if an order already exists for this prescription
+            $existingOrder = Order::where('prescription_id', $prescription->id)->first();
+            if ($existingOrder) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Pesanan untuk resep ini sudah pernah dibuat.',
+                    'data' => $existingOrder
+                ], 400);
+            }
+
+            return DB::transaction(function () use ($user, $prescription, $request) {
+                // Ensure dummy medicine exists
+                $dummyMedicine = \App\Models\Medicine::firstOrCreate(
+                    ['name' => 'Resep Digital'],
+                    [
+                        'category' => 'Resep',
+                        'price' => 0.0,
+                        'stock' => 999999,
+                        'unit' => 'Resep',
+                        'indication' => 'Obat resep yang divalidasi oleh apoteker',
+                        'prescription_required' => true,
+                    ]
+                );
+
+                // Create Order
+                $order = Order::create([
+                    'user_id' => $user->id,
+                    'prescription_id' => $prescription->id,
+                    'order_number' => 'ORD-' . strtoupper(Str::random(10)),
+                    'status' => 'pending',
+                    'total_price' => $prescription->total_price,
+                    'shipping_address' => $request->shipping_address,
+                    'notes' => $request->notes,
+                ]);
+
+                // Create Order Item representing the prescription
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'medicine_id' => $dummyMedicine->id,
+                    'name' => 'Obat Resep Digital #' . $prescription->id,
+                    'quantity' => 1,
+                    'price' => $prescription->total_price,
+                    'subtotal' => $prescription->total_price,
+                ]);
+
+                // Send Notification
+                $user->notify(new AppNotification(
+                    'Pesanan Resep Berhasil',
+                    "Pesanan untuk resep Anda ({$order->order_number}) telah berhasil dibuat. Silakan selesaikan pembayaran.",
+                    'order'
+                ));
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Order placed successfully',
+                    'data' => $order->load('items')
+                ], 201);
+            });
+        }
+
         $cart = Cart::where('user_id', $user->id)->first();
 
         if (!$cart) {
@@ -282,12 +353,12 @@ class OrderController extends Controller
         $order = Order::findOrFail($id);
         $user = $request->user();
 
-        // Members can only cancel their own pending/diproses orders
+        // Members can only cancel their own pending orders
         if ($user->role === 'member') {
             if ($order->user_id !== $user->id) {
                 return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
             }
-            if (!in_array($order->status, ['pending', 'diproses'])) {
+            if ($order->status !== 'pending') {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Pesanan tidak dapat dibatalkan pada status ini.'

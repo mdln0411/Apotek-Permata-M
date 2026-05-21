@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  TextInput,
+  Platform,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 
@@ -37,10 +39,17 @@ export const QuantityModal: React.FC<QuantityModalProps> = ({
 }) => {
   const [quantity, setQuantity] = useState(1);
 
+  React.useEffect(() => {
+    if (visible) {
+      setQuantity(1);
+    }
+  }, [visible]);
+
   if (!medicine) return null;
 
   const handleConfirm = () => {
-    onConfirm(quantity);
+    const finalQty = quantity < 1 ? 1 : quantity;
+    onConfirm(finalQty);
     setQuantity(1); // Reset
   };
 
@@ -50,6 +59,26 @@ export const QuantityModal: React.FC<QuantityModalProps> = ({
 
   const decrement = () => {
     if (quantity > 1) setQuantity(quantity - 1);
+  };
+
+  const handleQtyChange = (text: string) => {
+    const cleanText = text.replace(/[^0-9]/g, '');
+    if (cleanText === '') {
+      setQuantity(0);
+      return;
+    }
+    const val = parseInt(cleanText, 10);
+    if (val > medicine.stock) {
+      setQuantity(medicine.stock);
+    } else {
+      setQuantity(val);
+    }
+  };
+
+  const handleBlur = () => {
+    if (quantity < 1) {
+      setQuantity(1);
+    }
   };
 
   return (
@@ -90,7 +119,15 @@ export const QuantityModal: React.FC<QuantityModalProps> = ({
               <TouchableOpacity onPress={decrement} style={[styles.qtyBtn, quantity <= 1 && styles.disabled]}>
                 <Feather name="minus" size={18} color={quantity <= 1 ? '#CCC' : '#333'} />
               </TouchableOpacity>
-              <Text style={styles.qtyText}>{quantity}</Text>
+              <TextInput
+                style={styles.qtyInput}
+                value={quantity === 0 ? '' : quantity.toString()}
+                onChangeText={handleQtyChange}
+                onBlur={handleBlur}
+                keyboardType="numeric"
+                selectTextOnFocus
+                underlineColorAndroid="transparent"
+              />
               <TouchableOpacity onPress={increment} style={[styles.qtyBtn, quantity >= medicine.stock && styles.disabled]}>
                 <Feather name="plus" size={18} color={quantity >= medicine.stock ? '#CCC' : '#2E8B57'} />
               </TouchableOpacity>
@@ -201,6 +238,19 @@ const styles = StyleSheet.create({
     color: '#333',
     minWidth: 40,
     textAlign: 'center',
+  },
+  qtyInput: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    minWidth: 50,
+    textAlign: 'center',
+    paddingVertical: Platform.OS === 'web' ? 4 : 2,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      } as any,
+    }),
   },
   disabled: {
     opacity: 0.5,

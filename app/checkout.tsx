@@ -59,13 +59,17 @@ export default function CheckoutScreen() {
     const { user } = useAuth();
     const { items, refreshCart } = useCart();
     
-    // Ambil item_ids terpilih dari query parameter
-    const { item_ids } = useLocalSearchParams<{ item_ids?: string }>();
+    // Ambil item_ids atau prescription_id terpilih dari query parameter
+    const { item_ids, prescription_id } = useLocalSearchParams<{ item_ids?: string, prescription_id?: string }>();
     
     const [metode, setMetode] = useState<'antar' | 'jemput'>('antar');
     const [jamJemput, setJamJemput] = useState('');
     const [alamatLengkap, setAlamatLengkap] = useState(user?.address || '');
     const [loading, setLoading] = useState(false);
+
+    // State untuk Resep Digital
+    const [prescription, setPrescription] = useState<any>(null);
+    const [loadingPrescription, setLoadingPrescription] = useState(false);
 
     // State untuk Pembayaran
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -77,6 +81,26 @@ export default function CheckoutScreen() {
         { id: '3', label: 'Bank Transfer', icon: 'home-outline', type: 'ionicon' },
         { id: '4', label: 'Bayar di Apotek (COD)', icon: 'cash-outline', type: 'ionicon' },
     ];
+
+    useEffect(() => {
+        if (prescription_id) {
+            const fetchPrescription = async () => {
+                try {
+                    setLoadingPrescription(true);
+                    const res = await axiosClient.get(`/api/prescriptions/${prescription_id}`);
+                    if (res.data.status === 'success') {
+                        setPrescription(res.data.data);
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch prescription in checkout:', e);
+                    Alert.alert('Error', 'Gagal memuat detail resep');
+                } finally {
+                    setLoadingPrescription(false);
+                }
+            };
+            fetchPrescription();
+        }
+    }, [prescription_id]);
 
     const handleSelectPayment = (option: any) => {
         setSelectedPayment(option);
@@ -96,16 +120,32 @@ export default function CheckoutScreen() {
     }, [item_ids]);
 
     const checkoutItems = useMemo(() => {
+        if (prescription) {
+            return [
+                {
+                    id: 999999,
+                    name: 'Obat Resep Digital #' + prescription.id,
+                    price: parseFloat(prescription.total_price),
+                    quantity: 1,
+                    subtotal: parseFloat(prescription.total_price),
+                    unit: 'Resep',
+                    image_url: null,
+                }
+            ];
+        }
         if (selectedItemIds) {
             return items.filter(item => selectedItemIds.includes(item.id));
         }
         return items;
-    }, [items, selectedItemIds]);
+    }, [items, selectedItemIds, prescription]);
 
     // Perhitungan Harga Dinamis berdasarkan item terpilih saja
     const subtotal = useMemo(() => {
+        if (prescription) {
+            return parseFloat(prescription.total_price);
+        }
         return checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    }, [checkoutItems]);
+    }, [checkoutItems, prescription]);
 
     const biayaLayanan = 2000;
     const ongkir = metode === 'antar' ? 10000 : 0;
@@ -127,11 +167,18 @@ export default function CheckoutScreen() {
 
         try {
             setLoading(true);
-            const res = await axiosClient.post('/api/orders', {
+            const payload: any = {
                 shipping_address: metode === 'antar' ? alamatLengkap : 'Ambil di Apotek',
                 notes: metode === 'jemput' ? `Jam Jemput: ${jamJemput}` : `Metode: ${selectedPayment.label}`,
-                item_ids: selectedItemIds || undefined, // Teruskan array ID item yang dicheckout
-            });
+            };
+
+            if (prescription_id) {
+                payload.prescription_id = parseInt(prescription_id);
+            } else {
+                payload.item_ids = selectedItemIds || undefined;
+            }
+
+            const res = await axiosClient.post('/api/orders', payload);
 
             if (res.data.status === 'success') {
                 console.log('Order created successfully:', res.data.data);
@@ -169,7 +216,19 @@ export default function CheckoutScreen() {
         }
     };
 
-    if (checkoutItems.length === 0) {
+    if (loadingPrescription) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <Stack.Screen options={{ headerShown: false }} />
+                <View style={styles.centered}>
+                    <ActivityIndicator size="large" color="#2E8B57" />
+                    <Text style={{ marginTop: 12, color: '#666', fontWeight: '500' }}>Memuat detail resep...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (!prescription_id && checkoutItems.length === 0) {
         return (
             <SafeAreaView style={styles.container}>
                 <Stack.Screen options={{ headerShown: false }} />

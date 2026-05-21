@@ -9,6 +9,7 @@ interface CartContextType {
   refreshCart: () => Promise<void>;
   addToCart: (medicine_id: number, quantity?: number) => Promise<void>;
   removeFromCart: (id: number) => Promise<void>;
+  removeMultipleFromCart: (ids: number[]) => Promise<void>;
   updateQty: (id: number, quantity: number) => Promise<void>;
   itemCount: number;
 }
@@ -69,6 +70,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const removeMultipleFromCart = async (ids: number[]) => {
+    try {
+      setLoading(true);
+      await Promise.all(ids.map(id => apiRemoveFromCart(id)));
+      await refreshCart();
+    } catch (e) {
+      console.error('Failed to remove multiple from cart', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateQty = async (id: number, quantity: number) => {
     if (quantity < 1) return;
     try {
@@ -89,6 +102,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       refreshCart, 
       addToCart, 
       removeFromCart, 
+      removeMultipleFromCart,
       updateQty,
       itemCount
     }}>

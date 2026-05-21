@@ -314,16 +314,19 @@ export default function HomeScreen() {
                 {/* Banners */}
                 <View style={styles.sectionPadding}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} snapToInterval={SCREEN_WIDTH - 40} decelerationRate="fast">
-                        <View style={[styles.promoBanner, { backgroundColor: '#81C784' }]}>
+                        <View style={[styles.promoBanner, { backgroundColor: '#4CAF50' }]}>
                             <View style={styles.bannerTextSide}>
-                                <Text style={styles.bannerTitle}>Gratis Ongkir</Text>
-                                <Text style={styles.bannerDesc}>Tanpa minimum belanja untuk pesanan pertama Anda!</Text>
-                                <TouchableOpacity style={styles.bannerBtn}>
-                                    <Text style={styles.bannerBtnText}>Klaim Sekarang</Text>
+                                <Text style={styles.bannerTitle}>Promo Apotek</Text>
+                                <Text style={styles.bannerDesc}>Diskon s/d 30% untuk Vitamin & Suplemen keluarga Anda!</Text>
+                                <TouchableOpacity 
+                                    style={styles.bannerBtn}
+                                    onPress={() => router.push('/(tabs)/katalog-obat' as any)}
+                                >
+                                    <Text style={[styles.bannerBtnText, { color: '#4CAF50' }]}>Belanja Sekarang</Text>
                                 </TouchableOpacity>
                             </View>
                             <Image 
-                                source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2969/2969131.png' }} 
+                                source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3004/3004458.png' }} 
                                 style={styles.bannerImage} 
                             />
                         </View>

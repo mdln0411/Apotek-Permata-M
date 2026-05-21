@@ -99,6 +99,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Prescription Routes
     Route::get('/prescriptions', [PrescriptionController::class, 'index']);
     Route::post('/prescriptions', [PrescriptionController::class, 'store']);
+    Route::get('/prescriptions/{id}', [PrescriptionController::class, 'show']);
     Route::put('/prescriptions/{id}/status', [PrescriptionController::class, 'updateStatus']);
 
     // Consultation Routes

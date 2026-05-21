@@ -273,13 +273,35 @@ class ApotekerWebController extends Controller
     public function updatePrescriptionStatus(Request $request, Prescription $prescription)
     {
         $request->validate([
-            'status' => 'required|in:pending,valid,rejected'
+            'status' => 'required|in:pending,valid,rejected',
+            'notes' => 'required|string',
+            'total_price' => 'required_if:status,valid|nullable|numeric|min:0'
         ]);
 
         $prescription->update([
             'status' => $request->status,
-            'notes' => $request->notes
+            'notes' => $request->notes,
+            'total_price' => $request->status === 'valid' ? $request->total_price : null
         ]);
+
+        // Send status update notification to the user
+        try {
+            $user = $prescription->user;
+            if ($user) {
+                $statusLabel = $request->status === 'valid' ? 'Diterima & Valid' : 'Ditolak';
+                $notifType = $request->status === 'valid' ? 'success' : 'error';
+                $notesText = $request->notes ? " (Catatan: {$request->notes})" : "";
+
+                $user->notify(new \App\Notifications\AppNotification(
+                    "Status Resep Diperbarui",
+                    "Resep Anda telah dinyatakan {$statusLabel} oleh Apoteker{$notesText}.",
+                    $notifType
+                ));
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to send prescription status notification: ' . $e->getMessage());
+        }
+
         return back()->with('success', 'Status resep berhasil diperbarui.');
     }
 
