@@ -475,7 +475,7 @@ export default function ManageMedicines() {
                                         </View>
                                     )}
                                 </View>
-                                <Text style={styles.medPrice}>Rp {item.price.toLocaleString('id-ID')} • <Text style={styles.medStock}>Stok: {item.stock}</Text></Text>
+                                <Text style={styles.medPrice}>Rp {Math.round(Number(item.price)).toLocaleString('id-ID')} • <Text style={styles.medStock}>Stok: {item.stock}</Text></Text>
                             </View>
 
                             <View style={styles.actionBtns}>

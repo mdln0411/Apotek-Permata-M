@@ -156,7 +156,7 @@ export default function DetailResepScreen() {
     }
 
     const statusInfo = getStatusInfo(prescription.status, !!prescription.order);
-    const imageUrl = `${Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000'}/storage/${prescription.image_url}`;
+    const imageUrl = prescription.image_url.startsWith('http') ? prescription.image_url : `${axiosClient.defaults.baseURL}/storage/${prescription.image_url}`;
 
     return (
         <SafeAreaView style={styles.container}>
@@ -222,7 +222,7 @@ export default function DetailResepScreen() {
                             <View style={styles.priceContainer}>
                                 <Text style={styles.priceLabel}>Estimasi Total Harga Obat:</Text>
                                 <Text style={styles.priceValue}>
-                                    Rp {parseFloat(prescription.total_price).toLocaleString('id-ID')}
+                                    Rp {Math.round(Number(parseFloat(prescription.total_price))).toLocaleString('id-ID')}
                                 </Text>
                             </View>
                         )}

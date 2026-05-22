@@ -335,11 +335,11 @@ class OrderController extends Controller
             ], 400);
         }
 
-        $order->update(['status' => 'diproses']);
+        $order->update(['status' => 'menunggu_konfirmasi']);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Pembayaran berhasil dikonfirmasi! Pesanan Anda sedang diproses oleh apoteker.',
+            'message' => 'Pembayaran Anda sedang diverifikasi oleh apoteker. Harap tunggu.',
             'data' => $order
         ]);
     }

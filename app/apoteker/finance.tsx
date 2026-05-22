@@ -62,24 +62,27 @@ export default function KeuanganApoteker() {
             let today = 0;
             const todayStr = new Date().toDateString();
 
-            allOrders.forEach((order: any) => {
-                if (order.status !== 'dibatalkan' && order.status !== 'cancelled') {
-                    const price = Number(order.total_amount || order.total_price || 0);
-                    total += price;
-                    items += order.items?.length || 0;
-                    
-                    if (new Date(order.created_at).toDateString() === todayStr) {
-                        today += price;
-                    }
+            const validOrders = allOrders.filter((o: any) => {
+                const s = (o.status || '').toLowerCase().trim();
+                return s === 'diproses' || s === 'dikirim' || s === 'selesai' || s === 'completed';
+            });
+
+            validOrders.forEach((order: any) => {
+                const price = Number(order.total_amount || order.total_price || 0);
+                total += price;
+                items += order.items?.length || 0;
+                
+                if (new Date(order.created_at).toDateString() === todayStr) {
+                    today += price;
                 }
             });
 
             setFinanceData({
                 totalRevenue: total,
-                totalOrders: allOrders.length,
+                totalOrders: validOrders.length,
                 totalItems: items,
                 todayRevenue: today,
-                recentOrders: allOrders.slice(0, 15)
+                recentOrders: validOrders.slice(0, 15)
             });
         } catch (error) {
             console.error('Error fetching finance data:', error);
@@ -125,7 +128,7 @@ export default function KeuanganApoteker() {
                         <Text style={styles.summaryLabel}>Pendapatan Hari Ini</Text>
                         <Text style={styles.summaryDate}>{new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</Text>
                     </View>
-                    <Text style={styles.summaryValue}>Rp {financeData.todayRevenue.toLocaleString('id-ID')}</Text>
+                    <Text style={styles.summaryValue}>Rp {Math.round(Number(Math.round(financeData.todayRevenue))).toLocaleString('id-ID')}</Text>
                     <View style={styles.dividerLight} />
                     <View style={styles.summaryFooter}>
                         <View style={styles.summarySubItem}>
@@ -161,7 +164,7 @@ export default function KeuanganApoteker() {
                                 </View>
                                 <View>
                                     <Text style={styles.statLabel}>Total Omset</Text>
-                                    <Text style={styles.statValue}>Rp {financeData.totalRevenue.toLocaleString('id-ID')}</Text>
+                                    <Text style={styles.statValue}>Rp {Math.round(Number(Math.round(financeData.totalRevenue))).toLocaleString('id-ID')}</Text>
                                 </View>
                             </View>
                         </View>
@@ -189,7 +192,7 @@ export default function KeuanganApoteker() {
                                         <View style={styles.txContent}>
                                             <View style={styles.txRow}>
                                                 <Text style={styles.txId}>ORD-{order.id}</Text>
-                                                <Text style={styles.txAmount}>Rp {Number(order.total_amount || order.total_price || 0).toLocaleString('id-ID')}</Text>
+                                                <Text style={styles.txAmount}>Rp {Math.round(Number(order.total_amount || order.total_price || 0)).toLocaleString('id-ID')}</Text>
                                             </View>
                                             <View style={styles.txRow}>
                                                 <Text style={styles.txDate}>{new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} • {order.user?.name || 'Customer'}</Text>

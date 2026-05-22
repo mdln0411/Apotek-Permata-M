@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import axiosClient from '@/api/axiosClient';
 import QRCode from 'react-native-qrcode-svg';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 
 const THEME = {
   primary: '#2E8B57', // Sea Green
@@ -39,11 +41,13 @@ export default function QRISPaymentScreen() {
     totalPrice: string;
   }>();
 
-  const priceNum = Number(totalPrice || 0);
+  const priceNum = Math.round(Number(totalPrice || 0));
 
   // Timer: 15 minutes (900 seconds)
   const [timeLeft, setTimeLeft] = useState(900);
   const [verifying, setVerifying] = useState(false);
+  const qrRef = useRef<any>(null);
+  const [permissionResponse, requestPermission] = MediaLibrary.usePermissions();
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -64,7 +68,7 @@ export default function QRISPaymentScreen() {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0,
-    }).format(price);
+    }).format(Math.round(price));
   };
 
   const handleCopyOrderNumber = () => {
@@ -72,12 +76,34 @@ export default function QRISPaymentScreen() {
     Alert.alert('Salin', 'Nomor pesanan berhasil disalin ke clipboard.');
   };
 
-  const handleSaveQR = () => {
+  const handleSaveQR = async () => {
+    if (permissionResponse?.status !== 'granted') {
+      const { status } = await requestPermission();
+      if (status !== 'granted') {
+        Alert.alert('Izin Ditolak', 'Dibutuhkan izin galeri untuk menyimpan QR Code.');
+        return;
+      }
+    }
+
+    if (!qrRef.current) return;
+
     setVerifying(true);
-    setTimeout(() => {
-      setVerifying(false);
-      Alert.alert('Sukses', 'QR Code berhasil disimpan ke galeri ponsel Anda.');
-    }, 1000);
+    qrRef.current.toDataURL(async (dataURL: string) => {
+      try {
+        const filePath = FileSystem.cacheDirectory + `QR_${orderNumber}.jpg`;
+        await FileSystem.writeAsStringAsync(filePath, dataURL, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        await MediaLibrary.saveToLibraryAsync(filePath);
+        Alert.alert('Sukses', 'QR Code berhasil disimpan ke galeri ponsel Anda.');
+      } catch (error) {
+        console.error('Gagal menyimpan QR:', error);
+        Alert.alert('Error', 'Gagal menyimpan QR Code ke galeri.');
+      } finally {
+        setVerifying(false);
+      }
+    });
   };
 
   const handleVerifyPayment = async () => {
@@ -193,6 +219,7 @@ export default function QRISPaymentScreen() {
           {/* QR Container */}
           <View style={styles.qrCodeWrapper}>
             <QRCode
+              getRef={qrRef}
               value={qrData}
               size={180}
               backgroundColor="white"
@@ -268,14 +295,6 @@ export default function QRISPaymentScreen() {
           >
             <Feather name="download" size={16} color={THEME.primary} style={{marginRight: 6}} />
             <Text style={styles.saveQrBtnText}>Simpan QR Code ke Galeri</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.cancelBtn} 
-            onPress={handleCancelPayment}
-            disabled={verifying}
-          >
-            <Text style={styles.cancelBtnText}>Bayar Nanti (Pending)</Text>
           </TouchableOpacity>
         </View>
 

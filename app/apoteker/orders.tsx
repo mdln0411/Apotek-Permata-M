@@ -79,7 +79,7 @@ export default function PesananMasuk() {
         const status = (o.status || 'pending').toLowerCase().trim();
         
         if (activeTab === 'menunggu') {
-            return status === 'pending' || status === 'menunggu';
+            return status === 'pending' || status === 'menunggu' || status === 'menunggu_konfirmasi';
         }
         if (activeTab === 'diproses') {
             return status === 'diproses' || status === 'processing';
@@ -124,7 +124,7 @@ export default function PesananMasuk() {
     const getCounts = (id: string) => {
         return orders.filter(o => {
             const status = (o.status || 'pending').toLowerCase().trim();
-            if (id === 'menunggu') return status === 'pending' || status === 'menunggu';
+            if (id === 'menunggu') return status === 'pending' || status === 'menunggu' || status === 'menunggu_konfirmasi';
             if (id === 'diproses') return status === 'diproses' || status === 'processing';
             if (id === 'dilaporkan') return status === 'dilaporkan' || status === 'reported' || isCancelledByUser(o);
             return false;
@@ -202,15 +202,19 @@ export default function PesananMasuk() {
                                 <View style={styles.headerInfo}>
                                     <View style={[styles.statusBadge, 
                                         item.status === 'pending' || item.status === 'menunggu' ? { backgroundColor: '#FFF3E0' } :
+                                        item.status === 'menunggu_konfirmasi' ? { backgroundColor: '#FFF3E0' } :
                                         item.status === 'dilaporkan' ? { backgroundColor: '#FFEBEE' } : 
                                         item.status === 'dibatalkan' ? { backgroundColor: '#ECEFF1' } : { backgroundColor: '#E8F5E9' }
                                     ]}>
                                         <Text style={[styles.statusLabel, 
                                             item.status === 'pending' || item.status === 'menunggu' ? { color: '#E65100' } :
+                                            item.status === 'menunggu_konfirmasi' ? { color: '#E65100' } :
                                             item.status === 'dilaporkan' ? { color: THEME.danger } : 
                                             item.status === 'dibatalkan' ? { color: '#455A64' } : { color: THEME.primary }
                                         ]}>
-                                            {item.status === 'dibatalkan' ? 'DIBATALKAN PASIEN' : (item.status || 'Baru').toUpperCase()}
+                                            {item.status === 'dibatalkan' ? 'DIBATALKAN PASIEN' : 
+                                             item.status === 'menunggu_konfirmasi' ? 'PERLU VERIFIKASI' : 
+                                             (item.status || 'Baru').toUpperCase()}
                                         </Text>
                                     </View>
                                     <Text style={styles.orderNumber}>ORD-{item.id}{new Date(item.created_at).getTime().toString().slice(-4)}</Text>
@@ -232,7 +236,7 @@ export default function PesananMasuk() {
                                 </View>
                                 <View style={styles.infoRow}>
                                     <Text style={styles.infoLabel}>Total Pembayaran</Text>
-                                    <Text style={[styles.infoValue, { color: THEME.primary, fontSize: 16 }]}>Rp {Number(item.total_amount || item.total_price || 0).toLocaleString('id-ID')}</Text>
+                                    <Text style={[styles.infoValue, { color: THEME.primary, fontSize: 16 }]}>Rp {Math.round(Number(item.total_amount || item.total_price || 0)).toLocaleString('id-ID')}</Text>
                                 </View>
 
                                 {activeTab === 'dilaporkan' && (item.notes || item.reason) && (
@@ -248,13 +252,18 @@ export default function PesananMasuk() {
                             </View>
 
                             <View style={styles.cardActions}>
-                                {activeTab === 'menunggu' && (
+                                {activeTab === 'menunggu' && item.status === 'menunggu_konfirmasi' && (
                                     <TouchableOpacity 
                                         style={styles.btnTerima}
                                         onPress={() => handleUpdateStatus(item.id, 'diproses')}
                                     >
-                                        <Text style={styles.btnTerimaText}>Terima Pesanan</Text>
+                                        <Text style={styles.btnTerimaText}>Verifikasi Pembayaran</Text>
                                     </TouchableOpacity>
+                                )}
+                                {activeTab === 'menunggu' && item.status !== 'menunggu_konfirmasi' && (
+                                    <View style={[styles.btnTerima, { backgroundColor: '#E0E0E0', elevation: 0 }]}>
+                                        <Text style={[styles.btnTerimaText, { color: '#757575' }]}>Menunggu Pasien Membayar</Text>
+                                    </View>
                                 )}
                                 {activeTab === 'diproses' && (
                                     <TouchableOpacity 
@@ -262,14 +271,6 @@ export default function PesananMasuk() {
                                         onPress={() => handleUpdateStatus(item.id, 'dikirim')}
                                     >
                                         <Text style={styles.btnTerimaText}>Kirim Sekarang</Text>
-                                    </TouchableOpacity>
-                                )}
-                                {activeTab === 'dikirim' && (
-                                    <TouchableOpacity 
-                                        style={styles.btnTerima}
-                                        onPress={() => handleUpdateStatus(item.id, 'selesai')}
-                                    >
-                                        <Text style={styles.btnTerimaText}>Selesaikan</Text>
                                     </TouchableOpacity>
                                 )}
                                 {activeTab === 'dilaporkan' && (

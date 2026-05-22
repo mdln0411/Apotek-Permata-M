@@ -107,12 +107,12 @@ export default function ManageTransactions() {
                                     {selectedOrder.items?.map((item: any, index: number) => (
                                         <View key={index} style={styles.itemRow}>
                                             <Text style={styles.itemName}>{item.name} x {item.quantity}</Text>
-                                            <Text style={styles.itemPrice}>Rp {item.subtotal.toLocaleString('id-ID')}</Text>
+                                            <Text style={styles.itemPrice}>Rp {Math.round(Number(item.subtotal)).toLocaleString('id-ID')}</Text>
                                         </View>
                                     ))}
                                     <View style={styles.totalRow}>
                                         <Text style={styles.totalLabel}>Total Pembayaran</Text>
-                                        <Text style={styles.totalValue}>Rp {selectedOrder.total_price.toLocaleString('id-ID')}</Text>
+                                        <Text style={styles.totalValue}>Rp {Math.round(Number(selectedOrder.total_price)).toLocaleString('id-ID')}</Text>
                                     </View>
                                 </View>
 
@@ -214,7 +214,7 @@ export default function ManageTransactions() {
                                 
                                 <View style={styles.cardFooter}>
                                     <Text style={styles.itemDetail}>{item.items?.length || 0} Item • {item.notes || 'Reguler'}</Text>
-                                    <Text style={styles.totalAmount}>Rp {item.total_price.toLocaleString('id-ID')}</Text>
+                                    <Text style={styles.totalAmount}>Rp {Math.round(Number(item.total_price)).toLocaleString('id-ID')}</Text>
                                 </View>
                             </TouchableOpacity>
                         );

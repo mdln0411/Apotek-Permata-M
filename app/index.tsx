@@ -63,7 +63,7 @@ const FEATURED_PRODUCTS: Product[] = [
 
 // ── Helper format harga ────────────────────────────────────────────────────
 const formatRupiah = (amount: number): string =>
-  `Rp ${amount.toLocaleString('id-ID')}`;
+  `Rp ${Math.round(Number(amount)).toLocaleString('id-ID')}`;
 
 // ── Komponen kartu produk ──────────────────────────────────────────────────
 const ProductCard: React.FC<{ item: Product }> = ({ item }) => (

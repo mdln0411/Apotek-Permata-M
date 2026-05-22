@@ -65,6 +65,7 @@ export default function CheckoutScreen() {
     const [metode, setMetode] = useState<'antar' | 'jemput'>('antar');
     const [jamJemput, setJamJemput] = useState('');
     const [alamatLengkap, setAlamatLengkap] = useState(user?.address || '');
+    const [isDistanceChecked, setIsDistanceChecked] = useState(false);
     const [loading, setLoading] = useState(false);
 
     // State untuk Resep Digital
@@ -81,6 +82,19 @@ export default function CheckoutScreen() {
         { id: '3', label: 'Bank Transfer', icon: 'home-outline', type: 'ionicon' },
         { id: '4', label: 'Bayar di Apotek (COD)', icon: 'cash-outline', type: 'ionicon' },
     ];
+
+    const availablePayments = useMemo(() => {
+        if (metode === 'antar') {
+            return paymentOptions.filter(p => p.id !== '4');
+        }
+        return paymentOptions;
+    }, [metode]);
+
+    useEffect(() => {
+        if (metode === 'antar' && selectedPayment?.id === '4') {
+            setSelectedPayment(null);
+        }
+    }, [metode, selectedPayment]);
 
     useEffect(() => {
         if (prescription_id) {
@@ -142,18 +156,22 @@ export default function CheckoutScreen() {
     // Perhitungan Harga Dinamis berdasarkan item terpilih saja
     const subtotal = useMemo(() => {
         if (prescription) {
-            return parseFloat(prescription.total_price);
+            return Number(prescription.total_price || 0);
         }
-        return checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        return checkoutItems.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
     }, [checkoutItems, prescription]);
 
     const biayaLayanan = 2000;
     const ongkir = metode === 'antar' ? 10000 : 0;
-    const total = subtotal + biayaLayanan + ongkir;
+    const total = Number(subtotal) + Number(biayaLayanan) + Number(ongkir);
 
     const handleBayar = async () => {
         if (metode === 'antar' && !alamatLengkap) {
             Alert.alert('Error', 'Silakan masukkan alamat pengantaran');
+            return;
+        }
+        if (metode === 'antar' && !isDistanceChecked) {
+            Alert.alert('Perhatian', 'Anda harus menyetujui pernyataan jarak maksimal pengantaran.');
             return;
         }
         if (metode === 'jemput' && !jamJemput) {
@@ -320,6 +338,18 @@ export default function CheckoutScreen() {
                                     multiline
                                 />
                             </View>
+                            
+                            <TouchableOpacity 
+                                style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 15, gap: 10 }}
+                                onPress={() => setIsDistanceChecked(!isDistanceChecked)}
+                            >
+                                <View style={{ width: 20, height: 20, borderWidth: 2, borderColor: '#2E8B57', borderRadius: 4, justifyContent: 'center', alignItems: 'center', marginTop: 2 }}>
+                                    {isDistanceChecked && <Feather name="check" size={14} color="#2E8B57" />}
+                                </View>
+                                <Text style={{ flex: 1, fontSize: 12, color: '#555', lineHeight: 18 }}>
+                                    Saya menyatakan bahwa alamat tujuan maksimal berjarak <Text style={{ fontWeight: 'bold' }}>3 km</Text> dari Apotek. Jika melebihi jarak, pesanan dapat dibatalkan atau dikenakan biaya tambahan via Chat.
+                                </Text>
+                            </TouchableOpacity>
                         </View>
                     ) : (
                         <View style={styles.pickupCard}>
@@ -352,7 +382,7 @@ export default function CheckoutScreen() {
                                 <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
                                 <Text style={styles.itemPrice}>{item.price_formatted} x {item.quantity}</Text>
                             </View>
-                            <Text style={styles.itemSubtotal}>Rp {item.subtotal.toLocaleString('id-ID')}</Text>
+                            <Text style={styles.itemSubtotal}>Rp {Math.round(Number(Math.round(item.subtotal))).toLocaleString('id-ID')}</Text>
                         </View>
                     ))}
                 </View>
@@ -401,22 +431,22 @@ export default function CheckoutScreen() {
                 <View style={styles.priceSection}>
                     <View style={styles.priceRow}>
                         <Text style={styles.priceLabel}>Subtotal</Text>
-                        <Text style={styles.priceValue}>Rp {subtotal.toLocaleString('id-ID')}</Text>
+                        <Text style={styles.priceValue}>Rp {Math.round(Number(Math.round(subtotal))).toLocaleString('id-ID')}</Text>
                     </View>
                     <View style={styles.priceRow}>
                         <Text style={styles.priceLabel}>Biaya Layanan</Text>
-                        <Text style={styles.priceValue}>Rp {biayaLayanan.toLocaleString('id-ID')}</Text>
+                        <Text style={styles.priceValue}>Rp {Math.round(Number(Math.round(biayaLayanan))).toLocaleString('id-ID')}</Text>
                     </View>
                     {metode === 'antar' && (
                         <View style={styles.priceRow}>
                             <Text style={styles.priceLabel}>Ongkos Kirim</Text>
-                            <Text style={styles.priceValue}>Rp {ongkir.toLocaleString('id-ID')}</Text>
+                            <Text style={styles.priceValue}>Rp {Math.round(Number(Math.round(ongkir))).toLocaleString('id-ID')}</Text>
                         </View>
                     )}
                     <View style={styles.divider} />
                     <View style={styles.totalRow}>
                         <Text style={styles.totalLabel}>Total Pembayaran</Text>
-                        <Text style={styles.totalValue}>Rp {total.toLocaleString('id-ID')}</Text>
+                        <Text style={styles.totalValue}>Rp {Math.round(Number(Math.round(total))).toLocaleString('id-ID')}</Text>
                     </View>
                 </View>
 
@@ -426,7 +456,7 @@ export default function CheckoutScreen() {
             <View style={styles.footer}>
                 <View style={styles.totalInfo}>
                     <Text style={styles.totalFooterLabel}>Total</Text>
-                    <Text style={styles.totalFooterValue}>Rp {total.toLocaleString('id-ID')}</Text>
+                    <Text style={styles.totalFooterValue}>Rp {Math.round(Number(Math.round(total))).toLocaleString('id-ID')}</Text>
                 </View>
                 <TouchableOpacity
                     style={[styles.btnPay, (!selectedPayment || loading) && { backgroundColor: '#CCC' }]}
@@ -449,7 +479,7 @@ export default function CheckoutScreen() {
                             <Text style={styles.modalTitle}>Pilih Metode Pembayaran</Text>
                             <TouchableOpacity onPress={() => setShowPaymentModal(false)}><Feather name="x" size={24} color="#333" /></TouchableOpacity>
                         </View>
-                        {paymentOptions.map((option) => (
+                        {availablePayments.map((option) => (
                             <TouchableOpacity key={option.id} style={styles.paymentOption} onPress={() => handleSelectPayment(option)}>
                                 <View style={styles.optionIconBg}><Ionicons name={option.icon as any} size={24} color="#2E8B57" /></View>
                                 <Text style={styles.optionLabel}>{option.label}</Text>

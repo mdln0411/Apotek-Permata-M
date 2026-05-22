@@ -129,7 +129,7 @@ export default function AdminReports() {
                             <View style={styles.summaryGrid}>
                                 <View style={styles.summaryCard}>
                                     <Text style={styles.summaryLabel}>Total Pendapatan</Text>
-                                    <Text style={styles.summaryValue}>Rp {stats.totalRevenue.toLocaleString('id-ID')}</Text>
+                                    <Text style={styles.summaryValue}>Rp {Math.round(Number(stats.totalRevenue)).toLocaleString('id-ID')}</Text>
                                 </View>
                                 <View style={styles.summaryCard}>
                                     <Text style={styles.summaryLabel}>Total Pesanan</Text>
@@ -162,7 +162,7 @@ export default function AdminReports() {
                                         <Text style={styles.orderDate}>{new Date(order.created_at).toLocaleDateString('id-ID')}</Text>
                                     </View>
                                     <View style={styles.orderRight}>
-                                        <Text style={styles.orderAmount}>Rp {order.total_price.toLocaleString('id-ID')}</Text>
+                                        <Text style={styles.orderAmount}>Rp {Math.round(Number(order.total_price)).toLocaleString('id-ID')}</Text>
                                         <View style={[styles.statusBadge, { backgroundColor: order.status === 'selesai' ? '#E8F5E9' : '#FFF3E0' }]}>
                                             <Text style={[styles.statusText, { color: order.status === 'selesai' ? '#2E8B57' : '#F57C00' }]}>{order.status.toUpperCase()}</Text>
                                         </View>

@@ -373,7 +373,7 @@ export default function ValidasiResep() {
                           ]}
                         >
                           Rp{" "}
-                          {parseFloat(item.total_price).toLocaleString("id-ID")}
+                          {Math.round(Number(parseFloat(item.total_price))).toLocaleString("id-ID")}
                         </Text>
                       </>
                     )}

@@ -31,6 +31,11 @@ Route::get('/health', function () {
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 
+// Password Reset Routes
+Route::post('/auth/forgot-password', [\App\Http\Controllers\Api\PasswordResetController::class, 'sendOtp']);
+Route::post('/auth/verify-otp', [\App\Http\Controllers\Api\PasswordResetController::class, 'verifyOtp']);
+Route::post('/auth/reset-password', [\App\Http\Controllers\Api\PasswordResetController::class, 'resetPassword']);
+
 // --- Medicines Routes (Public & Admin) ---
 Route::prefix('medicines')->group(function () {
     Route::get('/categories', [MedicineController::class, 'categories']);

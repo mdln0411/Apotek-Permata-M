@@ -49,7 +49,7 @@ export default function ApotekerDashboard() {
             const medRes = await axiosClient.get('/api/medicines?per_page=500');
             const consultRes = await axiosClient.get('/api/consultations');
 
-            const pending = (orderRes.data.data || []).filter((o: any) => o.status === 'pending' || o.status === 'menunggu').length;
+            const pending = (orderRes.data.data || []).filter((o: any) => o.status === 'pending' || o.status === 'menunggu' || o.status === 'menunggu_konfirmasi').length;
             const low = (medRes.data.data || []).filter((m: any) => m.stock < 10).length;
             const consultations = (consultRes.data.data || []).filter((c: any) => c.status === 'active').length;
 

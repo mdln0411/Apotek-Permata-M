@@ -55,7 +55,7 @@ class PrescriptionController extends Controller
 
         $prescription = Prescription::create([
             'user_id' => $request->user()->id,
-            'image_url' => $path,
+            'image_url' => url(\Storage::url($path)),
             'status' => 'pending'
         ]);
 

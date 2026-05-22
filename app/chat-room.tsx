@@ -177,7 +177,7 @@ export default function ChatRoom() {
                 <View style={[styles.msgBubble, isMine ? styles.myBubble : styles.theirBubble]}>
                     {item.image_url && (
                         <Image 
-                            source={{ uri: item.image_url }} 
+                            source={{ uri: item.image_url.startsWith('http') ? item.image_url : `${axiosClient.defaults.baseURL}/storage/${item.image_url}` }} 
                             style={styles.msgImage} 
                             resizeMode="cover"
                         />

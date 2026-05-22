@@ -371,7 +371,10 @@ export default function HomeScreen() {
                             style={styles.categoryItem}
                             onPress={() => {
                                 if (cat.name === 'Lainnya') {
-                                    router.push('/(tabs)/katalog-obat' as any);
+                                    router.push({
+                                        pathname: '/(tabs)/katalog-obat',
+                                        params: { openFilter: 'true' }
+                                    } as any);
                                 } else {
                                     router.push({
                                         pathname: '/(tabs)/katalog-obat',

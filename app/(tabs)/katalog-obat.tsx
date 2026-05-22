@@ -123,11 +123,37 @@ export default function KatalogObatScreen() {
             setTempCategory('Semua');
         }
     }, [search, category]);
+
+    const { openFilter } = useLocalSearchParams<{ openFilter?: string }>();
+    useEffect(() => {
+        if (openFilter === 'true') {
+            setFilterModalVisible(true);
+        }
+    }, [openFilter]);
     const [refreshing, setRefreshing] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [totalData, setTotalData] = useState(0);
+
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    const fetchUnreadNotificationCount = async () => {
+        if (!user) return;
+        try {
+            const res = await axiosClient.get('/api/notifications');
+            if (res.data.status === 'success') {
+                const unread = res.data.data.filter((n: any) => n.is_read === 0 || n.is_read === false).length;
+                setUnreadCount(unread);
+            }
+        } catch (e) {
+            console.error('Failed to fetch unread notifications count:', e);
+        }
+    };
+
+    useEffect(() => {
+        fetchUnreadNotificationCount();
+    }, [user]);
 
     // Modal state
     const [modalVisible, setModalVisible] = useState(false);
@@ -355,9 +381,9 @@ export default function KatalogObatScreen() {
                         }}
                     >
                         <Ionicons name="notifications-outline" size={24} color="#FFF" />
-                        {user && (
+                        {user && unreadCount > 0 && (
                             <View style={styles.badgeCount}>
-                                <Text style={styles.badgeCountText}>3</Text>
+                                <Text style={styles.badgeCountText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
                             </View>
                         )}
                     </TouchableOpacity>

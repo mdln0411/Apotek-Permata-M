@@ -119,12 +119,10 @@ export default function KeranjangScreen() {
         );
     }
 
-    // Perhitungan dinamis berdasarkan item yang dicentang (checked) saja
     const selectedItems = items.filter(item => selectedIds.includes(item.id));
     const selectedTotalPrice = selectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const ongkir = selectedItems.length > 0 ? 10000 : 0;
-    const diskon = selectedTotalPrice > 50000 ? 5000 : 0;
-    const total = selectedTotalPrice + ongkir - diskon;
+    const total = selectedTotalPrice + ongkir;
 
     const allSelected = items.length > 0 && selectedIds.length === items.length;
     const handleSelectAll = () => {
@@ -253,22 +251,18 @@ export default function KeranjangScreen() {
                 <View style={styles.paymentCard}>
                     <View style={styles.paymentRow}>
                         <Text style={styles.paymentLabel}>Subtotal ({selectedItems.length} terpilih)</Text>
-                        <Text style={styles.paymentValue}>Rp {selectedTotalPrice.toLocaleString('id-ID')}</Text>
+                        <Text style={styles.paymentValue}>Rp {Math.round(Number(selectedTotalPrice)).toLocaleString('id-ID')}</Text>
                     </View>
                     <View style={styles.paymentRow}>
                         <Text style={styles.paymentLabel}>Ongkos Kirim</Text>
-                        <Text style={styles.paymentValue}>Rp {ongkir.toLocaleString('id-ID')}</Text>
-                    </View>
-                    <View style={styles.paymentRow}>
-                        <Text style={styles.paymentLabel}>Diskon</Text>
-                        <Text style={[styles.paymentValue, { color: '#2E8B57' }]}>- Rp {diskon.toLocaleString('id-ID')}</Text>
+                        <Text style={styles.paymentValue}>Rp {Math.round(Number(ongkir)).toLocaleString('id-ID')}</Text>
                     </View>
 
                     <View style={styles.divider} />
 
                     <View style={styles.totalRow}>
                         <Text style={styles.totalLabel}>Total Pembayaran</Text>
-                        <Text style={styles.totalValue}>Rp {total.toLocaleString('id-ID')}</Text>
+                        <Text style={styles.totalValue}>Rp {Math.round(Number(total)).toLocaleString('id-ID')}</Text>
                     </View>
                 </View>
 

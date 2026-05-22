@@ -514,9 +514,9 @@ export default function DetailPesananScreen() {
                             </View>
                             <View style={styles.itemMain}>
                                 <Text style={styles.itemName}>{item.name}</Text>
-                                <Text style={styles.itemQty}>{item.quantity} x Rp {item.price.toLocaleString('id-ID')}</Text>
+                                <Text style={styles.itemQty}>{item.quantity} x Rp {Math.round(Number(item.price)).toLocaleString('id-ID')}</Text>
                             </View>
-                            <Text style={styles.itemTotal}>Rp {item.subtotal.toLocaleString('id-ID')}</Text>
+                            <Text style={styles.itemTotal}>Rp {Math.round(Number(item.subtotal)).toLocaleString('id-ID')}</Text>
                         </View>
                     ))}
                 </View>
@@ -529,7 +529,7 @@ export default function DetailPesananScreen() {
                     </View>
                     <View style={styles.paymentRow}>
                         <Text style={styles.paymentLabel}>Subtotal Produk</Text>
-                        <Text style={styles.paymentValue}>Rp {o.total_price.toLocaleString('id-ID')}</Text>
+                        <Text style={styles.paymentValue}>Rp {Math.round(Number(o.total_price)).toLocaleString('id-ID')}</Text>
                     </View>
                     {/* Statis karena dari API kita hanya simpan total_price saat ini */}
                     <View style={styles.paymentRow}>
@@ -539,7 +539,7 @@ export default function DetailPesananScreen() {
                     <View style={styles.divider} />
                     <View style={styles.totalRow}>
                         <Text style={styles.totalLabel}>Total Bayar</Text>
-                        <Text style={styles.totalValue}>Rp {(o.total_price + 2000).toLocaleString('id-ID')}</Text>
+                        <Text style={styles.totalValue}>Rp {Math.round(Number(o.total_price) + 2000).toLocaleString('id-ID')}</Text>
                     </View>
 
                 </View>

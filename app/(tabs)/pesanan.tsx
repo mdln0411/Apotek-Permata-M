@@ -236,7 +236,7 @@ export default function PesananScreen() {
                                             <Text style={styles.dateText}>{formatDate(order.created_at)}</Text>
                                             <Text style={styles.addressText} numberOfLines={1}>{order.shipping_address}</Text>
                                             <View style={styles.priceRow}>
-                                                <Text style={styles.totalPrice}>Rp {order.total_price.toLocaleString('id-ID')}</Text>
+                                                <Text style={styles.totalPrice}>Rp {Math.round(Number(order.total_price)).toLocaleString('id-ID')}</Text>
                                                 {order.items && order.items.length > 1 && (
                                                     <Text style={styles.itemCountText}>+{order.items.length - 1} produk lainnya</Text>
                                                 )}
@@ -288,7 +288,7 @@ export default function PesananScreen() {
                                         <View style={styles.imageBox}>
                                             {prescription.image_url ? (
                                                 <Image 
-                                                    source={{ uri: `${Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000'}/storage/${prescription.image_url}` }} 
+                                                    source={{ uri: prescription.image_url.startsWith('http') ? prescription.image_url : `${axiosClient.defaults.baseURL}/storage/${prescription.image_url}` }} 
                                                     style={styles.medicinePreview}
                                                     resizeMode="cover"
                                                 />
