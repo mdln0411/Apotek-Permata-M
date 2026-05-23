@@ -52,7 +52,7 @@ export default function PesananScreen() {
 
     const filteredOrders = orders.filter(order => {
         if (subTab === 'semua') return true;
-        if (subTab === 'pending') return order.status === 'pending';
+        if (subTab === 'pending') return order.status !== 'selesai' && order.status !== 'dibatalkan' && order.status !== 'dilaporkan';
         if (subTab === 'selesai') return order.status === 'selesai';
         if (subTab === 'dibatalkan') return order.status === 'dibatalkan';
         return true;
@@ -117,12 +117,18 @@ export default function PesananScreen() {
                 return { bg: '#E8F5E9', text: '#2E8B57' };
             case 'pending':
             case 'menunggu':
+            case 'menunggu_pembayaran':
+            case 'menunggu_konfirmasi':
                 return { bg: '#FFF3E0', text: '#F57C00' };
             case 'processing':
             case 'diproses':
+            case 'perlu_diproses':
+            case 'sedang_diproses':
+            case 'dikirim':
                 return { bg: '#E3F2FD', text: '#1976D2' };
             case 'rejected':
             case 'ditolak':
+            case 'dibatalkan':
                 return { bg: '#FFEBEE', text: '#D32F2F' };
             default:
                 return { bg: '#F5F5F5', text: '#666' };
@@ -162,7 +168,7 @@ export default function PesananScreen() {
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabScrollContent}>
                         {(['semua', 'pending', 'selesai', 'dibatalkan'] as const).map((tabKey) => {
                             const label = tabKey === 'semua' ? 'Semua' 
-                                        : tabKey === 'pending' ? 'Pending'
+                                        : tabKey === 'pending' ? 'Dalam Proses'
                                         : tabKey === 'selesai' ? 'Selesai'
                                         : 'Dibatalkan';
                             const isActive = subTab === tabKey;
@@ -216,7 +222,14 @@ export default function PesananScreen() {
                                             <Text style={styles.orderNumText}>{order.order_number}</Text>
                                         </View>
                                         <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-                                            <Text style={[styles.statusText, { color: statusStyle.text }]}>{order.status.toUpperCase()}</Text>
+                                            <Text style={[styles.statusText, { color: statusStyle.text }]}>
+                                                {order.status === 'menunggu_pembayaran' ? 'BELUM BAYAR' : 
+                                                 order.status === 'menunggu_konfirmasi' ? 'MENUNGGU KONFIRMASI' :
+                                                 order.status === 'perlu_diproses' ? 'PERLU DIPROSES' :
+                                                 order.status === 'sedang_diproses' ? 'DIPROSES' :
+                                                 order.status === 'dikirim' ? 'DIKIRIM' :
+                                                 order.status.replace('_', ' ').toUpperCase()}
+                                            </Text>
                                         </View>
                                     </View>
 
@@ -236,7 +249,7 @@ export default function PesananScreen() {
                                             <Text style={styles.dateText}>{formatDate(order.created_at)}</Text>
                                             <Text style={styles.addressText} numberOfLines={1}>{order.shipping_address}</Text>
                                             <View style={styles.priceRow}>
-                                                <Text style={styles.totalPrice}>Rp {Math.round(Number(order.total_price)).toLocaleString('id-ID')}</Text>
+                                                <Text style={styles.totalPrice}>Rp {Math.round(Number(order.total_price) + 2000 + ((order.shipping_address && order.shipping_address !== 'Ambil di Apotek') ? 10000 : 0)).toLocaleString('id-ID')}</Text>
                                                 {order.items && order.items.length > 1 && (
                                                     <Text style={styles.itemCountText}>+{order.items.length - 1} produk lainnya</Text>
                                                 )}

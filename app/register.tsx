@@ -78,8 +78,11 @@ export default function RegisterScreen() {
 
         if (field === 'password') {
             setPassword(value);
+            const hasLetter = /[a-zA-Z]/.test(value);
+            const hasNumber = /[0-9]/.test(value);
             if (!value) newErrors.password = 'Password wajib diisi.';
             else if (value.length < 8) newErrors.password = 'Password minimal 8 karakter.';
+            else if (!hasLetter || !hasNumber) newErrors.password = 'Password harus mengandung huruf dan angka.';
             else newErrors.password = '';
 
             // Check match if confirm is already typed
@@ -110,6 +113,7 @@ export default function RegisterScreen() {
         
         if (!password) { newErrors.password = 'Password wajib diisi.'; isValid = false; }
         else if (password.length < 8) { newErrors.password = 'Password minimal 8 karakter.'; isValid = false; }
+        else if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) { newErrors.password = 'Password harus mengandung huruf dan angka.'; isValid = false; }
         
         if (!confirmPassword) { newErrors.confirmPassword = 'Harap konfirmasi password.'; isValid = false; }
         else if (confirmPassword !== password) { newErrors.confirmPassword = 'Konfirmasi password tidak sama.'; isValid = false; }

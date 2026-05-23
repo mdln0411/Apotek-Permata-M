@@ -61,4 +61,19 @@ class AllergyController extends Controller
             'message' => 'Alergi berhasil dihapus.'
         ]);
     }
+
+    /**
+     * Get allergies for a specific user (used by pharmacist UI).
+     */
+    public function byUser(Request $request)
+    {
+        $userId = $request->query('user_id');
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'user_id required'], 400);
+        }
+        $allergies = Allergy::where('user_id', $userId)->latest()->get();
+        return response()->json(['success' => true, 'data' => $allergies]);
+    }
+
+    // End of controller class
 }

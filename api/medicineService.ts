@@ -63,3 +63,29 @@ export const getMedicineCategories = async (): Promise<{ status: string; data: s
   const response = await axiosClient.get('/api/medicines/categories');
   return response.data;
 };
+
+/** Ambil daftar nama obat unik untuk simulasi */
+export const getSimulationMedicines = async (): Promise<{ status: string; data: string[] }> => {
+  const response = await axiosClient.get('/api/simulasi-obat/list');
+  return response.data;
+};
+
+/** Tipe data hasil cek interaksi obat */
+export interface SimulationCheckResult {
+  status: string;
+  found: boolean;
+  data: {
+    obat1: string;
+    obat2: string;
+    simulasi: string;
+  };
+}
+
+/** Cek interaksi antara dua obat */
+export const checkSimulationInteraction = async (obat1: string, obat2: string): Promise<SimulationCheckResult> => {
+  const response = await axiosClient.get('/api/simulasi-obat/check', {
+    params: { obat1, obat2 }
+  });
+  return response.data;
+};
+

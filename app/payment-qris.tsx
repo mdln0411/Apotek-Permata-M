@@ -113,16 +113,12 @@ export default function QRISPaymentScreen() {
       // Kirim request ke backend untuk mengubah status pesanan ke 'diproses' secara nyata di database!
       await axiosClient.post(`/api/orders/${orderId}/pay`);
       
-      // Redirect to success-action screen
+      // Redirect to Cek Pembayaran screen
       router.replace({
-        pathname: '/success-action',
+        pathname: '/cek-pembayaran',
         params: {
-          title: 'Pembayaran Sukses!',
-          message: `Terima kasih! Pembayaran QRIS untuk pesanan ${orderNumber} telah berhasil diverifikasi secara real-time. Obat Anda sedang diproses oleh Apoteker.`,
-          target: '/(tabs)',
-          buttonText: 'Kembali ke Beranda',
-          secondaryTarget: '/(tabs)/pesanan',
-          secondaryButtonText: 'Lihat Detail Pesanan',
+          orderId,
+          orderNumber,
         },
       } as any);
     } catch (e) {

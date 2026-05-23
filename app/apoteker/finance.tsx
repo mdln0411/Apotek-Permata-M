@@ -64,11 +64,12 @@ export default function KeuanganApoteker() {
 
             const validOrders = allOrders.filter((o: any) => {
                 const s = (o.status || '').toLowerCase().trim();
-                return s === 'diproses' || s === 'dikirim' || s === 'selesai' || s === 'completed';
+                return o.payment_status === 'paid' || s === 'perlu_diproses' || s === 'sedang_diproses' || s === 'dikirim' || s === 'selesai' || s === 'completed';
             });
 
             validOrders.forEach((order: any) => {
-                const price = Number(order.total_amount || order.total_price || 0);
+                const isDelivery = order.shipping_address && order.shipping_address !== 'Ambil di Apotek';
+                const price = Number(order.total_amount || order.total_price || 0) + 2000 + (isDelivery ? 10000 : 0);
                 total += price;
                 items += order.items?.length || 0;
                 
@@ -192,7 +193,7 @@ export default function KeuanganApoteker() {
                                         <View style={styles.txContent}>
                                             <View style={styles.txRow}>
                                                 <Text style={styles.txId}>ORD-{order.id}</Text>
-                                                <Text style={styles.txAmount}>Rp {Math.round(Number(order.total_amount || order.total_price || 0)).toLocaleString('id-ID')}</Text>
+                                                <Text style={styles.txAmount}>Rp {Math.round(Number(order.total_amount || order.total_price || 0) + 2000 + ((order.shipping_address && order.shipping_address !== 'Ambil di Apotek') ? 10000 : 0)).toLocaleString('id-ID')}</Text>
                                             </View>
                                             <View style={styles.txRow}>
                                                 <Text style={styles.txDate}>{new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} • {order.user?.name || 'Customer'}</Text>

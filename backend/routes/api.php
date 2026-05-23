@@ -48,6 +48,11 @@ Route::prefix('medicines')->group(function () {
     Route::delete('/{id}', [MedicineController::class, 'destroy']);
 });
 
+// --- Drug Simulation Routes (Public) ---
+Route::get('/simulasi-obat/list', [MedicineController::class, 'getSimulationMedicines']);
+Route::get('/simulasi-obat/check', [MedicineController::class, 'checkSimulationInteraction']);
+
+
 // --- Education Routes ---
 Route::apiResource('education', EducationController::class);
 
@@ -61,6 +66,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::post('/auth/profile', [AuthController::class, 'updateProfile']);
+    Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
 
     // Cart System
     Route::prefix('cart')->group(function () {
@@ -83,12 +89,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Allergies System
     Route::apiResource('allergies', AllergyController::class);
+    Route::get('/allergies/by-user', [AllergyController::class, 'byUser']);
 
 
     // --- Shared Admin/Apoteker Routes ---
     Route::middleware('role:admin,apoteker')->group(function () {
         Route::get('/admin/orders', [OrderController::class, 'allOrders']);
         Route::put('/admin/orders/{id}/status', [OrderController::class, 'updateStatus']);
+        Route::post('/admin/orders/{id}/verify-payment', [OrderController::class, 'verifyPayment']);
     });
 
     // --- Admin Only Routes ---

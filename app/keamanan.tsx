@@ -1,31 +1,87 @@
+import { changePassword } from '@/api/authService';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React, { useState } from 'react';
-import { Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+    ActivityIndicator,
+    Alert,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
 export default function KeamananScreen() {
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const [showCurrent, setShowCurrent] = useState(false);
     const [showNew, setShowNew] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
+    const handleUpdate = async () => {
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            Alert.alert('Peringatan', 'Semua kolom wajib diisi');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await changePassword({
+                old_password: currentPassword,
+                new_password: newPassword,
+                new_password_confirmation: confirmPassword,
+            });
+            Alert.alert('Berhasil', 'Kata sandi Anda telah diperbarui', [
+                {
+                    text: 'OK',
+                    onPress: () => {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/(tabs)/profil' as any);
+                        }
+                    },
+                },
+            ]);
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (error: any) {
+            let msg = 'Gagal mengubah kata sandi';
+            if (error.response?.data?.message) {
+                msg = error.response.data.message;
+            }
+            if (error.response?.data?.errors) {
+                const errors = error.response.data.errors;
+                const firstKey = Object.keys(errors)[0];
+                msg = errors[firstKey][0];
+            }
+            Alert.alert('Gagal', msg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
 
-            {/* Header Hijau */}
             <View style={styles.header}>
-                <TouchableOpacity 
+                <TouchableOpacity
                     onPress={() => {
                         if (router.canGoBack()) {
                             router.back();
                         } else {
                             router.replace('/(tabs)/profil' as any);
                         }
-                    }} 
+                    }}
                     style={styles.backBtn}
                 >
                     <Ionicons name="chevron-back" size={24} color="#FFF" />
@@ -43,7 +99,6 @@ export default function KeamananScreen() {
                 </View>
 
                 <View style={styles.form}>
-                    {/* Password Saat Ini */}
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Password Saat Ini</Text>
                         <View style={styles.passwordWrapper}>
@@ -55,12 +110,11 @@ export default function KeamananScreen() {
                                 placeholder="Masukkan password lama"
                             />
                             <TouchableOpacity onPress={() => setShowCurrent(!showCurrent)}>
-                                <Feather name={showCurrent ? "eye" : "eye-off"} size={18} color="#999" />
+                                <Feather name={showCurrent ? 'eye' : 'eye-off'} size={18} color="#999" />
                             </TouchableOpacity>
                         </View>
                     </View>
 
-                    {/* Password Baru */}
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Password Baru</Text>
                         <View style={styles.passwordWrapper}>
@@ -72,12 +126,11 @@ export default function KeamananScreen() {
                                 placeholder="Minimal 8 karakter"
                             />
                             <TouchableOpacity onPress={() => setShowNew(!showNew)}>
-                                <Feather name={showNew ? "eye" : "eye-off"} size={18} color="#999" />
+                                <Feather name={showNew ? 'eye' : 'eye-off'} size={18} color="#999" />
                             </TouchableOpacity>
                         </View>
                     </View>
 
-                    {/* Konfirmasi Password */}
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Konfirmasi Password Baru</Text>
                         <View style={styles.passwordWrapper}>
@@ -89,23 +142,22 @@ export default function KeamananScreen() {
                                 placeholder="Ulangi password baru"
                             />
                             <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
-                                <Feather name={showConfirm ? "eye" : "eye-off"} size={18} color="#999" />
+                                <Feather name={showConfirm ? 'eye' : 'eye-off'} size={18} color="#999" />
                             </TouchableOpacity>
                         </View>
                     </View>
                 </View>
 
-                <TouchableOpacity 
-                    style={styles.saveBtn} 
-                    onPress={() => {
-                        if (router.canGoBack()) {
-                            router.back();
-                        } else {
-                            router.replace('/(tabs)/profil' as any);
-                        }
-                    }}
+                <TouchableOpacity
+                    style={[styles.saveBtn, loading && styles.disabledBtn]}
+                    onPress={handleUpdate}
+                    disabled={loading}
                 >
-                    <Text style={styles.saveBtnText}>Perbarui Kata Sandi</Text>
+                    {loading ? (
+                        <ActivityIndicator color="#FFF" />
+                    ) : (
+                        <Text style={styles.saveBtnText}>Perbarui Kata Sandi</Text>
+                    )}
                 </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
@@ -123,7 +175,7 @@ const styles = StyleSheet.create({
         paddingBottom: 20,
         backgroundColor: '#2E8B57',
         borderBottomLeftRadius: 20,
-        borderBottomRightRadius: 20
+        borderBottomRightRadius: 20,
     },
     backBtn: { width: 40, height: 40, justifyContent: 'center' },
     headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFF' },
@@ -135,7 +187,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         gap: 12,
         alignItems: 'center',
-        marginBottom: 30
+        marginBottom: 30,
     },
     infoText: { flex: 1, fontSize: 13, color: '#444', lineHeight: 18 },
     form: { gap: 24 },
@@ -146,7 +198,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderBottomWidth: 1,
         borderBottomColor: '#EEE',
-        paddingBottom: 4
+        paddingBottom: 4,
     },
     input: { flex: 1, paddingVertical: 8, fontSize: 15, color: '#333' },
     saveBtn: {
@@ -154,7 +206,8 @@ const styles = StyleSheet.create({
         paddingVertical: 16,
         borderRadius: 14,
         alignItems: 'center',
-        marginTop: 50
+        marginTop: 50,
     },
-    saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
+    saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+    disabledBtn: { opacity: 0.7 },
 });

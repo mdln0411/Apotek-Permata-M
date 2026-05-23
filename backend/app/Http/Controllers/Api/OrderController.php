@@ -76,7 +76,8 @@ class OrderController extends Controller
                     'user_id' => $user->id,
                     'prescription_id' => $prescription->id,
                     'order_number' => 'ORD-' . strtoupper(Str::random(10)),
-                    'status' => 'pending',
+                    'status' => 'menunggu_pembayaran',
+                    'payment_status' => 'pending',
                     'total_price' => $prescription->total_price,
                     'shipping_address' => $request->shipping_address,
                     'notes' => $request->notes,
@@ -142,7 +143,8 @@ class OrderController extends Controller
             $order = Order::create([
                 'user_id' => $user->id,
                 'order_number' => 'ORD-' . strtoupper(Str::random(10)),
-                'status' => 'pending',
+                'status' => 'menunggu_pembayaran',
+                'payment_status' => 'pending',
                 'total_price' => $totalPrice,
                 'shipping_address' => $request->shipping_address,
                 'notes' => $request->notes,
@@ -221,18 +223,26 @@ class OrderController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        if ($request->user()->role !== 'admin' && $request->user()->role !== 'apoteker') {
+        $userRole = $request->user()->role;
+        if ($userRole !== 'admin' && $userRole !== 'apoteker') {
             return response()->json(['status' => 'error', 'message' => 'Forbidden'], 403);
         }
 
         $request->validate([
-            'status' => 'required|in:pending,diproses,dikirim,selesai,dibatalkan,dilaporkan'
+            'status' => 'required|in:menunggu_pembayaran,menunggu_konfirmasi,perlu_diproses,sedang_diproses,dikirim,selesai,dibatalkan,dilaporkan'
         ]);
+
+        $newStatus = $request->status;
+
+        if ($userRole === 'apoteker' && in_array($newStatus, ['selesai', 'dibatalkan'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Apoteker tidak diperbolehkan menyelesaikan atau membatalkan pesanan.'
+            ], 403);
+        }
 
         $order = Order::findOrFail($id);
         $oldStatus = $order->status;
-        $newStatus = $request->status;
-
         if ($oldStatus === $newStatus) {
             return response()->json([
                 'status' => 'success',
@@ -256,7 +266,10 @@ class OrderController extends Controller
         // Send notifications based on status change
         $title = '';
         $message = '';
-        if ($newStatus === 'diproses') {
+        if ($newStatus === 'perlu_diproses') {
+            $title = 'Pembayaran Diverifikasi';
+            $message = "Pembayaran pesanan Anda {$order->order_number} telah diverifikasi dan pesanan akan segera diproses.";
+        } else if ($newStatus === 'sedang_diproses') {
             $title = 'Pesanan Diproses';
             $message = "Pesanan Anda {$order->order_number} sedang diproses oleh apoteker.";
         } else if ($newStatus === 'dikirim') {
@@ -328,18 +341,58 @@ class OrderController extends Controller
     {
         $order = Order::where('user_id', $request->user()->id)->findOrFail($id);
         
-        if ($order->status !== 'pending') {
+        if ($order->payment_status !== 'pending' || $order->status !== 'menunggu_pembayaran') {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Pesanan ini sudah dibayar atau tidak berstatus pending.'
+                'message' => 'Pesanan ini sudah dibayar atau tidak berstatus menunggu pembayaran.'
             ], 400);
         }
 
-        $order->update(['status' => 'menunggu_konfirmasi']);
+        $order->update([
+            'payment_status' => 'waiting_confirmation',
+            'status' => 'menunggu_konfirmasi',
+            'payment_method' => $request->input('payment_method', 'QRIS')
+        ]);
 
         return response()->json([
             'status' => 'success',
             'message' => 'Pembayaran Anda sedang diverifikasi oleh apoteker. Harap tunggu.',
+            'data' => $order
+        ]);
+    }
+
+    public function verifyPayment(Request $request, $id)
+    {
+        $userRole = $request->user()->role;
+        if ($userRole !== 'admin' && $userRole !== 'apoteker') {
+            return response()->json(['status' => 'error', 'message' => 'Forbidden'], 403);
+        }
+
+        $order = Order::findOrFail($id);
+        
+        if ($order->payment_status !== 'waiting_confirmation') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pesanan ini tidak dalam status menunggu konfirmasi pembayaran.'
+            ], 400);
+        }
+
+        $order->update([
+            'payment_status' => 'paid',
+            'status' => 'perlu_diproses',
+            'payment_confirmed_at' => now(),
+        ]);
+
+        // Send Notification to User
+        $order->user->notify(new AppNotification(
+            'Pembayaran Berhasil Diverifikasi',
+            "Pembayaran untuk pesanan {$order->order_number} telah berhasil diverifikasi oleh apoteker dan sekarang sedang disiapkan.",
+            'order'
+        ));
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Pembayaran berhasil dikonfirmasi.',
             'data' => $order
         ]);
     }
@@ -358,13 +411,18 @@ class OrderController extends Controller
             if ($order->user_id !== $user->id) {
                 return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
             }
-            if ($order->status !== 'pending') {
+            if ($order->status !== 'menunggu_pembayaran') {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Pesanan tidak dapat dibatalkan pada status ini.'
                 ], 400);
             }
-        } else if ($user->role !== 'admin' && $user->role !== 'apoteker') {
+        } else if ($user->role === 'apoteker') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Apoteker tidak diperbolehkan membatalkan pesanan.'
+            ], 403);
+        } else if ($user->role !== 'admin') {
             return response()->json(['status' => 'error', 'message' => 'Forbidden'], 403);
         }
 

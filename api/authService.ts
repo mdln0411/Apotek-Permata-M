@@ -46,3 +46,16 @@ export const updateProfile = async (formData: FormData): Promise<{ status: strin
   });
   return response.data;
 };
+
+export interface ChangePasswordPayload {
+  old_password: string;
+  new_password: string;
+  new_password_confirmation: string;
+}
+
+export const changePassword = async (
+  data: ChangePasswordPayload
+): Promise<{ status: string; message: string }> => {
+  const response = await axiosClient.post('/api/auth/change-password', data);
+  return response.data;
+};

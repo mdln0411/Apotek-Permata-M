@@ -196,15 +196,15 @@ export default function AlergiObatScreen() {
                     <Text style={styles.infoTitle}>Mengapa Penting?</Text>
                     <View style={styles.infoItem}>
                         <Ionicons name="checkmark-circle" size={16} color="#2E8B57" />
-                        <Text style={styles.infoText}>Data dicek otomatis saat pesan obat</Text>
+                        <Text style={styles.infoText}>Riwayat alergi tersimpan dan mudah dilihat</Text>
                     </View>
                     <View style={styles.infoItem}>
                         <Ionicons name="checkmark-circle" size={16} color="#2E8B57" />
-                        <Text style={styles.infoText}>Sistem akan memperingatkan jika ada risiko</Text>
+                        <Text style={styles.infoText}>Membantu apoteker mengetahui alergi yang pernah dicatat</Text>
                     </View>
                     <View style={styles.infoItem}>
                         <Ionicons name="checkmark-circle" size={16} color="#2E8B57" />
-                        <Text style={styles.infoText}>Apoteker bisa memberikan alternatif yang aman</Text>
+                        <Text style={styles.infoText}>Mendukung pemberian obat yang lebih sesuai dan aman</Text>
                     </View>
                 </View>
 

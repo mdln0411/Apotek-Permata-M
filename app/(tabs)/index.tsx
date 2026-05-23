@@ -161,9 +161,10 @@ export default function HomeScreen() {
     const categories = [
         { id: 'c1', name: 'Batuk', icon: 'weather-windy' },
         { id: 'c2', name: 'Demam', icon: 'thermometer' },
-        { id: 'c3', name: 'Vitamin', icon: 'pill' },
+        { id: 'c3', name: 'Vitamin & Suplemen', icon: 'pill' },
         { id: 'c4', name: 'P3K', icon: 'medical-bag' },
-        { id: 'c5', name: 'Lainnya', icon: 'dots-grid' },
+        { id: 'c5', name: 'Flu', icon: 'water-outline' },
+        { id: 'c6', name: 'Lain-lain', icon: 'dots-grid' },
     ];
 
     const handleSearch = () => {
@@ -370,10 +371,10 @@ export default function HomeScreen() {
                             key={cat.id} 
                             style={styles.categoryItem}
                             onPress={() => {
-                                if (cat.name === 'Lainnya') {
+                                if (cat.name === 'Lain-lain') {
                                     router.push({
                                         pathname: '/(tabs)/katalog-obat',
-                                        params: { openFilter: 'true' }
+                                        params: { category: 'Lain-lain' }
                                     } as any);
                                 } else {
                                     router.push({

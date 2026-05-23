@@ -1,9 +1,9 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 
-let BASE_URL = 'http://192.168.110.102:8000';
+let BASE_URL = 'http://192.168.100.222:8000';
 if (Platform.OS === 'android') {
-  BASE_URL = 'http://192.168.110.102:8000';
+  BASE_URL = 'http://192.168.100.222:8000';
 }
 // Note: Jika di HP fisik, ganti localhost dengan IP lokal komputer (misal: 192.168.1.x)
 import AsyncStorage from '@react-native-async-storage/async-storage';

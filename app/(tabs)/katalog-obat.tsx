@@ -1,3 +1,4 @@
+import axiosClient from '@/api/axiosClient';
 import { getMedicineCategories, getMedicines, MedicineListItem } from '@/api/medicineService';
 import { QuantityModal } from '@/components/QuantityModal';
 import { useAuth } from '@/context/AuthContext';
@@ -26,9 +27,10 @@ import {
 } from 'react-native';
 
 const FILTER_CATEGORIES = [
-    'Batuk', 'Flu', 'Pilek', 'Demam', 'Lambung', 'P3K', 'Vitamin', 
-    'Lansia', 'Bayi', 'Susu', 'Kecantikan', 'Hamil & Menyusui', 
-    'Pereda Nyeri', 'Antibiotik', 'Lain-lain'
+    'Batuk', 'Flu', 'Pilek', 'Demam', 'Lambung', 'P3K',
+    'Vitamin & Suplemen', 'Alergi', 'Diare', 'Pereda Nyeri', 'Antibiotik',
+    'Bayi', 'Susu', 'Kecantikan', 'Hamil & Menyusui', 'Lansia',
+    'Diabetes', 'Hipertensi', 'Asma', 'Lain-lain',
 ];
 
 const SORT_OPTIONS = [
@@ -107,22 +109,25 @@ export default function KatalogObatScreen() {
         setFilterModalVisible(false);
     };
 
-    // Sinkronisasi searchQuery & Category dengan parameter URL saat masuk/berubah
-    useEffect(() => {
-        if (search) {
-            setSearchQuery(search);
-        } else {
-            setSearchQuery('');
-        }
+    const normalizeParam = (param?: string | string[]) =>
+        Array.isArray(param) ? (param[0] ?? '') : (param ?? '');
 
-        if (category) {
-            setSelectedCategory(category);
-            setTempCategory(category);
-        } else {
-            setSelectedCategory('Semua');
-            setTempCategory('Semua');
+    // Sinkronisasi search dari URL (hanya saat param search ada, jangan hapus input user)
+    useEffect(() => {
+        const searchParam = normalizeParam(search);
+        if (searchParam) {
+            setSearchQuery(searchParam);
         }
-    }, [search, category]);
+    }, [search]);
+
+    // Sinkronisasi kategori dari URL
+    useEffect(() => {
+        const categoryParam = normalizeParam(category);
+        if (categoryParam) {
+            setSelectedCategory(categoryParam);
+            setTempCategory(categoryParam);
+        }
+    }, [category]);
 
     const { openFilter } = useLocalSearchParams<{ openFilter?: string }>();
     useEffect(() => {
@@ -255,7 +260,7 @@ export default function KatalogObatScreen() {
             fetchMedicines(1, true);
         }, 400); // debounce 400ms
         return () => clearTimeout(timer);
-    }, [searchQuery, selectedCategory, sortBy]);
+    }, [fetchMedicines]);
 
     const onRefresh = () => {
         setRefreshing(true);

@@ -29,9 +29,6 @@ class AuthController extends Controller
             'address' => $request->address,
         ]);
 
-        // Fail-safe: clear any orphaned notifications belonging to this ID
-        $user->notifications()->delete();
-
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -116,9 +113,6 @@ class AuthController extends Controller
             'role' => $validated['role'],
         ]);
 
-        // Fail-safe: clear any orphaned notifications belonging to this ID
-        $user->notifications()->delete();
-
         return response()->json(['status' => 'success', 'message' => 'User berhasil ditambahkan', 'data' => $user], 201);
     }
 
@@ -175,5 +169,66 @@ class AuthController extends Controller
         }
         $user->delete();
         return response()->json(['status' => 'success', 'message' => 'User berhasil dihapus']);
+    }
+
+    public function changePassword(Request $request)
+    {
+        try {
+            $request->validate([
+                'old_password' => 'required|string',
+                'new_password' => 'required|string',
+                'new_password_confirmation' => 'required|string',
+            ]);
+
+            $user = $request->user();
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Sesi login tidak valid. Silakan login ulang.',
+                ], 401);
+            }
+
+            $storedHash = $user->getRawOriginal('password');
+
+            // 1. Kata sandi lama harus sesuai dengan akun saat ini
+            if (!Hash::check($request->old_password, $storedHash)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Kata sandi lama tidak sesuai',
+                ], 400);
+            }
+
+            // 2. Kata sandi baru harus sama dengan konfirmasi
+            if ($request->new_password !== $request->new_password_confirmation) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Konfirmasi kata sandi baru tidak cocok',
+                ], 400);
+            }
+
+            // 3. Kata sandi baru minimal 8 karakter
+            if (strlen($request->new_password) < 8) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Kata sandi baru harus minimal 8 karakter',
+                ], 400);
+            }
+
+            $user->forceFill(['password' => $request->new_password]);
+            $user->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Kata sandi berhasil diperbarui',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Terjadi kesalahan server saat memperbarui kata sandi',
+            ], 500);
+        }
     }
 }

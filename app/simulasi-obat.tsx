@@ -1,6 +1,6 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     SafeAreaView, 
     ScrollView, 
@@ -9,24 +9,88 @@ import {
     TouchableOpacity, 
     View,
     Platform,
-    TextInput
+    TextInput,
+    Modal,
+    FlatList,
+    ActivityIndicator
 } from 'react-native';
+import { getSimulationMedicines, checkSimulationInteraction } from '@/api/medicineService';
 
 export default function SimulasiObatScreen() {
     const [obatA, setObatA] = useState('');
     const [obatB, setObatB] = useState('');
     const [result, setResult] = useState<null | 'aman' | 'bahaya' | 'peringatan'>(null);
+    const [interactionText, setInteractionText] = useState('');
+    const [checking, setChecking] = useState(false);
 
-    const handleCheck = () => {
+    // List of unique medicines loaded from DB
+    const [medicines, setMedicines] = useState<string[]>([]);
+    const [loadingMedicines, setLoadingMedicines] = useState(false);
+    
+    // Modal state for selecting medicines
+    const [modalVisible, setModalVisible] = useState(false);
+    const [activeSelection, setActiveSelection] = useState<'A' | 'B' | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // Fetch the list of medicines on load
+    useEffect(() => {
+        const loadMedicines = async () => {
+            try {
+                setLoadingMedicines(true);
+                const res = await getSimulationMedicines();
+                if (res && res.status === 'success') {
+                    setMedicines(res.data);
+                }
+            } catch (e) {
+                console.error("Gagal memuat data obat simulasi:", e);
+            } finally {
+                setLoadingMedicines(false);
+            }
+        };
+        loadMedicines();
+    }, []);
+
+    const handleCheck = async () => {
         if (!obatA || !obatB) return;
         
-        const combo = `${obatA.toLowerCase()} + ${obatB.toLowerCase()}`;
-        if (combo.includes('amoxicillin') && combo.includes('alkohol')) {
-            setResult('bahaya');
-        } else if (combo.includes('paracetamol') && combo.includes('alkohol')) {
-            setResult('peringatan');
-        } else {
-            setResult('aman');
+        try {
+            setChecking(true);
+            const res = await checkSimulationInteraction(obatA, obatB);
+            if (res && res.status === 'success') {
+                const simResult = res.data.simulasi;
+                setInteractionText(simResult);
+                
+                // Classify safety level dynamically based on database text content
+                const textLower = simResult.toLowerCase();
+                if (
+                    textLower.includes('tidak aman') || 
+                    textLower.includes('bahaya') || 
+                    textLower.includes('overdosis') || 
+                    textLower.includes('depresi') || 
+                    textLower.includes('menurunkan') ||
+                    textLower.includes('mengurangi penyerapan') ||
+                    textLower.includes('meningkatkan risiko')
+                ) {
+                    // Check if it's actually warning instead of danger, e.g. "Aman dengan pengawasan"
+                    if (textLower.includes('aman dengan') || textLower.includes('pengawasan') || textLower.includes('pemantauan')) {
+                        setResult('peringatan');
+                    } else {
+                        setResult('bahaya');
+                    }
+                } else if (textLower.includes('aman dikonsumsi bersamaan') || textLower.includes('aman dengan')) {
+                    if (textLower.includes('pengawasan') || textLower.includes('pemantauan') || textLower.includes('hati-hati')) {
+                        setResult('peringatan');
+                    } else {
+                        setResult('aman');
+                    }
+                } else {
+                    setResult('peringatan');
+                }
+            }
+        } catch (e) {
+            console.error("Gagal mengecek interaksi obat:", e);
+        } finally {
+            setChecking(false);
         }
     };
 
@@ -59,19 +123,25 @@ export default function SimulasiObatScreen() {
                         <Ionicons name="shield-checkmark" size={40} color="#2E8B57" />
                     </View>
                     <Text style={styles.infoTitle}>Cek Keamanan Obat</Text>
-                    <Text style={styles.infoSub}>Masukkan dua nama obat untuk melihat potensi interaksi kimianya saat dikonsumsi bersamaan.</Text>
+                    <Text style={styles.infoSub}>Pilih dua nama obat dari database untuk melihat potensi interaksi kimianya saat dikonsumsi bersamaan.</Text>
                 </View>
 
                 {/* Input Area */}
                 <View style={styles.inputCard}>
                     <Text style={styles.label}>Obat Pertama</Text>
-                    <TextInput 
-                        style={styles.input}
-                        placeholder="Misal: Amoxicillin"
-                        placeholderTextColor="#AAA"
-                        value={obatA}
-                        onChangeText={setObatA}
-                    />
+                    <TouchableOpacity 
+                        style={styles.dropdownTrigger}
+                        onPress={() => {
+                            setActiveSelection('A');
+                            setSearchQuery('');
+                            setModalVisible(true);
+                        }}
+                    >
+                        <Text style={[styles.dropdownTriggerText, !obatA && styles.placeholderText]}>
+                            {obatA || "Pilih Obat Pertama"}
+                        </Text>
+                        <Feather name="chevron-down" size={20} color="#666" />
+                    </TouchableOpacity>
 
                     <View style={styles.plusWrapper}>
                         <View style={styles.plusLine} />
@@ -82,20 +152,30 @@ export default function SimulasiObatScreen() {
                     </View>
 
                     <Text style={styles.label}>Obat Kedua</Text>
-                    <TextInput 
-                        style={styles.input}
-                        placeholder="Misal: Paracetamol / Alkohol"
-                        placeholderTextColor="#AAA"
-                        value={obatB}
-                        onChangeText={setObatB}
-                    />
+                    <TouchableOpacity 
+                        style={styles.dropdownTrigger}
+                        onPress={() => {
+                            setActiveSelection('B');
+                            setSearchQuery('');
+                            setModalVisible(true);
+                        }}
+                    >
+                        <Text style={[styles.dropdownTriggerText, !obatB && styles.placeholderText]}>
+                            {obatB || "Pilih Obat Kedua"}
+                        </Text>
+                        <Feather name="chevron-down" size={20} color="#666" />
+                    </TouchableOpacity>
 
                     <TouchableOpacity 
-                        style={[styles.checkBtn, (!obatA || !obatB) && styles.disabledBtn]} 
+                        style={[styles.checkBtn, (!obatA || !obatB || checking) && styles.disabledBtn]} 
                         onPress={handleCheck}
-                        disabled={!obatA || !obatB}
+                        disabled={!obatA || !obatB || checking}
                     >
-                        <Text style={styles.checkBtnText}>Cek Interaksi Sekarang</Text>
+                        {checking ? (
+                            <ActivityIndicator size="small" color="#FFF" />
+                        ) : (
+                            <Text style={styles.checkBtnText}>Cek Interaksi Sekarang</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
 
@@ -121,9 +201,7 @@ export default function SimulasiObatScreen() {
                             </Text>
                         </View>
                         <Text style={styles.resultDesc}>
-                            {result === 'aman' && `Kombinasi antara ${obatA} dan ${obatB} secara umum aman untuk dikonsumsi bersamaan sesuai dosis.`}
-                            {result === 'bahaya' && `PERINGATAN: ${obatA} dan ${obatB} memiliki interaksi serius yang dapat membahayakan kesehatan.`}
-                            {result === 'peringatan' && `Gunakan dengan hati-hati. Kombinasi ini mungkin dapat mempengaruhi efektivitas kerja obat.`}
+                            {interactionText}
                         </Text>
                     </View>
                 )}
@@ -133,6 +211,87 @@ export default function SimulasiObatScreen() {
                 </View>
 
             </ScrollView>
+
+            {/* Selection Modal */}
+            <Modal
+                visible={modalVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        {/* Modal Header */}
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>
+                                Pilih Obat {activeSelection === 'A' ? 'Pertama' : 'Kedua'}
+                            </Text>
+                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalCloseBtn}>
+                                <Ionicons name="close" size={24} color="#333" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Modal Search Bar */}
+                        <View style={styles.modalSearchBox}>
+                            <Feather name="search" size={18} color="#999" style={{ marginRight: 8 }} />
+                            <TextInput
+                                style={[styles.modalSearchInput, { outline: 'none' } as any]}
+                                placeholder="Cari nama obat..."
+                                placeholderTextColor="#AAA"
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                underlineColorAndroid="transparent"
+                            />
+                            {searchQuery.length > 0 && (
+                                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                    <Feather name="x-circle" size={18} color="#999" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        {/* Modal List */}
+                        {loadingMedicines ? (
+                            <View style={styles.modalLoading}>
+                                <ActivityIndicator size="large" color="#2E8B57" />
+                                <Text style={{ marginTop: 10, color: '#777' }}>Memuat data obat...</Text>
+                            </View>
+                        ) : (
+                            <FlatList
+                                data={medicines.filter(item => 
+                                    item.toLowerCase().includes(searchQuery.toLowerCase()) && 
+                                    item !== (activeSelection === 'A' ? obatB : obatA)
+                                )}
+                                keyExtractor={(item) => item}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity 
+                                        style={styles.modalItem}
+                                        onPress={() => {
+                                            if (activeSelection === 'A') {
+                                                setObatA(item);
+                                            } else {
+                                                setObatB(item);
+                                            }
+                                            setModalVisible(false);
+                                        }}
+                                    >
+                                        <View style={styles.modalItemIcon}>
+                                            <Feather name="activity" size={16} color="#2E8B57" />
+                                        </View>
+                                        <Text style={styles.modalItemText}>{item}</Text>
+                                    </TouchableOpacity>
+                                )}
+                                ListEmptyComponent={
+                                    <View style={styles.modalEmpty}>
+                                        <Feather name="info" size={32} color="#CCC" />
+                                        <Text style={styles.modalEmptyText}>Obat tidak ditemukan</Text>
+                                    </View>
+                                }
+                                contentContainerStyle={{ paddingBottom: 20 }}
+                            />
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -149,7 +308,24 @@ const styles = StyleSheet.create({
     infoSub: { fontSize: 13, color: '#777', textAlign: 'center', lineHeight: 20 },
     inputCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#EEE', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10 },
     label: { fontSize: 14, fontWeight: 'bold', color: '#555', marginBottom: 8 },
-    input: { backgroundColor: '#F5F5F5', borderRadius: 12, paddingHorizontal: 16, height: 52, fontSize: 15, color: '#333', borderWidth: 1, borderColor: '#E0E0E0' },
+    dropdownTrigger: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#F5F5F5',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        height: 52,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    dropdownTriggerText: {
+        fontSize: 15,
+        color: '#333'
+    },
+    placeholderText: {
+        color: '#AAA'
+    },
     plusWrapper: { flexDirection: 'row', alignItems: 'center', marginVertical: 15, gap: 10 },
     plusLine: { flex: 1, height: 1, backgroundColor: '#EEE' },
     plusIconBg: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F0F4F0', justifyContent: 'center', alignItems: 'center' },
@@ -164,5 +340,87 @@ const styles = StyleSheet.create({
     resultTitle: { fontSize: 16, fontWeight: 'bold' },
     resultDesc: { fontSize: 14, color: '#444', lineHeight: 22 },
     disclaimer: { marginTop: 30, paddingHorizontal: 10 },
-    disclaimerText: { fontSize: 11, color: '#AAA', fontStyle: 'italic', textAlign: 'center', lineHeight: 16 }
+    disclaimerText: { fontSize: 11, color: '#AAA', fontStyle: 'italic', textAlign: 'center', lineHeight: 16 },
+    
+    // Modal styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#FFF',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        height: '75%',
+        paddingHorizontal: 20,
+        paddingTop: 20,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    modalCloseBtn: {
+        padding: 4,
+    },
+    modalSearchBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F5F5F5',
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        height: 48,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    modalSearchInput: {
+        flex: 1,
+        fontSize: 14,
+        color: '#333',
+        paddingVertical: 0,
+    },
+    modalLoading: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
+    },
+    modalItemIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#E8F5E9',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    modalItemText: {
+        fontSize: 15,
+        color: '#333',
+        fontWeight: '500',
+    },
+    modalEmpty: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 40,
+        gap: 10,
+    },
+    modalEmptyText: {
+        fontSize: 14,
+        color: '#AAA',
+    },
 });

@@ -79,10 +79,10 @@ export default function PesananMasuk() {
         const status = (o.status || 'pending').toLowerCase().trim();
         
         if (activeTab === 'menunggu') {
-            return status === 'pending' || status === 'menunggu' || status === 'menunggu_konfirmasi';
+            return status === 'menunggu_pembayaran' || status === 'menunggu_konfirmasi' || status === 'perlu_diproses';
         }
         if (activeTab === 'diproses') {
-            return status === 'diproses' || status === 'processing';
+            return status === 'sedang_diproses' || status === 'processing';
         }
         if (activeTab === 'dikirim') {
             return status === 'dikirim' || status === 'shipped';
@@ -123,9 +123,11 @@ export default function PesananMasuk() {
 
     const getCounts = (id: string) => {
         return orders.filter(o => {
-            const status = (o.status || 'pending').toLowerCase().trim();
-            if (id === 'menunggu') return status === 'pending' || status === 'menunggu' || status === 'menunggu_konfirmasi';
-            if (id === 'diproses') return status === 'diproses' || status === 'processing';
+            const status = (o.status || 'menunggu_pembayaran').toLowerCase().trim();
+            if (id === 'menunggu') return status === 'menunggu_pembayaran' || status === 'menunggu_konfirmasi' || status === 'perlu_diproses';
+            if (id === 'diproses') return status === 'sedang_diproses' || status === 'processing';
+            if (id === 'dikirim') return status === 'dikirim' || status === 'shipped';
+            if (id === 'selesai') return status === 'selesai' || status === 'completed';
             if (id === 'dilaporkan') return status === 'dilaporkan' || status === 'reported' || isCancelledByUser(o);
             return false;
         }).length;
@@ -154,8 +156,8 @@ export default function PesananMasuk() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
                     <TabButton title="Perlu Diproses" id="menunggu" count={getCounts('menunggu')} />
                     <TabButton title="Sedang Diproses" id="diproses" count={getCounts('diproses')} />
-                    <TabButton title="Dikirim" id="dikirim" count={0} />
-                    <TabButton title="Selesai" id="selesai" count={0} />
+                    <TabButton title="Dikirim" id="dikirim" count={getCounts('dikirim')} />
+                    <TabButton title="Selesai" id="selesai" count={getCounts('selesai')} />
                     <TabButton title="Masalah" id="dilaporkan" count={getCounts('dilaporkan')} />
                 </ScrollView>
             </View>
@@ -201,20 +203,22 @@ export default function PesananMasuk() {
                             <View style={styles.cardHeader}>
                                 <View style={styles.headerInfo}>
                                     <View style={[styles.statusBadge, 
-                                        item.status === 'pending' || item.status === 'menunggu' ? { backgroundColor: '#FFF3E0' } :
+                                        item.status === 'menunggu_pembayaran' ? { backgroundColor: '#FFF3E0' } :
                                         item.status === 'menunggu_konfirmasi' ? { backgroundColor: '#FFF3E0' } :
+                                        item.status === 'perlu_diproses' ? { backgroundColor: '#E3F2FD' } :
                                         item.status === 'dilaporkan' ? { backgroundColor: '#FFEBEE' } : 
                                         item.status === 'dibatalkan' ? { backgroundColor: '#ECEFF1' } : { backgroundColor: '#E8F5E9' }
                                     ]}>
                                         <Text style={[styles.statusLabel, 
-                                            item.status === 'pending' || item.status === 'menunggu' ? { color: '#E65100' } :
+                                            item.status === 'menunggu_pembayaran' ? { color: '#E65100' } :
                                             item.status === 'menunggu_konfirmasi' ? { color: '#E65100' } :
+                                            item.status === 'perlu_diproses' ? { color: '#1976D2' } :
                                             item.status === 'dilaporkan' ? { color: THEME.danger } : 
                                             item.status === 'dibatalkan' ? { color: '#455A64' } : { color: THEME.primary }
                                         ]}>
                                             {item.status === 'dibatalkan' ? 'DIBATALKAN PASIEN' : 
                                              item.status === 'menunggu_konfirmasi' ? 'PERLU VERIFIKASI' : 
-                                             (item.status || 'Baru').toUpperCase()}
+                                             (item.status || 'Baru').replace('_', ' ').toUpperCase()}
                                         </Text>
                                     </View>
                                     <Text style={styles.orderNumber}>ORD-{item.id}{new Date(item.created_at).getTime().toString().slice(-4)}</Text>
@@ -236,7 +240,9 @@ export default function PesananMasuk() {
                                 </View>
                                 <View style={styles.infoRow}>
                                     <Text style={styles.infoLabel}>Total Pembayaran</Text>
-                                    <Text style={[styles.infoValue, { color: THEME.primary, fontSize: 16 }]}>Rp {Math.round(Number(item.total_amount || item.total_price || 0)).toLocaleString('id-ID')}</Text>
+                                    <Text style={[styles.infoValue, { color: THEME.primary, fontSize: 16 }]}>
+                                        Rp {Math.round(Number(item.total_amount || item.total_price || 0) + 2000 + ((item.shipping_address && item.shipping_address !== 'Ambil di Apotek') ? 10000 : 0)).toLocaleString('id-ID')}
+                                    </Text>
                                 </View>
 
                                 {activeTab === 'dilaporkan' && (item.notes || item.reason) && (
@@ -255,12 +261,20 @@ export default function PesananMasuk() {
                                 {activeTab === 'menunggu' && item.status === 'menunggu_konfirmasi' && (
                                     <TouchableOpacity 
                                         style={styles.btnTerima}
-                                        onPress={() => handleUpdateStatus(item.id, 'diproses')}
+                                        onPress={() => router.push({ pathname: '/detail-pesanan', params: { id: item.id } } as any)}
                                     >
                                         <Text style={styles.btnTerimaText}>Verifikasi Pembayaran</Text>
                                     </TouchableOpacity>
                                 )}
-                                {activeTab === 'menunggu' && item.status !== 'menunggu_konfirmasi' && (
+                                {activeTab === 'menunggu' && item.status === 'perlu_diproses' && (
+                                    <TouchableOpacity 
+                                        style={[styles.btnTerima, { backgroundColor: THEME.info }]}
+                                        onPress={() => handleUpdateStatus(item.id, 'sedang_diproses')}
+                                    >
+                                        <Text style={styles.btnTerimaText}>Proses Pesanan</Text>
+                                    </TouchableOpacity>
+                                )}
+                                {activeTab === 'menunggu' && item.status === 'menunggu_pembayaran' && (
                                     <View style={[styles.btnTerima, { backgroundColor: '#E0E0E0', elevation: 0 }]}>
                                         <Text style={[styles.btnTerimaText, { color: '#757575' }]}>Menunggu Pasien Membayar</Text>
                                     </View>

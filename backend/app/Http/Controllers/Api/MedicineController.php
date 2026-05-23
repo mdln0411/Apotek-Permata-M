@@ -9,58 +9,143 @@ use Illuminate\Http\Request;
 class MedicineController extends Controller
 {
     /**
+     * Peta filter katalog → pola kategori di database.
+     * Luka & antiseptik digabung ke P3K.
+     */
+    private function categoryFilterMap(): array
+    {
+        return [
+            'Batuk' => ['Batuk Dan Pilek', 'Batuk Dan Flu', 'Batuk'],
+            'Flu' => ['Batuk Dan Flu', 'Alergi & Flu', 'Flu'],
+            'Pilek' => ['Batuk Dan Pilek', 'Pilek'],
+            'Demam' => ['Demam'],
+            'Lambung' => ['Asam Lambung', 'Lambung'],
+            'P3K' => ['Cedera Ringan', 'Luka Bakar', 'Luka', 'antiseptik', 'desinfektan'],
+            'Vitamin & Suplemen' => ['Multivitamin', 'Suplemen', 'Vitamin'],
+            'Alergi' => ['Alergi'],
+            'Diare' => ['Diare'],
+            'Pereda Nyeri' => ['Nyeri'],
+            'Antibiotik' => ['obat antibiotika', 'Infeksi Bakteri'],
+            'Bayi' => ['MPASI', 'Popok bayi', 'Popok celana', 'Dot bayi', 'Biskuit bayi', 'Bubur bayi', 'Minyak bayi', 'Krim bayi', 'Set makan bayi', 'Snack finger food', 'Botol susu bayi'],
+            'Susu' => ['Susu'],
+            'Kecantikan' => ['Kecantikan', 'Facial', 'Acne', 'Face Cream', 'Face Wash', 'Foaming', 'Gentle facial', 'Obat Jerawat', 'Moistur'],
+            'Hamil & Menyusui' => ['hamil', 'menyusui', 'Kehamilan', 'kontrasepsi', 'pil KB'],
+            'Lansia' => ['lansia', 'dewasa perekat'],
+            'Diabetes' => ['Diabetes'],
+            'Hipertensi' => ['Hipertensi'],
+            'Asma' => ['Asma'],
+        ];
+    }
+
+    private function escapeLike(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
+    }
+
+    private function applyCategoryFilter($query, string $category): void
+    {
+        $map = $this->categoryFilterMap();
+
+        if ($category === 'Lain-lain') {
+            $allPatterns = array_unique(array_merge(...array_values($map)));
+            $query->where(function ($q) use ($allPatterns) {
+                foreach ($allPatterns as $pattern) {
+                    $q->where('category', 'not like', '%' . $pattern . '%');
+                }
+            });
+            return;
+        }
+
+        if (!isset($map[$category])) {
+            $query->where('category', 'like', '%' . $category . '%');
+            return;
+        }
+
+        $patterns = $map[$category];
+        $query->where(function ($q) use ($patterns) {
+            foreach ($patterns as $pattern) {
+                $q->orWhere('category', 'like', '%' . $pattern . '%');
+            }
+        });
+    }
+
+    private function applySearchFilter($query, string $search): string
+    {
+        $searchLower = strtolower($search);
+        $words = preg_split('/\s+/', $searchLower);
+
+        $stopwords = ['obat', 'dan', 'yang', 'untuk', 'dari', 'pada', 'dengan', 'ke', 'di', 'ini', 'itu', 'atau', 'ada', 'bisa', 'saya', 'dapat', 'mengatasi', 'meredakan'];
+        $filteredWords = array_values(array_filter($words, function ($word) use ($stopwords) {
+            return strlen($word) >= 2 && !in_array($word, $stopwords);
+        }));
+
+        if (empty($filteredWords)) {
+            $filteredWords = array_values(array_filter($words, fn ($word) => strlen($word) >= 1));
+        }
+
+        $terms = array_values(array_unique(array_merge([$searchLower], $filteredWords)));
+
+        $query->where(function ($q) use ($terms) {
+            foreach ($terms as $index => $term) {
+                $groupMethod = $index === 0 ? 'where' : 'orWhere';
+                $q->{$groupMethod}(function ($subQ) use ($term) {
+                    $subQ->where('name', 'like', '%' . $term . '%')
+                        ->orWhere('category', 'like', '%' . $term . '%')
+                        ->orWhere('indication', 'like', '%' . $term . '%')
+                        ->orWhere('composition', 'like', '%' . $term . '%');
+                });
+            }
+        });
+
+        return $searchLower;
+    }
+
+    /**
+     * Urutkan hasil pencarian: nama diawali kata kunci → kata dalam nama → kategori → isi lain.
+     */
+    private function applySearchRelevanceOrder($query, string $searchLower): void
+    {
+        $escaped = $this->escapeLike($searchLower);
+        $prefix = $escaped . '%';
+        $wordStart = '% ' . $escaped . '%';
+        $contains = '%' . $escaped . '%';
+
+        $query->orderByRaw("
+            CASE
+                WHEN LOWER(name) LIKE ? ESCAPE '\\\\' THEN 1000
+                WHEN LOWER(name) LIKE ? ESCAPE '\\\\' THEN 800
+                WHEN LOWER(category) LIKE ? ESCAPE '\\\\' THEN 600
+                WHEN LOWER(name) LIKE ? ESCAPE '\\\\' THEN 400
+                WHEN LOWER(category) LIKE ? ESCAPE '\\\\' THEN 200
+                WHEN LOWER(COALESCE(indication, '')) LIKE ? ESCAPE '\\\\' THEN 100
+                WHEN LOWER(COALESCE(composition, '')) LIKE ? ESCAPE '\\\\' THEN 50
+                ELSE 0
+            END DESC
+        ", [$prefix, $wordStart, $prefix, $contains, $contains, $contains, $contains]);
+
+        $query->orderBy('name', 'asc');
+    }
+
+    /**
      * GET /api/medicines
      * List katalog obat (ringkas) dengan search, filter kategori, dan pagination.
      */
     public function index(Request $request)
     {
         $query = Medicine::query()->where('category', '!=', 'Resep');
+        $searchLower = null;
 
-        // --- SEARCH pintar berdasarkan kata kunci ---
         if ($request->filled('search')) {
-            $search = trim($request->search);
-            $words = preg_split('/\s+/', strtolower($search));
-            
-            // Kata-kata umum (stopwords) yang diabaikan agar pencarian lebih akurat dan tidak meluas
-            $stopwords = ['obat', 'dan', 'yang', 'untuk', 'dari', 'pada', 'dengan', 'ke', 'di', 'ini', 'itu', 'atau', 'ada', 'bisa', 'saya', 'dapat', 'mengatasi', 'meredakan', 'sakit'];
-            $filteredWords = array_filter($words, function($word) use ($stopwords) {
-                return strlen($word) >= 2 && !in_array($word, $stopwords);
-            });
-
-            if (empty($filteredWords)) {
-                $filteredWords = $words;
-            }
-
-            $query->where(function($q) use ($filteredWords) {
-                foreach ($filteredWords as $word) {
-                    $q->where(function($subQ) use ($word) {
-                        $subQ->orWhere('name', 'like', '%' . $word . '%')
-                             ->orWhere('category', 'like', '%' . $word . '%')
-                             ->orWhere('indication', 'like', '%' . $word . '%')
-                             ->orWhere('composition', 'like', '%' . $word . '%')
-                             ->orWhere('interactions', 'like', '%' . $word . '%');
-                    });
-                }
-            });
+            $searchLower = $this->applySearchFilter($query, trim($request->search));
         }
 
-        // --- FILTER berdasarkan kategori ---
         if ($request->filled('category')) {
-            $category = $request->category;
-            if ($category === 'Lain-lain') {
-                $knownCategories = ['Batuk', 'Flu', 'Pilek', 'Demam', 'Lambung', 'P3K', 'Vitamin', 'Lansia', 'Bayi', 'Susu', 'Kecantikan', 'Hamil & Menyusui', 'Pereda Nyeri', 'Antibiotik'];
-                $query->where(function($q) use ($knownCategories) {
-                    foreach ($knownCategories as $known) {
-                        $q->where('category', 'not like', '%' . $known . '%');
-                    }
-                });
-            } else {
-                $query->where('category', 'like', '%' . $category . '%');
-            }
+            $this->applyCategoryFilter($query, $request->category);
         }
 
-        // --- SORT & ALPHABET RANGE ---
-        if ($request->filled('sort_by')) {
+        if ($searchLower !== null) {
+            $this->applySearchRelevanceOrder($query, $searchLower);
+        } elseif ($request->filled('sort_by')) {
             $sortBy = $request->sort_by;
             if ($sortBy === 'A-Z') {
                 $query->orderBy('name', 'asc');
@@ -160,16 +245,13 @@ class MedicineController extends Controller
      */
     public function categories()
     {
-        $categories = Medicine::select('category')
-            ->where('category', '!=', 'Resep')
-            ->distinct()
-            ->orderBy('category')
-            ->pluck('category');
+        $filterLabels = array_keys($this->categoryFilterMap());
+        $filterLabels[] = 'Lain-lain';
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Kategori berhasil diambil',
-            'data' => $categories,
+            'message' => 'Kategori filter berhasil diambil',
+            'data' => $filterLabels,
         ]);
     }
 
@@ -245,4 +327,87 @@ class MedicineController extends Controller
         Medicine::findOrFail($id)->delete();
         return response()->json(['status' => 'success', 'message' => 'Obat berhasil dihapus']);
     }
+
+    /**
+     * GET /api/simulasi-obat/list
+     * Ambil list semua obat unik yang ada di tabel simulasi.
+     */
+    public function getSimulationMedicines()
+    {
+        try {
+            $obat1 = \DB::table('simulasi_interaksi_obat')->distinct()->pluck('obat1')->toArray();
+            $obat2 = \DB::table('simulasi_interaksi_obat')->distinct()->pluck('obat2')->toArray();
+            
+            $allObats = array_unique(array_merge($obat1, $obat2));
+            sort($allObats);
+            
+            return response()->json([
+                'status' => 'success',
+                'data' => array_values($allObats)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * GET /api/simulasi-obat/check
+     * Cek interaksi antara dua obat.
+     */
+    public function checkSimulationInteraction(Request $request)
+    {
+        $request->validate([
+            'obat1' => 'required|string',
+            'obat2' => 'required|string',
+        ]);
+
+        $obatA = trim($request->obat1);
+        $obatB = trim($request->obat2);
+
+        try {
+            $interaction = \DB::table('simulasi_interaksi_obat')
+                ->where(function($q) use ($obatA, $obatB) {
+                    $q->where(function($sub) use ($obatA, $obatB) {
+                        $sub->where('obat1', '=', $obatA)
+                            ->where('obat2', '=', $obatB);
+                    })->orWhere(function($sub) use ($obatA, $obatB) {
+                        $sub->where('obat1', '=', $obatB)
+                            ->where('obat2', '=', $obatA);
+                    });
+                })
+                ->first();
+
+            if ($interaction) {
+                return response()->json([
+                    'status' => 'success',
+                    'found' => true,
+                    'data' => [
+                        'obat1' => $interaction->obat1,
+                        'obat2' => $interaction->obat2,
+                        'simulasi' => $interaction->simulasi,
+                    ]
+                ]);
+            }
+
+            // Jika tidak ada data di DB, asumsikan aman
+            return response()->json([
+                'status' => 'success',
+                'found' => false,
+                'data' => [
+                    'obat1' => $obatA,
+                    'obat2' => $obatB,
+                    'simulasi' => 'Aman dikonsumsi bersamaan'
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
+

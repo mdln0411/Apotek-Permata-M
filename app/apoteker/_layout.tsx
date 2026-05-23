@@ -69,7 +69,13 @@ export default function ApotekerLayout() {
             <Tabs.Screen name="orders" options={{ href: null }} />
             <Tabs.Screen name="manage-stock" options={{ href: null }} />
             <Tabs.Screen name="prescriptions" options={{ href: null }} />
-            <Tabs.Screen name="keamanan" options={{ href: null }} />
+            <Tabs.Screen
+                name="keamanan"
+                options={{
+                    href: null,
+                    tabBarStyle: { display: 'none' },
+                }}
+            />
         </Tabs>
     );
 }

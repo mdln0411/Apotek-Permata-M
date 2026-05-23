@@ -226,17 +226,42 @@ export default function DetailPesananScreen() {
         const newStatus = pendingStatus;
         try {
             setUpdating(true);
-            const response = await axiosClient.put(`/api/admin/orders/${id}/status`, { status: newStatus });
+            let response;
+            let newActualStatus = newStatus;
+
+            if (newStatus === 'verify_payment') {
+                response = await axiosClient.post(`/api/admin/orders/${id}/verify-payment`);
+                newActualStatus = 'perlu_diproses';
+            } else {
+                response = await axiosClient.put(`/api/admin/orders/${id}/status`, { status: newStatus });
+            }
             
             if (response.data.status === 'success') {
                 setConfirmModalVisible(false);
-                setOrder(prev => prev ? { ...prev, status: newStatus } : null);
+                setOrder(prev => prev ? { ...prev, status: newActualStatus } : null);
+                
+                let successTitle = 'Status Berhasil Diubah';
+                let successMessage = `Pesanan #${order?.order_number} sekarang berstatus ${newStatus.toUpperCase()}.`;
+                
+                if (newActualStatus === 'perlu_diproses') {
+                    successTitle = 'Pembayaran Diverifikasi!';
+                    successMessage = `Pembayaran untuk pesanan #${order?.order_number} telah berhasil diverifikasi. Pesanan masuk ke tahap perlu diproses.`;
+                } else if (newActualStatus === 'sedang_diproses') {
+                    successTitle = 'Pesanan Diproses';
+                    successMessage = `Pesanan #${order?.order_number} sekarang sedang diproses.`;
+                } else if (newActualStatus === 'dikirim') {
+                    successTitle = 'Pesanan Dikirim!';
+                    successMessage = `Pesanan #${order?.order_number} telah berhasil diserahkan ke kurir dan sedang dalam perjalanan.`;
+                } else if (newStatus === 'selesai') {
+                    successTitle = 'Pesanan Selesai!';
+                    successMessage = `Pesanan #${order?.order_number} telah berhasil diselesaikan.`;
+                }
                 
                 router.push({
                     pathname: '/success-action',
                     params: {
-                        title: 'Status Berhasil Diubah',
-                        message: `Pesanan #${order?.order_number} sekarang berstatus ${newStatus.toUpperCase()}.`,
+                        title: successTitle,
+                        message: successMessage,
                         target: user?.role === 'apoteker' ? '/apoteker' : '/admin/manage-transactions'
                     }
                 } as any);
@@ -447,25 +472,52 @@ export default function DetailPesananScreen() {
                             <Text style={styles.statusValue}>{o.order_number}</Text>
 
                         </View>
-                        <View style={[
-                            styles.badgeStatus, 
-                            order.status === 'diproses' && { backgroundColor: '#E3F2FD' },
-                            order.status === 'dikirim' && { backgroundColor: '#FFF3E0' },
-                            order.status === 'selesai' && { backgroundColor: '#E8F5E9' },
-                            order.status === 'dibatalkan' && { backgroundColor: '#FFEBEE' },
-                            order.status === 'dilaporkan' && { backgroundColor: '#FFFDE7' }
-                        ]}>
-                            <Text style={[
-                                styles.badgeStatusText,
-                                o.status === 'diproses' && { color: '#1976D2' },
-                                o.status === 'dikirim' && { color: '#EF6C00' },
-                                o.status === 'selesai' && { color: '#2E8B57' },
-                                o.status === 'dibatalkan' && { color: '#D32F2F' },
-                                o.status === 'dilaporkan' && { color: '#FBC02D' }
-                            ]}>{o.status.toUpperCase()}</Text>
+                        {(() => {
+                            const statusLower = (o.status || '').toLowerCase().trim();
+                            let label = o.status.toUpperCase();
+                            let color = '#666';
+                            let bgColor = '#F5F5F5';
+                            
+                            if (statusLower === 'pending' || statusLower === 'menunggu_pembayaran') {
+                                label = 'MENUNGGU PEMBAYARAN';
+                                color = '#F57C00';
+                                bgColor = '#FFF3E0';
+                            } else if (statusLower === 'menunggu_konfirmasi') {
+                                label = 'MENUNGGU VERIFIKASI';
+                                color = '#F57C00';
+                                bgColor = '#FFF3E0';
+                            } else if (statusLower === 'perlu_diproses') {
+                                label = 'PERLU DIPROSES';
+                                color = '#1976D2';
+                                bgColor = '#E3F2FD';
+                            } else if (statusLower === 'diproses' || statusLower === 'processing' || statusLower === 'sedang_diproses') {
+                                label = 'SEDANG DIPROSES';
+                                color = '#1976D2';
+                                bgColor = '#E3F2FD';
+                            } else if (statusLower === 'dikirim' || statusLower === 'shipped') {
+                                label = 'SEDANG DIKIRIM';
+                                color = '#EF6C00';
+                                bgColor = '#FFF3E0';
+                            } else if (statusLower === 'selesai' || statusLower === 'completed') {
+                                label = 'SELESAI';
+                                color = '#2E8B57';
+                                bgColor = '#E8F5E9';
+                            } else if (statusLower === 'dibatalkan' || statusLower === 'cancelled') {
+                                label = 'DIBATALKAN';
+                                color = '#D32F2F';
+                                bgColor = '#FFEBEE';
+                            } else if (statusLower === 'dilaporkan' || statusLower === 'reported') {
+                                label = 'DILAPORKAN';
+                                color = '#D32F2F';
+                                bgColor = '#FFEBEE';
+                            }
 
-
-                        </View>
+                            return (
+                                <View style={[styles.badgeStatus, { backgroundColor: bgColor }]}>
+                                    <Text style={[styles.badgeStatusText, { color: color }]}>{label}</Text>
+                                </View>
+                            );
+                        })()}
                         {user?.role === 'apoteker' && (
                             <TouchableOpacity style={styles.chatBtnHeader} onPress={handleChatUser}>
                                 <Ionicons name="chatbubble-ellipses" size={18} color="#1976D2" />
@@ -531,37 +583,66 @@ export default function DetailPesananScreen() {
                         <Text style={styles.paymentLabel}>Subtotal Produk</Text>
                         <Text style={styles.paymentValue}>Rp {Math.round(Number(o.total_price)).toLocaleString('id-ID')}</Text>
                     </View>
-                    {/* Statis karena dari API kita hanya simpan total_price saat ini */}
                     <View style={styles.paymentRow}>
                         <Text style={styles.paymentLabel}>Biaya Layanan</Text>
                         <Text style={styles.paymentValue}>Rp 2.000</Text>
                     </View>
+                    {o.shipping_address && o.shipping_address !== 'Ambil di Apotek' && (
+                        <View style={styles.paymentRow}>
+                            <Text style={styles.paymentLabel}>Ongkos Kirim</Text>
+                            <Text style={styles.paymentValue}>Rp 10.000</Text>
+                        </View>
+                    )}
                     <View style={styles.divider} />
                     <View style={styles.totalRow}>
                         <Text style={styles.totalLabel}>Total Bayar</Text>
-                        <Text style={styles.totalValue}>Rp {Math.round(Number(o.total_price) + 2000).toLocaleString('id-ID')}</Text>
+                        <Text style={styles.totalValue}>
+                            Rp {Math.round(
+                                Number(o.total_price || 0) + 
+                                2000 + 
+                                (o.shipping_address && o.shipping_address !== 'Ambil di Apotek' ? 10000 : 0)
+                            ).toLocaleString('id-ID')}
+                        </Text>
                     </View>
 
                 </View>
 
                 {/* User Actions */}
                 {/* User Actions */}
-                {user?.role === 'member' && (o.status === 'pending' || o.status === 'dikirim' || o.status === 'selesai') && (
+                {user?.role === 'member' && (o.status === 'menunggu_pembayaran' || o.status === 'dikirim' || o.status === 'selesai') && (
                     <View style={styles.userActionSection}>
                         <Text style={styles.actionSectionTitle}>Aksi Pesanan</Text>
                         <View style={styles.actionRow}>
-                            {/* Member can cancel if status is pending */}
-                            {o.status === 'pending' && (
-                                <TouchableOpacity 
-                                    style={[styles.btnAction, { backgroundColor: '#D32F2F' }]} 
-                                    onPress={() => {
-                                        setIsApotekerCancel(false);
-                                        setCancelModalVisible(true);
-                                    }}
-                                    disabled={updating}
-                                >
-                                    <Text style={styles.btnActionText}>Batalkan Pesanan</Text>
-                                </TouchableOpacity>
+                            {/* Member can pay or cancel if status is menunggu_pembayaran */}
+                            {o.status === 'menunggu_pembayaran' && (
+                                <>
+                                    <TouchableOpacity 
+                                        style={[styles.btnAction, { backgroundColor: '#2E8B57' }]} 
+                                        onPress={() => {
+                                            router.push({
+                                                pathname: '/payment-qris',
+                                                params: {
+                                                    orderId: o.id,
+                                                    orderNumber: o.order_number,
+                                                    totalPrice: o.total_price
+                                                }
+                                            } as any);
+                                        }}
+                                        disabled={updating}
+                                    >
+                                        <Text style={styles.btnActionText}>Bayar Sekarang</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity 
+                                        style={[styles.btnAction, { backgroundColor: '#D32F2F' }]} 
+                                        onPress={() => {
+                                            setIsApotekerCancel(false);
+                                            setCancelModalVisible(true);
+                                        }}
+                                        disabled={updating}
+                                    >
+                                        <Text style={styles.btnActionText}>Batalkan Pesanan</Text>
+                                    </TouchableOpacity>
+                                </>
                             )}
 
                             {o.status === 'dikirim' && (
@@ -597,52 +678,65 @@ export default function DetailPesananScreen() {
                     <View style={styles.pharmacistSection}>
                         <Text style={styles.adminTitle}>Panel Apoteker</Text>
                         <View style={styles.actionRow}>
-                            {o.status === 'pending' && (
+                            {o.status === 'menunggu_konfirmasi' && (
                                 <TouchableOpacity 
-                                    style={[styles.btnAction, { backgroundColor: '#1976D2' }]} 
-                                    onPress={() => confirmStatusUpdate('diproses')}
+                                    style={[styles.btnAction, { backgroundColor: '#2E8B57' }]} 
+                                    onPress={() => confirmStatusUpdate('verify_payment')}
                                     disabled={updating}
                                 >
-                                    <Text style={styles.btnActionText}>Proses</Text>
+                                    <Text style={styles.btnActionText}>Konfirmasi Pembayaran</Text>
                                 </TouchableOpacity>
                             )}
-                            {o.status === 'diproses' && (
+                            {o.status === 'perlu_diproses' && (
+                                <TouchableOpacity 
+                                    style={[styles.btnAction, { backgroundColor: '#1976D2' }]} 
+                                    onPress={() => confirmStatusUpdate('sedang_diproses')}
+                                    disabled={updating}
+                                >
+                                    <Text style={styles.btnActionText}>Proses Pesanan</Text>
+                                </TouchableOpacity>
+                            )}
+                            {o.status === 'menunggu_pembayaran' && (
+                                <View style={[styles.btnAction, { backgroundColor: '#E0E0E0', elevation: 0 }]}>
+                                    <Text style={[styles.btnActionText, { color: '#757575', textAlign: 'center' }]}>Menunggu Pembayaran Pasien</Text>
+                                </View>
+                            )}
+                            {o.status === 'sedang_diproses' && (
                                 <TouchableOpacity 
                                     style={[styles.btnAction, { backgroundColor: '#EF6C00' }]} 
                                     onPress={() => confirmStatusUpdate('dikirim')}
                                     disabled={updating}
                                 >
-                                    <Text style={styles.btnActionText}>Kirim</Text>
+                                    <Text style={styles.btnActionText}>Kirim Pesanan</Text>
                                 </TouchableOpacity>
                             )}
-                            {(o.status === 'dikirim' || o.status === 'dilaporkan') && (
+                            {o.status === 'dikirim' && (
+                                <View style={[styles.btnAction, { backgroundColor: '#E0E0E0', elevation: 0 }]}>
+                                    <Text style={[styles.btnActionText, { color: '#757575', textAlign: 'center' }]}>Pesanan Sedang Dikirim</Text>
+                                </View>
+                            )}
+                            {o.status === 'selesai' && (
+                                <View style={[styles.btnAction, { backgroundColor: '#E8F5E9', elevation: 0 }]}>
+                                    <Text style={[styles.btnActionText, { color: '#2E8B57' }]}>Pesanan Selesai</Text>
+                                </View>
+                            )}
+                            {o.status === 'dibatalkan' && (
+                                <View style={[styles.btnAction, { backgroundColor: '#FFEBEE', elevation: 0 }]}>
+                                    <Text style={[styles.btnActionText, { color: '#D32F2F' }]}>Pesanan Dibatalkan</Text>
+                                </View>
+                            )}
+                            {o.status === 'dilaporkan' && (
                                 <TouchableOpacity 
-                                    style={[styles.btnAction, { backgroundColor: '#2E8B57' }]} 
-                                    onPress={() => confirmStatusUpdate('selesai')}
+                                    style={[styles.btnAction, { backgroundColor: '#FF5252' }]} 
+                                    onPress={handleChatUser}
                                     disabled={updating}
                                 >
-                                    <Text style={styles.btnActionText}>Selesaikan</Text>
+                                    <Text style={styles.btnActionText}>Hubungi Pasien (Tinjau Laporan)</Text>
                                 </TouchableOpacity>
                             )}
-                            {o.status !== 'selesai' && o.status !== 'dibatalkan' && (
-                                <TouchableOpacity 
-                                    style={[styles.btnAction, { backgroundColor: '#D32F2F' }]} 
-                                    onPress={() => {
-                                        setIsApotekerCancel(true);
-                                        setCancelModalVisible(true);
-                                    }}
-                                    disabled={updating}
-                                >
-                                    <Text style={styles.btnActionText}>Batalkan</Text>
-                                </TouchableOpacity>
-                            )}
-
-
-
                         </View>
                         {updating && <ActivityIndicator color="#2E8B57" style={{ marginTop: 10 }} />}
                     </View>
-
                 )}
 
                 <TouchableOpacity 
