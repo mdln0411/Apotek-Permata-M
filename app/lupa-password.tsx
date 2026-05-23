@@ -1,266 +1,123 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { router, Stack } from 'expo-router';
-import React, { useState, useRef } from 'react';
-import { 
-    SafeAreaView, 
-    ScrollView, 
-    StyleSheet, 
-    Text, 
-    TextInput, 
-    TouchableOpacity, 
-    View, 
-    Alert, 
-    ActivityIndicator,
-    Animated,
-    Vibration,
+import React, { useState } from 'react';
+import {
+    Alert,
+    Image,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import axiosClient from '../api/axiosClient';
-import { SuccessToast } from '@/components/SuccessToast';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const ADMIN_WHATSAPP = '6281264847315';
+const WHATSAPP_MESSAGE = 'Halo admin, saya ingin reset password akun saya.';
 
 export default function LupaPasswordScreen() {
-    const [step, setStep] = useState(1);
-    
-    // Form States
-    const [email, setEmail] = useState('');
-    const [otp, setOtp] = useState('');
-    const [resetToken, setResetToken] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    
-    const [loading, setLoading] = useState(false);
-    const [toastVisible, setToastVisible] = useState(false);
+    const [opening, setOpening] = useState(false);
 
-    // Errors
-    const [errors, setErrors] = useState({
-        email: '',
-        otp: '',
-        password: '',
-        server: ''
-    });
+    const openWhatsApp = async () => {
+        const url = `https://wa.me/${ADMIN_WHATSAPP}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
 
-    const shakeAnimation = useRef(new Animated.Value(0)).current;
-
-    const triggerShake = () => {
-        Vibration.vibrate(100);
-        shakeAnimation.setValue(0);
-        Animated.sequence([
-            Animated.timing(shakeAnimation, { toValue: 10, duration: 50, useNativeDriver: true }),
-            Animated.timing(shakeAnimation, { toValue: -10, duration: 50, useNativeDriver: true }),
-            Animated.timing(shakeAnimation, { toValue: 10, duration: 50, useNativeDriver: true }),
-            Animated.timing(shakeAnimation, { toValue: 0, duration: 50, useNativeDriver: true })
-        ]).start();
-    };
-
-    const validateEmail = (val: string) => {
-        const re = /\S+@\S+\.\S+/;
-        return re.test(val);
-    };
-
-    const handleRealtimeValidation = (field: string, value: string) => {
-        let newErrors = { ...errors, server: '' };
-
-        if (field === 'email') {
-            setEmail(value);
-            if (!value.trim()) newErrors.email = 'Email wajib diisi.';
-            else if (!validateEmail(value)) newErrors.email = 'Format email tidak valid.';
-            else newErrors.email = '';
-        }
-        if (field === 'otp') {
-            setOtp(value);
-            if (!value.trim()) newErrors.otp = 'OTP wajib diisi.';
-            else newErrors.otp = '';
-        }
-        if (field === 'password') {
-            setPassword(value);
-            if (!value) newErrors.password = 'Password baru wajib diisi.';
-            else if (value.length < 8) newErrors.password = 'Password minimal 8 karakter.';
-            else newErrors.password = '';
-        }
-        setErrors(newErrors);
-    };
-
-    const handleSendOtp = async () => {
-        if (!email.trim() || !validateEmail(email)) {
-            setErrors({ ...errors, email: 'Masukkan email yang valid terlebih dahulu.' });
-            triggerShake();
-            return;
-        }
-        setLoading(true);
-        setErrors({ ...errors, server: '' });
         try {
-            const response = await axiosClient.post('/api/auth/forgot-password', { email });
-            setStep(2);
-        } catch (error: any) {
-            triggerShake();
-            setErrors({ ...errors, server: error.response?.data?.message || 'Gagal mengirim OTP' });
+            setOpening(true);
+            const supported = await Linking.canOpenURL(url);
+            if (!supported) {
+                Alert.alert(
+                    'WhatsApp tidak tersedia',
+                    'Pastikan aplikasi WhatsApp sudah terpasang di perangkat Anda.',
+                );
+                return;
+            }
+            await Linking.openURL(url);
+        } catch {
+            Alert.alert('Gagal membuka WhatsApp', 'Silakan coba lagi atau hubungi admin secara manual.');
         } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleVerifyOtp = async () => {
-        if (!otp.trim()) {
-            setErrors({ ...errors, otp: 'Kode OTP tidak boleh kosong.' });
-            triggerShake();
-            return;
-        }
-        setLoading(true);
-        setErrors({ ...errors, server: '' });
-        try {
-            const response = await axiosClient.post('/api/auth/verify-otp', { email, otp });
-            setResetToken(response.data.reset_token);
-            setStep(3);
-        } catch (error: any) {
-            triggerShake();
-            setErrors({ ...errors, server: error.response?.data?.message || 'OTP tidak valid' });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleResetPassword = async () => {
-        if (!password || password.length < 8) {
-            setErrors({ ...errors, password: 'Password baru minimal 8 karakter.' });
-            triggerShake();
-            return;
-        }
-        setLoading(true);
-        setErrors({ ...errors, server: '' });
-        try {
-            await axiosClient.post('/api/auth/reset-password', {
-                email,
-                reset_token: resetToken,
-                password
-            });
-            setToastVisible(true);
-            setTimeout(() => {
-                setToastVisible(false);
-                router.replace('/login' as any);
-            }, 2500);
-        } catch (error: any) {
-            triggerShake();
-            setErrors({ ...errors, server: error.response?.data?.message || 'Gagal mereset password' });
-        } finally {
-            setLoading(false);
+            setOpening(false);
         }
     };
 
     return (
         <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
-            
-            <SuccessToast visible={toastVisible} message="Password berhasil direset! Silakan login kembali." />
 
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                <View style={styles.header}>
+            <View style={styles.header}>
+                <View style={styles.headerLeft}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <Ionicons name="arrow-back" size={24} color="#FFF" />
+                    </TouchableOpacity>
                     <View style={styles.logoContainer}>
-                        <Ionicons name="medical" size={24} color="#FFF" />
+                        <Image
+                            source={require('../assets/images/logoimk.png')}
+                            style={{ width: 28, height: 28 }}
+                            resizeMode="contain"
+                        />
                         <Text style={styles.headerTitle}>Apotek Permata</Text>
                     </View>
-                    <TouchableOpacity onPress={() => router.push('/register' as any)}>
-                        <Text style={styles.headerLink}>Daftar</Text>
-                    </TouchableOpacity>
                 </View>
+            </View>
 
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <TouchableOpacity style={styles.backBtn} onPress={() => {
-                        if (step > 1) setStep(step - 1);
-                        else router.back();
-                    }}>
-                        <Feather name="arrow-left" size={20} color="#333" />
-                        <Text style={styles.backText}>Kembali</Text>
-                    </TouchableOpacity>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={{ flex: 1 }}
+            >
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <View style={styles.heroIcon}>
+                        <View style={styles.heroIconInner}>
+                            <Feather name="key" size={32} color="#2E8B57" />
+                        </View>
+                    </View>
 
-                    <Text style={styles.mainTitle}>Lupa Password</Text>
-                    
-                    <Animated.View style={{ transform: [{ translateX: shakeAnimation }] }}>
-                        {errors.server ? (
-                            <View style={styles.errorBox}>
-                                <Feather name="alert-circle" size={20} color="#FF5252" />
-                                <Text style={styles.errorBoxText}>{errors.server}</Text>
+                    <Text style={styles.mainTitle}>Lupa Kata Sandi?</Text>
+                    <Text style={styles.subTitle}>
+                        Reset password dilakukan oleh admin. Hubungi admin melalui WhatsApp
+                        dengan pesan otomatis berikut.
+                    </Text>
+
+                    <View style={styles.card}>
+                        <View style={styles.infoRow}>
+                            <View style={styles.infoIconWrap}>
+                                <Feather name="info" size={18} color="#2E8B57" />
                             </View>
-                        ) : null}
+                            <Text style={styles.infoText}>
+                                Siapkan email akun Anda saat admin membalas, agar proses reset
+                                lebih cepat.
+                            </Text>
+                        </View>
 
-                        {step === 1 && (
-                            <>
-                                <Text style={styles.subTitle}>Masukkan email terdaftar Anda untuk menerima kode OTP (silakan cek log server untuk simulasi).</Text>
-                                
-                                <View style={styles.inputGroup}>
-                                    <View style={[styles.inputWrapper, errors.email ? styles.inputError : null]}>
-                                        <Feather name="mail" size={20} color={errors.email ? '#FF5252' : '#999'} style={styles.inputIcon} />
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="Email Terdaftar"
-                                            value={email}
-                                            onChangeText={(val) => handleRealtimeValidation('email', val)}
-                                            keyboardType="email-address"
-                                            autoCapitalize="none"
-                                        />
-                                    </View>
-                                    {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
-                                </View>
+                        <View style={styles.previewBox}>
+                            <Text style={styles.previewLabel}>Pesan otomatis</Text>
+                            <Text style={styles.previewMessage}>"{WHATSAPP_MESSAGE}"</Text>
+                        </View>
 
-                                <TouchableOpacity style={styles.submitBtn} onPress={handleSendOtp} disabled={loading}>
-                                    {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Kirim OTP</Text>}
-                                </TouchableOpacity>
-                            </>
-                        )}
+                        <TouchableOpacity
+                            style={[styles.whatsappBtn, opening && styles.whatsappBtnDisabled]}
+                            onPress={openWhatsApp}
+                            disabled={opening}
+                            activeOpacity={0.85}
+                        >
+                            <Ionicons name="logo-whatsapp" size={24} color="#FFF" />
+                            <Text style={styles.whatsappBtnText}>
+                                Hubungi Admin via WhatsApp
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
 
-                        {step === 2 && (
-                            <>
-                                <Text style={styles.subTitle}>Masukkan 6 digit kode OTP yang telah dikirimkan ke email Anda.</Text>
-                                
-                                <View style={styles.inputGroup}>
-                                    <View style={[styles.inputWrapper, errors.otp ? styles.inputError : null]}>
-                                        <Feather name="key" size={20} color={errors.otp ? '#FF5252' : '#999'} style={styles.inputIcon} />
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="Kode OTP"
-                                            value={otp}
-                                            onChangeText={(val) => handleRealtimeValidation('otp', val)}
-                                            keyboardType="numeric"
-                                            maxLength={6}
-                                        />
-                                    </View>
-                                    {errors.otp ? <Text style={styles.errorText}>{errors.otp}</Text> : null}
-                                </View>
-
-                                <TouchableOpacity style={styles.submitBtn} onPress={handleVerifyOtp} disabled={loading}>
-                                    {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Verifikasi OTP</Text>}
-                                </TouchableOpacity>
-                            </>
-                        )}
-
-                        {step === 3 && (
-                            <>
-                                <Text style={styles.subTitle}>Masukkan password baru Anda yang kuat dan mudah diingat.</Text>
-                                
-                                <View style={styles.inputGroup}>
-                                    <View style={[styles.inputWrapper, errors.password ? styles.inputError : null]}>
-                                        <Feather name="lock" size={20} color={errors.password ? '#FF5252' : '#999'} style={styles.inputIcon} />
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="Password Baru"
-                                            value={password}
-                                            onChangeText={(val) => handleRealtimeValidation('password', val)}
-                                            secureTextEntry={!showPassword}
-                                        />
-                                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 10 }}>
-                                            <Feather name={showPassword ? 'eye' : 'eye-off'} size={20} color="#999" />
-                                        </TouchableOpacity>
-                                    </View>
-                                    {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
-                                </View>
-
-                                <TouchableOpacity style={styles.submitBtn} onPress={handleResetPassword} disabled={loading}>
-                                    {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Simpan Password</Text>}
-                                </TouchableOpacity>
-                            </>
-                        )}
-                    </Animated.View>
-
+                    <TouchableOpacity
+                        style={styles.backToLoginBtn}
+                        onPress={() => router.replace('/login' as any)}
+                    >
+                        <Feather name="arrow-left" size={16} color="#2E8B57" />
+                        <Text style={styles.backToLoginText}>Kembali ke Login</Text>
+                    </TouchableOpacity>
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -269,35 +126,139 @@ export default function LupaPasswordScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F4F9F4' },
-    header: { backgroundColor: '#2E8B57', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 50 : 20, paddingBottom: 16 },
-    logoContainer: { flexDirection: 'row', alignItems: 'center' },
-    headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFF', marginLeft: 8 },
-    headerLink: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
-    scrollContent: { padding: 20 },
-    backBtn: { flexDirection: 'row', alignItems: 'center', marginBottom: 24, marginTop: 10 },
-    backText: { fontSize: 14, color: '#333', marginLeft: 8, fontWeight: '500' },
-    mainTitle: { fontSize: 24, fontWeight: 'bold', color: '#333', marginBottom: 8 },
-    subTitle: { fontSize: 14, color: '#555', marginBottom: 24, lineHeight: 20 },
-    
-    inputGroup: { marginBottom: 20 },
-    inputWrapper: {
+    header: {
+        backgroundColor: '#2E8B57',
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFF',
-        borderWidth: 1.5,
-        borderColor: '#E0E0E0',
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        height: 56
+        paddingHorizontal: 20,
+        paddingVertical: 14,
     },
-    inputError: { borderColor: '#FF5252', backgroundColor: '#FFFAFA' },
-    inputIcon: { marginRight: 12 },
-    input: { flex: 1, fontSize: 16, color: '#333' },
-    errorText: { color: '#FF5252', fontSize: 12, marginTop: 6, marginLeft: 4, fontWeight: '500' },
-    
-    errorBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFEAEA', padding: 12, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: '#FFD1D1' },
-    errorBoxText: { color: '#FF5252', fontSize: 14, fontWeight: 'bold', marginLeft: 8, flex: 1 },
-    
-    submitBtn: { backgroundColor: '#2E8B57', paddingVertical: 16, borderRadius: 12, alignItems: 'center', elevation: 2, shadowColor: '#2E8B57', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
-    submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+    headerLeft: { flexDirection: 'row', alignItems: 'center' },
+    backButton: { marginRight: 12 },
+    logoContainer: { flexDirection: 'row', alignItems: 'center' },
+    headerTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FFF',
+        marginLeft: 8,
+    },
+    scrollContent: { padding: 24, paddingBottom: 40 },
+    heroIcon: { alignItems: 'center', marginTop: 8, marginBottom: 20 },
+    heroIconInner: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: '#FFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#DCEBDE',
+        shadowColor: '#2E8B57',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    mainTitle: {
+        fontSize: 26,
+        fontWeight: 'bold',
+        color: '#1A2E1A',
+        textAlign: 'center',
+        marginBottom: 10,
+    },
+    subTitle: {
+        fontSize: 14,
+        color: '#555',
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 28,
+        paddingHorizontal: 8,
+    },
+    card: {
+        backgroundColor: '#FFF',
+        borderRadius: 20,
+        padding: 22,
+        borderWidth: 1,
+        borderColor: '#DCEBDE',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    infoRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        backgroundColor: '#F0FAF4',
+        padding: 14,
+        borderRadius: 12,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#C8E6C9',
+    },
+    infoIconWrap: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#E8F5E9',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    infoText: { flex: 1, fontSize: 13, color: '#444', lineHeight: 20 },
+    previewBox: {
+        backgroundColor: '#FAFAFA',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: '#EEEEEE',
+    },
+    previewLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#888',
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+        marginBottom: 8,
+    },
+    previewMessage: {
+        fontSize: 15,
+        color: '#333',
+        fontStyle: 'italic',
+        lineHeight: 22,
+    },
+    whatsappBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#25D366',
+        paddingVertical: 16,
+        borderRadius: 14,
+        gap: 10,
+        shadowColor: '#25D366',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    whatsappBtnDisabled: { opacity: 0.7 },
+    whatsappBtnText: {
+        color: '#FFF',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    backToLoginBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 28,
+        gap: 8,
+        paddingVertical: 12,
+    },
+    backToLoginText: {
+        color: '#2E8B57',
+        fontSize: 15,
+        fontWeight: '600',
+    },
 });

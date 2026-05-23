@@ -19,12 +19,27 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-// Health check
+// Health check (+ cek koneksi database)
 Route::get('/health', function () {
+    try {
+        \Illuminate\Support\Facades\DB::connection()->getPdo();
+        $dbOk = true;
+        $dbName = \Illuminate\Support\Facades\DB::connection()->getDatabaseName();
+    } catch (\Throwable $e) {
+        $dbOk = false;
+        $dbName = null;
+    }
+
     return response()->json([
-        'status'  => 'ok',
-        'message' => 'Apotek Permata API berjalan dengan baik',
-    ]);
+        'status'  => $dbOk ? 'ok' : 'degraded',
+        'message' => $dbOk
+            ? 'Apotek Permata API berjalan dengan baik'
+            : 'API aktif tetapi database tidak terhubung. Pastikan MySQL/XAMPP sudah dijalankan.',
+        'database' => [
+            'connected' => $dbOk,
+            'name' => $dbName,
+        ],
+    ], $dbOk ? 200 : 503);
 });
 
 // --- Auth Routes ---
@@ -87,9 +102,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/cancel', [OrderController::class, 'cancelOrder']);
     });
 
-    // Allergies System
-    Route::apiResource('allergies', AllergyController::class);
+    // Allergies System — by-user HARUS didefinisikan sebelum resource {allergy}
     Route::get('/allergies/by-user', [AllergyController::class, 'byUser']);
+    Route::apiResource('allergies', AllergyController::class)->only(['index', 'store', 'destroy']);
 
 
     // --- Shared Admin/Apoteker Routes ---

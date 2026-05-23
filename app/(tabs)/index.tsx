@@ -1,4 +1,5 @@
 import axiosClient from '@/api/axiosClient';
+import { storageUrl } from '@/constants/api';
 import { LoginPromptModal } from '@/components/LoginPromptModal';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
@@ -41,9 +42,7 @@ const THEME = {
 const renderMedicineImage = (item: any) => {
     // Jika image_url ada, tampilkan gambar dengan URL lengkap atau fallback ke path storage backend
     if (item.image_url) {
-        const imageUrl = item.image_url.startsWith('http') 
-            ? item.image_url 
-            : `${axiosClient.defaults.baseURL}/storage/${item.image_url}`;
+        const imageUrl = storageUrl(item.image_url);
         return (
             <Image 
                 source={{ uri: imageUrl }} 

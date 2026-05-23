@@ -67,10 +67,16 @@ class AllergyController extends Controller
      */
     public function byUser(Request $request)
     {
+        $actor = $request->user();
+        if (!in_array($actor->role, ['apoteker', 'admin'], true)) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
         $userId = $request->query('user_id');
         if (!$userId) {
             return response()->json(['success' => false, 'message' => 'user_id required'], 400);
         }
+
         $allergies = Allergy::where('user_id', $userId)->latest()->get();
         return response()->json(['success' => true, 'data' => $allergies]);
     }

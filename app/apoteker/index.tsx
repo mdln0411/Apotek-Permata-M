@@ -33,6 +33,7 @@ export default function PesananMasuk() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [masalahFilter, setMasalahFilter] = useState<'semua' | 'dilaporkan' | 'dibatalkan'>('semua');
+    const [pendingPrescriptions, setPendingPrescriptions] = useState(0);
 
     const isCancelledByUser = (o: any) => {
         const status = (o.status || '').toLowerCase().trim();
@@ -44,8 +45,16 @@ export default function PesananMasuk() {
     const fetchOrders = async () => {
         try {
             setLoading(true);
-            const response = await axiosClient.get('/api/admin/orders');
-            setOrders(response.data.data || []);
+            const [orderRes, prescriptionRes] = await Promise.all([
+                axiosClient.get('/api/admin/orders'),
+                axiosClient.get('/api/prescriptions'),
+            ]);
+            setOrders(orderRes.data.data || []);
+            const prescriptions = prescriptionRes.data?.data;
+            const pending = Array.isArray(prescriptions)
+                ? prescriptions.filter((p: any) => p.status === 'pending').length
+                : 0;
+            setPendingPrescriptions(pending);
         } catch (error) {
             console.error('Error fetching orders:', error);
         } finally {
@@ -109,13 +118,29 @@ export default function PesananMasuk() {
         <TouchableOpacity 
             style={[styles.tabItem, activeTab === id && styles.activeTabItem]}
             onPress={() => setActiveTab(id)}
+            activeOpacity={0.85}
         >
-            <Text style={[styles.tabText, activeTab === id && styles.activeTabText]}>
+            <Text
+                style={[styles.tabText, activeTab === id && styles.activeTabText]}
+                numberOfLines={1}
+            >
                 {title}
             </Text>
             {count > 0 && (
-                <View style={[styles.badge, activeTab === id ? { backgroundColor: THEME.white } : { backgroundColor: THEME.primary }]}>
-                    <Text style={[styles.badgeText, activeTab === id ? { color: THEME.primary } : { color: THEME.white }]}>{count}</Text>
+                <View
+                    style={[
+                        styles.badge,
+                        activeTab === id ? styles.badgeActiveTab : styles.badgeInactiveTab,
+                    ]}
+                >
+                    <Text
+                        style={[
+                            styles.badgeText,
+                            activeTab === id ? styles.badgeTextActiveTab : styles.badgeTextInactiveTab,
+                        ]}
+                    >
+                        {count > 99 ? '99+' : count}
+                    </Text>
                 </View>
             )}
         </TouchableOpacity>
@@ -151,9 +176,32 @@ export default function PesananMasuk() {
                 </View>
             </View>
 
-            {/* Sticky Tabs */}
+            {pendingPrescriptions > 0 && (
+                <TouchableOpacity
+                    style={styles.resepBanner}
+                    onPress={() => router.push('/apoteker/prescriptions' as any)}
+                    activeOpacity={0.85}
+                >
+                    <View style={styles.resepBannerIcon}>
+                        <MaterialCommunityIcons name="file-document-edit-outline" size={22} color={THEME.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.resepBannerTitle}>
+                            {pendingPrescriptions} Resep Menunggu Validasi
+                        </Text>
+                        <Text style={styles.resepBannerSub}>Ketuk untuk melihat dan memvalidasi resep pasien</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={THEME.primary} />
+                </TouchableOpacity>
+            )}
+
+            {/* Tab status pesanan */}
             <View style={styles.tabContainer}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.tabScrollContent}
+                >
                     <TabButton title="Perlu Diproses" id="menunggu" count={getCounts('menunggu')} />
                     <TabButton title="Sedang Diproses" id="diproses" count={getCounts('diproses')} />
                     <TabButton title="Dikirim" id="dikirim" count={getCounts('dikirim')} />
@@ -316,35 +364,67 @@ const styles = StyleSheet.create({
     header: { 
         backgroundColor: THEME.primary, 
         paddingTop: Platform.OS === 'android' ? 60 : 40, 
-        paddingBottom: 40, 
+        paddingBottom: 20, 
         paddingHorizontal: 20,
     },
     headerRow: { flexDirection: 'row', alignItems: 'center' },
     backBtn: { marginRight: 15, padding: 5 },
     headerTitle: { fontSize: 24, fontWeight: 'bold', color: THEME.white },
     headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-    tabContainer: { 
-        marginTop: -25,
-        backgroundColor: 'transparent',
+    tabContainer: {
+        marginTop: 4,
+        marginBottom: 8,
+        paddingTop: 4,
+        paddingBottom: 4,
+        backgroundColor: '#F8F9FA',
     },
-    tabItem: { 
+    tabScrollContent: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12, 
-        paddingHorizontal: 16, 
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        gap: 10,
+    },
+    tabItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        minHeight: 44,
         backgroundColor: THEME.white,
-        borderRadius: 25,
+        borderRadius: 22,
         borderWidth: 1,
         borderColor: THEME.border,
-        elevation: 4,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 3,
     },
     activeTabItem: { backgroundColor: THEME.primary, borderColor: THEME.primary },
-    tabText: { fontSize: 14, color: THEME.textMuted, fontWeight: '600' },
+    tabText: {
+        fontSize: 13,
+        color: THEME.textMuted,
+        fontWeight: '600',
+        flexShrink: 1,
+    },
     activeTabText: { color: THEME.white },
-    badge: { marginLeft: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, minWidth: 20, alignItems: 'center' },
-    badgeText: { fontSize: 10, fontWeight: 'bold' },
-    scrollContent: { padding: 20, paddingTop: 15 },
+    badge: {
+        minWidth: 22,
+        height: 22,
+        borderRadius: 11,
+        paddingHorizontal: 6,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    badgeActiveTab: { backgroundColor: THEME.white },
+    badgeInactiveTab: { backgroundColor: THEME.primary },
+    badgeText: { fontSize: 11, fontWeight: 'bold', lineHeight: 14 },
+    badgeTextActiveTab: { color: THEME.primary },
+    badgeTextInactiveTab: { color: THEME.white },
+    scrollContent: { padding: 20, paddingTop: 8 },
     orderCard: { backgroundColor: THEME.white, borderRadius: 20, padding: 18, marginBottom: 18, borderWidth: 1, borderColor: THEME.border },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
     headerInfo: { flexDirection: 'column', gap: 6 },
@@ -412,5 +492,44 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#555',
         lineHeight: 18,
+    },
+    resepBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#E8F5E9',
+        marginHorizontal: 16,
+        marginTop: 12,
+        marginBottom: 16,
+        paddingVertical: 14,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#C8E6C9',
+        gap: 12,
+        zIndex: 2,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.06,
+        shadowRadius: 3,
+    },
+    resepBannerIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: THEME.white,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    resepBannerTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: THEME.textDark,
+    },
+    resepBannerSub: {
+        fontSize: 12,
+        color: THEME.textMuted,
+        marginTop: 4,
+        lineHeight: 17,
     },
 });

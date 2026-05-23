@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             MedicineSeeder::class,
             ManualMedicineSeeder::class,
             EducationSeeder::class,
+            SimulasiInteraksiObatSeeder::class,
         ]);
     }
 }

@@ -100,8 +100,7 @@ class ConsultationController extends Controller
 
         $imagePath = null;
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('chats', 'public');
-            $imagePath = url(\Storage::url($path));
+            $imagePath = $request->file('image')->store('chats', 'public');
         }
 
         $messageText = $request->message;

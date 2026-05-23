@@ -24,7 +24,7 @@ const faqs: FAQItem[] = [
     },
     {
         question: "Bagaimana jika saya lupa kata sandi?",
-        answer: "Klik 'Lupa Password' pada halaman login. Masukkan email Anda, dan kami akan mengirimkan instruksi untuk mengatur ulang kata sandi Anda."
+        answer: "Klik 'Lupa kata sandi?' pada halaman login, lalu pilih 'Hubungi Admin via WhatsApp'. Admin akan membantu mereset kata sandi akun Anda."
     },
     {
         question: "Bagaimana cara membuat akun baru?",

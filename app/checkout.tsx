@@ -62,7 +62,9 @@ export default function CheckoutScreen() {
     // Ambil item_ids atau prescription_id terpilih dari query parameter
     const { item_ids, prescription_id } = useLocalSearchParams<{ item_ids?: string, prescription_id?: string }>();
     
+  /** antar = pengantaran ke alamat, jemput = ambil di apotek (tanpa ongkir) */
     const [metode, setMetode] = useState<'antar' | 'jemput'>('antar');
+    const isAmbilDiApotek = metode === 'jemput';
     const [jamJemput, setJamJemput] = useState('');
     const [alamatLengkap, setAlamatLengkap] = useState(user?.address || '');
     const [isDistanceChecked, setIsDistanceChecked] = useState(false);
@@ -162,32 +164,91 @@ export default function CheckoutScreen() {
     }, [checkoutItems, prescription]);
 
     const biayaLayanan = 2000;
-    const ongkir = metode === 'antar' ? 10000 : 0;
+    const ongkir = isAmbilDiApotek ? 0 : 10000;
     const total = Number(subtotal) + Number(biayaLayanan) + Number(ongkir);
 
-    const handleBayar = async () => {
-        if (metode === 'antar' && !alamatLengkap) {
-            Alert.alert('Error', 'Silakan masukkan alamat pengantaran');
+    const navigateAfterOrder = (order: { id: number; order_number: string }) => {
+        const paymentId = selectedPayment?.id;
+        const baseParams = {
+            orderId: String(order.id),
+            orderNumber: order.order_number,
+            totalPrice: String(total),
+        };
+
+        if (paymentId === '1') {
+            router.replace({
+                pathname: '/payment-qris',
+                params: baseParams,
+            } as any);
             return;
         }
-        if (metode === 'antar' && !isDistanceChecked) {
-            Alert.alert('Perhatian', 'Anda harus menyetujui pernyataan jarak maksimal pengantaran.');
+        if (paymentId === '2' || paymentId === '3') {
+            router.replace({
+                pathname: '/payment-transfer',
+                params: {
+                    ...baseParams,
+                    method: paymentId === '2' ? 'dana' : 'bank',
+                },
+            } as any);
             return;
         }
-        if (metode === 'jemput' && !jamJemput) {
-            Alert.alert('Error', 'Silakan masukkan jam penjemputan');
-            return;
-        }
+        router.replace({
+            pathname: '/success-action',
+            params: {
+                title: 'Pesanan Sudah Dipesan!',
+                message: isAmbilDiApotek
+                    ? 'Pesanan Anda telah dibuat. Silakan ambil obat di apotek sesuai jadwal yang Anda pilih.'
+                    : 'Pesanan Anda telah berhasil dibuat. Apoteker kami akan segera menyiapkan obat Anda.',
+                target: '/(tabs)',
+                buttonText: 'Ke Beranda',
+                secondaryTarget: '/(tabs)/pesanan',
+                secondaryButtonText: 'Lihat Pesanan Saya',
+            },
+        } as any);
+    };
+
+    const isPengantaran = metode === 'antar';
+
+    const canPay =
+        !!selectedPayment &&
+        (isAmbilDiApotek
+            ? !!jamJemput.trim()
+            : isDistanceChecked && !!alamatLengkap.trim());
+
+    const handlePayPress = () => {
+        if (loading) return;
+
         if (!selectedPayment) {
-            Alert.alert('Error', 'Silakan pilih metode pembayaran');
+            Alert.alert('Perhatian', 'Silakan pilih metode pembayaran terlebih dahulu.');
+            return;
+        }
+        if (isPengantaran && !isDistanceChecked) {
+            Alert.alert(
+                'Perhatian',
+                'Anda harus mencentang pernyataan bahwa alamat tujuan maksimal berjarak 3 km dari apotek sebelum melanjutkan pembayaran.'
+            );
+            return;
+        }
+        if (isPengantaran && !alamatLengkap.trim()) {
+            Alert.alert('Perhatian', 'Silakan masukkan alamat lengkap pengantaran.');
+            return;
+        }
+        if (isAmbilDiApotek && !jamJemput.trim()) {
+            Alert.alert('Perhatian', 'Silakan masukkan jam pengambilan di apotek.');
             return;
         }
 
+        handleBayar();
+    };
+
+    const handleBayar = async () => {
         try {
             setLoading(true);
             const payload: any = {
-                shipping_address: metode === 'antar' ? alamatLengkap : 'Ambil di Apotek',
-                notes: metode === 'jemput' ? `Jam Jemput: ${jamJemput}` : `Metode: ${selectedPayment.label}`,
+                shipping_address: isAmbilDiApotek ? 'Ambil di Apotek' : alamatLengkap,
+                notes: isAmbilDiApotek
+                    ? `Ambil di Apotek | Jam: ${jamJemput} | Pembayaran: ${selectedPayment.label}`
+                    : `Pengantaran | Pembayaran: ${selectedPayment.label}`,
             };
 
             if (prescription_id) {
@@ -202,29 +263,7 @@ export default function CheckoutScreen() {
                 console.log('Order created successfully:', res.data.data);
                 await refreshCart(); 
                 
-                if (selectedPayment.id === '1') {
-                    router.replace({
-                        pathname: '/payment-qris',
-                        params: {
-                            orderId: res.data.data.id,
-                            orderNumber: res.data.data.order_number,
-                            totalPrice: total
-                        }
-                    } as any);
-                } else {
-                    // Pindah ke success screen dengan dua pilihan
-                    router.replace({
-                        pathname: '/success-action',
-                        params: {
-                            title: 'Pesanan Sudah Dipesan!',
-                            message: 'Pesanan Anda telah berhasil dibuat. Apoteker kami akan segera menyiapkan obat Anda.',
-                            target: '/(tabs)',
-                            buttonText: 'Ke Beranda',
-                            secondaryTarget: '/(tabs)/pesanan',
-                            secondaryButtonText: 'Lihat Pesanan Saya'
-                        }
-                    } as any);
-                }
+                navigateAfterOrder(res.data.data);
             }
         } catch (e: any) {
             console.error('Checkout error detail:', e.response?.data || e.message);
@@ -315,7 +354,7 @@ export default function CheckoutScreen() {
                             onPress={() => setMetode('jemput')}
                         >
                             <Feather name="shopping-bag" size={18} color={metode === 'jemput' ? '#FFF' : '#2E8B57'} />
-                            <Text style={[styles.tabText, metode === 'jemput' && styles.tabTextActive]}>Penjemputan</Text>
+                            <Text style={[styles.tabText, metode === 'jemput' && styles.tabTextActive]}>Ambil di Apotek</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -355,9 +394,9 @@ export default function CheckoutScreen() {
                         <View style={styles.pickupCard}>
                             <View style={styles.pickupHeader}>
                                 <Feather name="clock" size={16} color="#2E8B57" />
-                                <Text style={styles.addressLabel}>Waktu Penjemputan</Text>
+                                <Text style={styles.addressLabel}>Waktu Pengambilan</Text>
                             </View>
-                            <Text style={styles.pickupInstruction}>Silakan masukkan jam rencana penjemputan Anda di Apotek Permata.</Text>
+                            <Text style={styles.pickupInstruction}>Silakan masukkan jam rencana pengambilan obat Anda di Apotek Permata. Tanpa biaya pengiriman.</Text>
                             <TextInput
                                 style={styles.timeInput}
                                 placeholder="Contoh: 14:30 WIB"
@@ -437,12 +476,14 @@ export default function CheckoutScreen() {
                         <Text style={styles.priceLabel}>Biaya Layanan</Text>
                         <Text style={styles.priceValue}>Rp {Math.round(Number(Math.round(biayaLayanan))).toLocaleString('id-ID')}</Text>
                     </View>
-                    {metode === 'antar' && (
-                        <View style={styles.priceRow}>
-                            <Text style={styles.priceLabel}>Ongkos Kirim</Text>
-                            <Text style={styles.priceValue}>Rp {Math.round(Number(Math.round(ongkir))).toLocaleString('id-ID')}</Text>
-                        </View>
-                    )}
+                    <View style={styles.priceRow}>
+                        <Text style={styles.priceLabel}>Ongkos Kirim</Text>
+                        {isAmbilDiApotek ? (
+                            <Text style={[styles.priceValue, { color: '#2E8B57' }]}>Gratis</Text>
+                        ) : (
+                            <Text style={styles.priceValue}>Rp {Math.round(ongkir).toLocaleString('id-ID')}</Text>
+                        )}
+                    </View>
                     <View style={styles.divider} />
                     <View style={styles.totalRow}>
                         <Text style={styles.totalLabel}>Total Pembayaran</Text>
@@ -457,11 +498,23 @@ export default function CheckoutScreen() {
                 <View style={styles.totalInfo}>
                     <Text style={styles.totalFooterLabel}>Total</Text>
                     <Text style={styles.totalFooterValue}>Rp {Math.round(Number(Math.round(total))).toLocaleString('id-ID')}</Text>
+                    {!canPay && !loading && (
+                        <Text style={styles.footerHint}>
+                            {!selectedPayment
+                                ? 'Pilih metode pembayaran'
+                                : isPengantaran && !isDistanceChecked
+                                  ? 'Centang pernyataan jarak 3 km'
+                                  : isPengantaran && !alamatLengkap.trim()
+                                    ? 'Isi alamat pengantaran'
+                                    : 'Lengkapi data terlebih dahulu'}
+                        </Text>
+                    )}
                 </View>
                 <TouchableOpacity
-                    style={[styles.btnPay, (!selectedPayment || loading) && { backgroundColor: '#CCC' }]}
-                    disabled={!selectedPayment || loading}
-                    onPress={handleBayar}
+                    style={[styles.btnPay, (!canPay || loading) && styles.btnPayDisabled]}
+                    disabled={loading}
+                    onPress={handlePayPress}
+                    activeOpacity={canPay ? 0.85 : 1}
                 >
                     {loading ? (
                         <ActivityIndicator color="#FFF" />
@@ -547,7 +600,9 @@ const styles = StyleSheet.create({
     totalFooterLabel: { fontSize: 12, color: '#888' },
     totalFooterValue: { fontSize: 18, fontWeight: 'bold', color: '#2E8B57' },
     btnPay: { backgroundColor: '#2E8B57', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12, minWidth: 150, alignItems: 'center' },
+    btnPayDisabled: { backgroundColor: '#CCC' },
     btnPayText: { color: '#FFF', fontSize: 15, fontWeight: 'bold' },
+    footerHint: { fontSize: 11, color: '#E65100', marginTop: 4, fontWeight: '500' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },

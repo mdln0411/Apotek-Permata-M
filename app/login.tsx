@@ -237,7 +237,7 @@ export default function LoginScreen() {
                             style={styles.forgotPasswordBtn}
                             onPress={() => router.push("/lupa-password" as any)}
                         >
-                            <Text style={styles.forgotPasswordText}>Lupa password?</Text>
+                            <Text style={styles.forgotPasswordText}>Lupa kata sandi?</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity

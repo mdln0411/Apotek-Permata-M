@@ -1,10 +1,11 @@
 import { changePassword } from '@/api/authService';
+import { SuccessToast } from '@/components/SuccessToast';
+import { showAppAlert } from '@/utils/alert';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     Platform,
     SafeAreaView,
     ScrollView,
@@ -20,39 +21,47 @@ export default function KeamananScreen() {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+    const [toastVisible, setToastVisible] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
 
     const [showCurrent, setShowCurrent] = useState(false);
     const [showNew, setShowNew] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
     const handleUpdate = async () => {
+        setFeedback(null);
+
         if (!currentPassword || !newPassword || !confirmPassword) {
-            Alert.alert('Peringatan', 'Semua kolom wajib diisi');
+            setFeedback({ type: 'error', text: 'Semua kolom wajib diisi.' });
+            return;
+        }
+        if (newPassword.length < 8) {
+            setFeedback({ type: 'error', text: 'Kata sandi baru minimal 8 karakter.' });
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setFeedback({ type: 'error', text: 'Konfirmasi kata sandi tidak cocok.' });
             return;
         }
 
         setLoading(true);
         try {
-            await changePassword({
+            const res = await changePassword({
                 old_password: currentPassword,
                 new_password: newPassword,
                 new_password_confirmation: confirmPassword,
             });
-            Alert.alert('Berhasil', 'Kata sandi Anda telah diperbarui', [
-                {
-                    text: 'OK',
-                    onPress: () => {
-                        if (router.canGoBack()) {
-                            router.back();
-                        } else {
-                            router.replace('/(tabs)/profil' as any);
-                        }
-                    },
-                },
-            ]);
             setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
+            setFeedback({ type: 'success', text: res.message || 'Kata sandi berhasil diperbarui.' });
+            setToastMessage(res.message || 'Kata sandi berhasil diperbarui!');
+            setToastVisible(true);
+            setTimeout(() => {
+                if (router.canGoBack()) router.back();
+                else router.replace('/(tabs)/profil' as any);
+            }, 1500);
         } catch (error: any) {
             let msg = 'Gagal mengubah kata sandi';
             if (error.response?.data?.message) {
@@ -63,7 +72,8 @@ export default function KeamananScreen() {
                 const firstKey = Object.keys(errors)[0];
                 msg = errors[firstKey][0];
             }
-            Alert.alert('Gagal', msg);
+            setFeedback({ type: 'error', text: msg });
+            showAppAlert('Gagal', msg);
         } finally {
             setLoading(false);
         }
@@ -72,6 +82,11 @@ export default function KeamananScreen() {
     return (
         <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
+            <SuccessToast
+                visible={toastVisible}
+                message={toastMessage}
+                onClose={() => setToastVisible(false)}
+            />
 
             <View style={styles.header}>
                 <TouchableOpacity
@@ -97,6 +112,22 @@ export default function KeamananScreen() {
                         Gunakan kata sandi yang kuat untuk menjaga keamanan akun Anda di Apotek Permata.
                     </Text>
                 </View>
+
+                {feedback ? (
+                    <View
+                        style={[
+                            styles.feedbackBox,
+                            feedback.type === 'error' ? styles.feedbackError : styles.feedbackSuccess,
+                        ]}
+                    >
+                        <Feather
+                            name={feedback.type === 'error' ? 'alert-circle' : 'check-circle'}
+                            size={18}
+                            color={feedback.type === 'error' ? '#D32F2F' : '#2E8B57'}
+                        />
+                        <Text style={styles.feedbackText}>{feedback.text}</Text>
+                    </View>
+                ) : null}
 
                 <View style={styles.form}>
                     <View style={styles.inputGroup}>
@@ -190,6 +221,18 @@ const styles = StyleSheet.create({
         marginBottom: 30,
     },
     infoText: { flex: 1, fontSize: 13, color: '#444', lineHeight: 18 },
+    feedbackBox: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 20,
+        borderWidth: 1,
+    },
+    feedbackError: { backgroundColor: '#FFEBEE', borderColor: '#FFCDD2' },
+    feedbackSuccess: { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9' },
+    feedbackText: { flex: 1, fontSize: 13, lineHeight: 18, color: '#333' },
     form: { gap: 24 },
     inputGroup: { gap: 8 },
     label: { fontSize: 13, fontWeight: 'bold', color: '#333' },

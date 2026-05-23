@@ -1,4 +1,5 @@
 import axiosClient from '@/api/axiosClient';
+import { getOrderStatusLabel, normalizeOrderStatus } from '@/utils/orderStatus';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -68,21 +69,27 @@ export default function PesananMasuk() {
     const handleUpdateStatus = async (id: number, status: string) => {
         try {
             await axiosClient.put(`/api/admin/orders/${id}/status`, { status });
-            alert(`Pesanan berhasil di${status === 'diproses' ? 'terima' : 'selesaikan'}`);
+            const msg =
+                status === 'sedang_diproses'
+                    ? 'Pesanan sedang diproses'
+                    : status === 'dikirim'
+                      ? 'Pesanan ditandai dikirim'
+                      : 'Status pesanan diperbarui';
+            alert(msg);
             fetchOrders();
-        } catch (error) {
-            alert('Gagal memperbarui status');
+        } catch (error: any) {
+            alert(error.response?.data?.message || 'Gagal memperbarui status');
         }
     };
 
     const filteredOrders = orders.filter(o => {
-        const status = (o.status || 'pending').toLowerCase().trim();
+        const status = normalizeOrderStatus(o.status || 'pending');
         
         if (activeTab === 'menunggu') {
             return status === 'menunggu_pembayaran' || status === 'menunggu_konfirmasi' || status === 'perlu_diproses';
         }
         if (activeTab === 'diproses') {
-            return status === 'sedang_diproses' || status === 'processing';
+            return status === 'sedang_diproses' || status === 'processing' || status === 'diproses';
         }
         if (activeTab === 'dikirim') {
             return status === 'dikirim' || status === 'shipped';
@@ -109,13 +116,29 @@ export default function PesananMasuk() {
         <TouchableOpacity 
             style={[styles.tabItem, activeTab === id && styles.activeTabItem]}
             onPress={() => setActiveTab(id)}
+            activeOpacity={0.85}
         >
-            <Text style={[styles.tabText, activeTab === id && styles.activeTabText]}>
+            <Text
+                style={[styles.tabText, activeTab === id && styles.activeTabText]}
+                numberOfLines={1}
+            >
                 {title}
             </Text>
             {count > 0 && (
-                <View style={[styles.badge, activeTab === id ? { backgroundColor: THEME.white } : { backgroundColor: THEME.primary }]}>
-                    <Text style={[styles.badgeText, activeTab === id ? { color: THEME.primary } : { color: THEME.white }]}>{count}</Text>
+                <View
+                    style={[
+                        styles.badge,
+                        activeTab === id ? styles.badgeActiveTab : styles.badgeInactiveTab,
+                    ]}
+                >
+                    <Text
+                        style={[
+                            styles.badgeText,
+                            activeTab === id ? styles.badgeTextActiveTab : styles.badgeTextInactiveTab,
+                        ]}
+                    >
+                        {count > 99 ? '99+' : count}
+                    </Text>
                 </View>
             )}
         </TouchableOpacity>
@@ -123,9 +146,9 @@ export default function PesananMasuk() {
 
     const getCounts = (id: string) => {
         return orders.filter(o => {
-            const status = (o.status || 'menunggu_pembayaran').toLowerCase().trim();
+            const status = normalizeOrderStatus(o.status || 'menunggu_pembayaran');
             if (id === 'menunggu') return status === 'menunggu_pembayaran' || status === 'menunggu_konfirmasi' || status === 'perlu_diproses';
-            if (id === 'diproses') return status === 'sedang_diproses' || status === 'processing';
+            if (id === 'diproses') return status === 'sedang_diproses' || status === 'processing' || status === 'diproses';
             if (id === 'dikirim') return status === 'dikirim' || status === 'shipped';
             if (id === 'selesai') return status === 'selesai' || status === 'completed';
             if (id === 'dilaporkan') return status === 'dilaporkan' || status === 'reported' || isCancelledByUser(o);
@@ -153,7 +176,11 @@ export default function PesananMasuk() {
 
             {/* Sticky Tabs */}
             <View style={styles.tabContainer}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.tabScrollContent}
+                >
                     <TabButton title="Perlu Diproses" id="menunggu" count={getCounts('menunggu')} />
                     <TabButton title="Sedang Diproses" id="diproses" count={getCounts('diproses')} />
                     <TabButton title="Dikirim" id="dikirim" count={getCounts('dikirim')} />
@@ -202,23 +229,32 @@ export default function PesananMasuk() {
                         <View key={item.id} style={styles.orderCard}>
                             <View style={styles.cardHeader}>
                                 <View style={styles.headerInfo}>
-                                    <View style={[styles.statusBadge, 
+                                    <View style={[styles.statusBadge,
+                                        item.status === 'dikirim' ? { backgroundColor: '#FFF3E0' } :
+                                        item.status === 'sedang_diproses' ? { backgroundColor: '#E3F2FD' } :
                                         item.status === 'menunggu_pembayaran' ? { backgroundColor: '#FFF3E0' } :
                                         item.status === 'menunggu_konfirmasi' ? { backgroundColor: '#FFF3E0' } :
                                         item.status === 'perlu_diproses' ? { backgroundColor: '#E3F2FD' } :
-                                        item.status === 'dilaporkan' ? { backgroundColor: '#FFEBEE' } : 
-                                        item.status === 'dibatalkan' ? { backgroundColor: '#ECEFF1' } : { backgroundColor: '#E8F5E9' }
+                                        item.status === 'dilaporkan' ? { backgroundColor: '#FFEBEE' } :
+                                        item.status === 'dibatalkan' ? { backgroundColor: '#ECEFF1' } :
+                                        item.status === 'selesai' ? { backgroundColor: '#E8F5E9' } :
+                                        { backgroundColor: '#E8F5E9' }
                                     ]}>
-                                        <Text style={[styles.statusLabel, 
+                                        <Text style={[styles.statusLabel,
+                                            item.status === 'dikirim' ? { color: '#EF6C00' } :
+                                            item.status === 'sedang_diproses' ? { color: '#1976D2' } :
                                             item.status === 'menunggu_pembayaran' ? { color: '#E65100' } :
                                             item.status === 'menunggu_konfirmasi' ? { color: '#E65100' } :
                                             item.status === 'perlu_diproses' ? { color: '#1976D2' } :
-                                            item.status === 'dilaporkan' ? { color: THEME.danger } : 
-                                            item.status === 'dibatalkan' ? { color: '#455A64' } : { color: THEME.primary }
+                                            item.status === 'dilaporkan' ? { color: THEME.danger } :
+                                            item.status === 'dibatalkan' ? { color: '#455A64' } :
+                                            { color: THEME.primary }
                                         ]}>
-                                            {item.status === 'dibatalkan' ? 'DIBATALKAN PASIEN' : 
-                                             item.status === 'menunggu_konfirmasi' ? 'PERLU VERIFIKASI' : 
-                                             (item.status || 'Baru').replace('_', ' ').toUpperCase()}
+                                            {item.status === 'dibatalkan' && isCancelledByUser(item)
+                                                ? 'DIBATALKAN PASIEN'
+                                                : item.status === 'menunggu_konfirmasi'
+                                                  ? 'PERLU VERIFIKASI'
+                                                  : getOrderStatusLabel(item.status)}
                                         </Text>
                                     </View>
                                     <Text style={styles.orderNumber}>ORD-{item.id}{new Date(item.created_at).getTime().toString().slice(-4)}</Text>
@@ -284,8 +320,13 @@ export default function PesananMasuk() {
                                         style={[styles.btnTerima, { backgroundColor: THEME.warning }]}
                                         onPress={() => handleUpdateStatus(item.id, 'dikirim')}
                                     >
-                                        <Text style={styles.btnTerimaText}>Kirim Sekarang</Text>
+                                        <Text style={styles.btnTerimaText}>Tandai Dikirim</Text>
                                     </TouchableOpacity>
+                                )}
+                                {activeTab === 'dikirim' && (
+                                    <View style={[styles.btnTerima, { backgroundColor: '#FFF3E0', elevation: 0 }]}>
+                                        <Text style={[styles.btnTerimaText, { color: '#EF6C00' }]}>Menunggu Konfirmasi Pasien</Text>
+                                    </View>
                                 )}
                                 {activeTab === 'dilaporkan' && (
                                     <TouchableOpacity 
@@ -318,35 +359,67 @@ const styles = StyleSheet.create({
     header: { 
         backgroundColor: THEME.primary, 
         paddingTop: Platform.OS === 'android' ? 60 : 40, 
-        paddingBottom: 40, 
+        paddingBottom: 20, 
         paddingHorizontal: 20,
     },
     headerRow: { flexDirection: 'row', alignItems: 'center' },
     backBtn: { marginRight: 15, padding: 5 },
     headerTitle: { fontSize: 24, fontWeight: 'bold', color: THEME.white },
     headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-    tabContainer: { 
-        marginTop: -25,
-        backgroundColor: 'transparent',
+    tabContainer: {
+        marginTop: 8,
+        marginBottom: 8,
+        paddingTop: 4,
+        paddingBottom: 4,
+        backgroundColor: '#F8F9FA',
     },
-    tabItem: { 
+    tabScrollContent: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12, 
-        paddingHorizontal: 16, 
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        gap: 10,
+    },
+    tabItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        minHeight: 44,
         backgroundColor: THEME.white,
-        borderRadius: 25,
+        borderRadius: 22,
         borderWidth: 1,
         borderColor: THEME.border,
-        elevation: 4,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 3,
     },
     activeTabItem: { backgroundColor: THEME.primary, borderColor: THEME.primary },
-    tabText: { fontSize: 14, color: THEME.textMuted, fontWeight: '600' },
+    tabText: {
+        fontSize: 13,
+        color: THEME.textMuted,
+        fontWeight: '600',
+        flexShrink: 1,
+    },
     activeTabText: { color: THEME.white },
-    badge: { marginLeft: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, minWidth: 20, alignItems: 'center' },
-    badgeText: { fontSize: 10, fontWeight: 'bold' },
-    scrollContent: { padding: 20, paddingTop: 15 },
+    badge: {
+        minWidth: 22,
+        height: 22,
+        borderRadius: 11,
+        paddingHorizontal: 6,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    badgeActiveTab: { backgroundColor: THEME.white },
+    badgeInactiveTab: { backgroundColor: THEME.primary },
+    badgeText: { fontSize: 11, fontWeight: 'bold', lineHeight: 14 },
+    badgeTextActiveTab: { color: THEME.primary },
+    badgeTextInactiveTab: { color: THEME.white },
+    scrollContent: { padding: 20, paddingTop: 8 },
     orderCard: { backgroundColor: THEME.white, borderRadius: 20, padding: 18, marginBottom: 18, borderWidth: 1, borderColor: THEME.border },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
     headerInfo: { flexDirection: 'column', gap: 6 },

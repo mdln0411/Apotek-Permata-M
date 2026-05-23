@@ -111,7 +111,9 @@ export default function QRISPaymentScreen() {
       setVerifying(true);
       
       // Kirim request ke backend untuk mengubah status pesanan ke 'diproses' secara nyata di database!
-      await axiosClient.post(`/api/orders/${orderId}/pay`);
+      await axiosClient.post(`/api/orders/${orderId}/pay`, {
+        payment_method: 'QRIS',
+      });
       
       // Redirect to Cek Pembayaran screen
       router.replace({

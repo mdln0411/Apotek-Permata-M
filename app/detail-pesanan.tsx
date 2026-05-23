@@ -1,5 +1,8 @@
 import axiosClient from '@/api/axiosClient';
+import { storageUrl } from '@/constants/api';
 import { useAuth } from '@/context/AuthContext';
+import { normalizeOrderStatus } from '@/utils/orderStatus';
+import { showAppAlert } from '@/utils/alert';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -50,9 +53,7 @@ interface OrderDetail {
 
 const renderMedicineImage = (item: any) => {
     if (item.image_url) {
-        const imageUrl = (item.image_url.startsWith('http://') || item.image_url.startsWith('https://'))
-            ? item.image_url
-            : `${Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000'}/storage/${item.image_url}`;
+        const imageUrl = storageUrl(item.image_url);
         return (
             <Image 
                 source={{ uri: imageUrl }} 
@@ -88,6 +89,7 @@ const renderMedicineImage = (item: any) => {
 
 export default function DetailPesananScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
+    const orderId = Array.isArray(id) ? id[0] : id;
     const { user } = useAuth();
     const [order, setOrder] = useState<OrderDetail | null>(null);
     const [loading, setLoading] = useState(true);
@@ -105,6 +107,7 @@ export default function DetailPesananScreen() {
     const [cancelModalVisible, setCancelModalVisible] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
     const [isApotekerCancel, setIsApotekerCancel] = useState(false);
+    const [completeModalVisible, setCompleteModalVisible] = useState(false);
 
     const submitCancellation = async () => {
         if (!cancelReason) {
@@ -113,7 +116,7 @@ export default function DetailPesananScreen() {
         }
         try {
             setUpdating(true);
-            const res = await axiosClient.post(`/api/orders/${id}/cancel`, { reason: cancelReason });
+            const res = await axiosClient.post(`/api/orders/${orderId}/cancel`, { reason: cancelReason });
             if (res.data.status === 'success') {
                 setOrder(prev => prev ? { ...prev, status: 'dibatalkan' } : null);
                 setCancelModalVisible(false);
@@ -140,7 +143,7 @@ export default function DetailPesananScreen() {
 
     const fetchOrderDetail = async () => {
         try {
-            const res = await axiosClient.get(`/api/orders/${id}`);
+            const res = await axiosClient.get(`/api/orders/${orderId}`);
             console.log('Order Detail Data:', JSON.stringify(res.data.data.items[0], null, 2));
             setOrder(res.data.data);
         } catch (e) {
@@ -150,23 +153,26 @@ export default function DetailPesananScreen() {
         }
     };
 
-    const handleConfirmReceived = async () => {
+    const submitOrderComplete = async () => {
+        if (!orderId) return;
         try {
             setUpdating(true);
-            const response = await axiosClient.post(`/api/orders/${id}/confirm-received`);
-            if (response.data.status === 'success') {
-                setOrder(prev => prev ? { ...prev, status: 'selesai' } : null);
-                router.push({
-                    pathname: '/success-action',
-                    params: {
-                        title: 'Pesanan Selesai!',
-                        message: 'Terima kasih telah berbelanja di Apotek Permata. Semoga lekas sembuh!',
-                        target: '/(tabs)/pesanan'
-                    }
+            const response = await axiosClient.post(`/api/orders/${orderId}/confirm-received`, {});
+            if (response.data?.status === 'success') {
+                setCompleteModalVisible(false);
+                setOrder((prev) => (prev ? { ...prev, status: 'selesai' } : null));
+                router.replace({
+                    pathname: '/(tabs)/pesanan',
+                    params: { tab: 'pesanan', subTab: 'selesai' },
                 } as any);
+            } else {
+                showAppAlert('Gagal', response.data?.message || 'Gagal menyelesaikan pesanan');
             }
-        } catch (e) {
-            Alert.alert('Gagal', 'Terjadi kesalahan saat konfirmasi');
+        } catch (e: any) {
+            showAppAlert(
+                'Gagal',
+                e.response?.data?.message || 'Terjadi kesalahan saat menyelesaikan pesanan',
+            );
         } finally {
             setUpdating(false);
         }
@@ -183,7 +189,7 @@ export default function DetailPesananScreen() {
         }
         try {
             setUpdating(true);
-            const res = await axiosClient.post(`/api/orders/${id}/report`, { reason: reportReason });
+            const res = await axiosClient.post(`/api/orders/${orderId}/report`, { reason: reportReason });
             if (res.data.status === 'success') {
                 setOrder(prev => prev ? { ...prev, status: 'dilaporkan' } : null);
                 setReportModalVisible(false);
@@ -230,10 +236,10 @@ export default function DetailPesananScreen() {
             let newActualStatus = newStatus;
 
             if (newStatus === 'verify_payment') {
-                response = await axiosClient.post(`/api/admin/orders/${id}/verify-payment`);
+                response = await axiosClient.post(`/api/admin/orders/${orderId}/verify-payment`);
                 newActualStatus = 'perlu_diproses';
             } else {
-                response = await axiosClient.put(`/api/admin/orders/${id}/status`, { status: newStatus });
+                response = await axiosClient.put(`/api/admin/orders/${orderId}/status`, { status: newStatus });
             }
             
             if (response.data.status === 'success') {
@@ -277,8 +283,10 @@ export default function DetailPesananScreen() {
 
 
     useEffect(() => {
-        fetchOrderDetail();
-    }, [id]);
+        if (orderId) {
+            fetchOrderDetail();
+        }
+    }, [orderId]);
 
     if (loading) {
         return (
@@ -317,6 +325,7 @@ export default function DetailPesananScreen() {
     };
 
     const o = order!;
+    const orderStatus = normalizeOrderStatus(o.status);
 
     return (
 
@@ -450,6 +459,47 @@ export default function DetailPesananScreen() {
                 </View>
             </Modal>
 
+            {/* Modal konfirmasi selesai (pasien) */}
+            <Modal
+                visible={completeModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => !updating && setCompleteModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.iconCircle}>
+                            <Ionicons name="checkmark-circle" size={40} color="#2E8B57" />
+                        </View>
+                        <Text style={styles.modalTitle}>Selesaikan Pesanan?</Text>
+                        <Text style={styles.modalSubtitle}>
+                            Pastikan Anda sudah menerima semua obat. Status akan berubah menjadi Selesai di akun
+                            pasien dan apoteker.
+                        </Text>
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.modalBtn, styles.btnCancel]}
+                                onPress={() => setCompleteModalVisible(false)}
+                                disabled={updating}
+                            >
+                                <Text style={styles.btnCancelText}>Batal</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalBtn, { backgroundColor: '#2E8B57' }]}
+                                onPress={submitOrderComplete}
+                                disabled={updating}
+                            >
+                                {updating ? (
+                                    <ActivityIndicator color="#FFF" />
+                                ) : (
+                                    <Text style={styles.btnSubmitText}>Ya, Selesai</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
             {/* Header */}
 
 
@@ -526,6 +576,32 @@ export default function DetailPesananScreen() {
                         )}
 
                     </View>
+
+                    {user?.role === 'member' &&
+                        ['perlu_diproses', 'sedang_diproses', 'diproses', 'processing', 'dikirim', 'selesai', 'completed'].includes(
+                            (o.status || '').toLowerCase(),
+                        ) && (
+                        <View style={styles.progressSteps}>
+                            {[
+                                { key: 'proses', label: 'Diproses', done: ['perlu_diproses', 'sedang_diproses', 'diproses', 'processing', 'dikirim', 'selesai', 'completed'] },
+                                { key: 'dikirim', label: 'Dikirim', done: ['dikirim', 'selesai', 'completed'] },
+                                { key: 'selesai', label: 'Selesai', done: ['selesai', 'completed'] },
+                            ].map((step, index, arr) => {
+                                const s = (o.status || '').toLowerCase();
+                                const isDone = step.done.includes(s);
+                                const isLast = index === arr.length - 1;
+                                return (
+                                    <React.Fragment key={step.key}>
+                                        <View style={styles.progressRow}>
+                                            <View style={[styles.progressDot, isDone && (isLast ? styles.progressDotDone : styles.progressDotActive)]} />
+                                            <Text style={[styles.progressLabel, isDone && styles.progressLabelActive]}>{step.label}</Text>
+                                        </View>
+                                        {!isLast && <View style={[styles.progressLine, isDone && styles.progressLineActive]} />}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </View>
+                    )}
 
                     <View style={styles.divider} />
                     <View style={styles.dateRow}>
@@ -609,12 +685,12 @@ export default function DetailPesananScreen() {
 
                 {/* User Actions */}
                 {/* User Actions */}
-                {user?.role === 'member' && (o.status === 'menunggu_pembayaran' || o.status === 'dikirim' || o.status === 'selesai') && (
+                {user?.role === 'member' && (orderStatus === 'menunggu_pembayaran' || orderStatus === 'dikirim' || orderStatus === 'selesai') && (
                     <View style={styles.userActionSection}>
                         <Text style={styles.actionSectionTitle}>Aksi Pesanan</Text>
                         <View style={styles.actionRow}>
                             {/* Member can pay or cancel if status is menunggu_pembayaran */}
-                            {o.status === 'menunggu_pembayaran' && (
+                            {orderStatus === 'menunggu_pembayaran' && (
                                 <>
                                     <TouchableOpacity 
                                         style={[styles.btnAction, { backgroundColor: '#2E8B57' }]} 
@@ -645,17 +721,27 @@ export default function DetailPesananScreen() {
                                 </>
                             )}
 
-                            {o.status === 'dikirim' && (
-                                <TouchableOpacity 
-                                    style={[styles.btnAction, { backgroundColor: '#2E8B57' }]} 
-                                    onPress={handleConfirmReceived}
+                            {orderStatus === 'dikirim' && (
+                                <TouchableOpacity
+                                    style={[styles.btnAction, { backgroundColor: '#2E8B57', flex: 1 }]}
+                                    onPress={() => setCompleteModalVisible(true)}
                                     disabled={updating}
                                 >
-                                    <Text style={styles.btnActionText}>Konfirmasi Diterima</Text>
+                                    {updating ? (
+                                        <ActivityIndicator color="#FFF" />
+                                    ) : (
+                                        <Text style={styles.btnActionText}>Selesai</Text>
+                                    )}
                                 </TouchableOpacity>
                             )}
 
-                            {(o.status === 'dikirim' || o.status === 'selesai') && (
+                            {orderStatus === 'selesai' && (
+                                <View style={[styles.btnAction, { backgroundColor: '#E8F5E9', flex: 1, elevation: 0 }]}>
+                                    <Text style={[styles.btnActionText, { color: '#2E8B57' }]}>Pesanan Selesai</Text>
+                                </View>
+                            )}
+
+                            {orderStatus === 'dikirim' && (
                                 <TouchableOpacity 
                                     style={[styles.btnAction, { backgroundColor: '#FF5252', flex: 0.8 }]} 
                                     onPress={handleReportIssue}
@@ -665,9 +751,14 @@ export default function DetailPesananScreen() {
                                 </TouchableOpacity>
                             )}
                         </View>
-                        {o.status === 'selesai' && (
+                        {orderStatus === 'selesai' && (
                             <Text style={styles.infoTextSmall}>
-                                Jika Anda belum menerima obat tetapi status sudah "Selesai", silakan klik "Laporkan Masalah".
+                                Pesanan telah selesai. Jika obat belum diterima, silakan klik &quot;Laporkan Masalah&quot;.
+                            </Text>
+                        )}
+                        {orderStatus === 'dikirim' && (
+                            <Text style={styles.infoTextSmall}>
+                                Pesanan sedang dikirim. Tekan tombol Selesai setelah obat Anda terima.
                             </Text>
                         )}
                     </View>
@@ -696,7 +787,7 @@ export default function DetailPesananScreen() {
                                     <Text style={styles.btnActionText}>Proses Pesanan</Text>
                                 </TouchableOpacity>
                             )}
-                            {o.status === 'menunggu_pembayaran' && (
+                            {orderStatus === 'menunggu_pembayaran' && (
                                 <View style={[styles.btnAction, { backgroundColor: '#E0E0E0', elevation: 0 }]}>
                                     <Text style={[styles.btnActionText, { color: '#757575', textAlign: 'center' }]}>Menunggu Pembayaran Pasien</Text>
                                 </View>
@@ -764,6 +855,15 @@ const styles = StyleSheet.create({
     statusInfo: { flex: 1, marginLeft: 12 },
     statusLabel: { fontSize: 12, color: '#999' },
     statusValue: { fontSize: 14, fontWeight: 'bold', color: '#333' },
+    progressSteps: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingHorizontal: 4 },
+    progressRow: { alignItems: 'center', flex: 1 },
+    progressDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#E0E0E0', marginBottom: 6 },
+    progressDotActive: { backgroundColor: '#EF6C00' },
+    progressDotDone: { backgroundColor: '#2E8B57' },
+    progressLabel: { fontSize: 11, color: '#999', fontWeight: '600' },
+    progressLabelActive: { color: '#333' },
+    progressLine: { flex: 0.6, height: 2, backgroundColor: '#E0E0E0', marginBottom: 20, marginHorizontal: 2 },
+    progressLineActive: { backgroundColor: '#81C784' },
     badgeStatus: { backgroundColor: '#E8F5E9', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
     badgeStatusText: { fontSize: 10, color: '#2E8B57', fontWeight: 'bold' },
     divider: { height: 1, backgroundColor: '#F0F0F0', marginVertical: 12 },

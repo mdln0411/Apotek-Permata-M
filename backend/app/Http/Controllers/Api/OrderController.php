@@ -300,20 +300,36 @@ class OrderController extends Controller
     public function confirmReceived(Request $request, $id)
     {
         $order = Order::where('user_id', $request->user()->id)->findOrFail($id);
-        
-        if ($order->status !== 'dikirim' && $order->status !== 'selesai') {
+        $currentStatus = strtolower(trim((string) $order->status));
+
+        if (in_array($currentStatus, ['selesai', 'completed'], true)) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Pesanan sudah selesai.',
+                'data' => $order,
+            ]);
+        }
+
+        if (!in_array($currentStatus, ['dikirim', 'shipped'], true)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Pesanan belum dikirim atau sudah selesai'
+                'message' => 'Pesanan belum dikirim. Tunggu apoteker mengirim pesanan Anda.',
             ], 400);
         }
 
-        $order->update(['status' => 'selesai']);
+        $order->status = 'selesai';
+        $order->save();
+
+        $order->user->notify(new AppNotification(
+            'Pesanan Selesai',
+            "Pesanan {$order->order_number} telah Anda terima. Terima kasih telah berbelanja!",
+            'success'
+        ));
 
         return response()->json([
             'status' => 'success',
             'message' => 'Terima kasih! Pesanan telah selesai.',
-            'data' => $order
+            'data' => $order->fresh(),
         ]);
     }
 

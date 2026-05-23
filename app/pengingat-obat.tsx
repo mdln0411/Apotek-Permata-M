@@ -1,5 +1,5 @@
+import { TimePickerInput } from '@/components/TimePickerInput';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { router, Stack } from 'expo-router';
@@ -7,7 +7,6 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Modal,
-  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -60,9 +59,9 @@ export default function PengingatObatScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [newMedicineName, setNewMedicineName] = useState('');
   const [newDuration, setNewDuration] = useState('');
-  const [selectedTime, setSelectedTime] = useState(new Date());
-  const [showTimePicker, setShowTimePicker] = useState(false);
   const [tempTimes, setTempTimes] = useState<string[]>([]);
+  const [pendingTime, setPendingTime] = useState('');
+  const [showTimePickerSection, setShowTimePickerSection] = useState(false);
 
   useEffect(() => {
     requestPermissions();
@@ -126,6 +125,22 @@ export default function PengingatObatScreen() {
     setNewMedicineName('');
     setNewDuration('');
     setTempTimes([]);
+    setPendingTime('');
+    setShowTimePickerSection(false);
+  };
+
+  const addPendingTime = () => {
+    if (!pendingTime) {
+      Alert.alert('Pilih Waktu', 'Silakan pilih jam pengingat terlebih dahulu.');
+      return;
+    }
+    if (tempTimes.includes(pendingTime)) {
+      Alert.alert('Duplikat', 'Waktu ini sudah ditambahkan.');
+      return;
+    }
+    setTempTimes([...tempTimes, pendingTime].sort());
+    setPendingTime('');
+    setShowTimePickerSection(false);
   };
 
   const deleteReminder = async (id: string) => {
@@ -137,19 +152,6 @@ export default function PengingatObatScreen() {
       }
     }
     setReminders(reminders.filter(r => r.id !== id));
-  };
-
-  const onTimeChange = (event: any, selectedValue?: Date) => {
-    setShowTimePicker(Platform.OS === 'ios');
-    if (selectedValue) {
-      const hours = selectedValue.getHours().toString().padStart(2, '0');
-      const minutes = selectedValue.getMinutes().toString().padStart(2, '0');
-      const timeStr = `${hours}:${minutes}`;
-      
-      if (!tempTimes.includes(timeStr)) {
-        setTempTimes([...tempTimes, timeStr].sort());
-      }
-    }
   };
 
   const removeTempTime = (time: string) => {
@@ -257,24 +259,29 @@ export default function PengingatObatScreen() {
                     <Ionicons name="close-circle" size={14} color="#FFF" />
                   </TouchableOpacity>
                 ))}
-                <TouchableOpacity 
-                  style={styles.addTimeButton}
-                  onPress={() => setShowTimePicker(true)}
-                >
-                  <Ionicons name="add" size={20} color="#2E8B57" />
-                </TouchableOpacity>
               </View>
-            </View>
 
-            {showTimePicker && (
-              <DateTimePicker
-                value={selectedTime}
-                mode="time"
-                is24Hour={true}
-                display="default"
-                onChange={onTimeChange}
-              />
-            )}
+              {!showTimePickerSection ? (
+                <TouchableOpacity
+                  style={styles.addTimeLink}
+                  onPress={() => setShowTimePickerSection(true)}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color="#2E8B57" />
+                  <Text style={styles.addTimeLinkText}>Tambah waktu pengingat</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.timePickerBlock}>
+                  <TimePickerInput
+                    value={pendingTime}
+                    onChange={setPendingTime}
+                    placeholder="Pilih jam & menit"
+                  />
+                  <TouchableOpacity style={styles.confirmTimeBtn} onPress={addPendingTime}>
+                    <Text style={styles.confirmTimeBtnText}>Tambahkan ke jadwal</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity 
@@ -489,16 +496,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginRight: 4,
   },
-  addTimeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#2E8B57',
-    borderStyle: 'dashed',
-    justifyContent: 'center',
+  addTimeLink: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginTop: 8,
+    paddingVertical: 8,
+  },
+  addTimeLinkText: {
+    color: '#2E8B57',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  timePickerBlock: {
+    marginTop: 10,
+    gap: 10,
+  },
+  confirmTimeBtn: {
+    backgroundColor: '#E8F5E9',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  confirmTimeBtnText: {
+    color: '#2E8B57',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   modalButtons: {
     flexDirection: 'row',

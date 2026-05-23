@@ -1,7 +1,8 @@
 import axiosClient from "@/api/axiosClient";
+import { storageUrl } from "@/constants/api";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { Stack, useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -40,7 +41,6 @@ const THEME = {
 };
 
 export default function ValidasiResep() {
-  const router = useRouter();
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,17 +59,25 @@ export default function ValidasiResep() {
   const [modalPrice, setModalPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchPrescriptions();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchPrescriptions();
+    }, []),
+  );
 
   const fetchPrescriptions = async () => {
     try {
       setLoading(true);
       const response = await axiosClient.get("/api/prescriptions");
-      setPrescriptions(response.data.data || []);
-    } catch (error) {
+      const list = response.data?.data;
+      setPrescriptions(Array.isArray(list) ? list : []);
+    } catch (error: any) {
       console.error("Error fetching prescriptions:", error);
+      const msg =
+        error.response?.data?.message ||
+        "Gagal memuat daftar resep. Pastikan Anda login sebagai apoteker.";
+      Alert.alert("Gagal Memuat Resep", msg);
+      setPrescriptions([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -89,14 +97,15 @@ export default function ValidasiResep() {
       return;
     }
 
+    let priceNum = 0;
     if (actionType === "valid") {
       if (!modalPrice.trim()) {
         Alert.alert("Error", "Silakan isi total harga terlebih dahulu.");
         return;
       }
-      const priceNum = parseFloat(modalPrice);
-      if (isNaN(priceNum) || priceNum < 0) {
-        Alert.alert("Error", "Total harga harus berupa angka yang valid.");
+      priceNum = parseInt(modalPrice, 10);
+      if (isNaN(priceNum) || priceNum < 0 || !/^\d+$/.test(modalPrice.trim())) {
+        Alert.alert("Error", "Total harga harus berupa angka bulat (tanpa desimal).");
         return;
       }
     }
@@ -108,7 +117,7 @@ export default function ValidasiResep() {
         notes: modalNotes,
       };
       if (actionType === "valid") {
-        payload.total_price = parseFloat(modalPrice);
+        payload.total_price = priceNum;
       }
 
       await axiosClient.put(
@@ -142,12 +151,7 @@ export default function ValidasiResep() {
 
   const getImageUrl = (url: string) => {
     if (!url) return "";
-    if (url.startsWith("http")) return url;
-    const host =
-      Platform.OS === "android"
-        ? "http://10.0.2.2:8000"
-        : "http://localhost:8000";
-    return `${host}/storage/${url}`;
+    return storageUrl(url);
   };
 
   return (
@@ -158,18 +162,14 @@ export default function ValidasiResep() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="chevron-back" size={24} color={THEME.white} />
-          </TouchableOpacity>
-          <View>
+          <View style={styles.headerIconBox}>
+            <MaterialCommunityIcons name="file-document-edit-outline" size={28} color={THEME.white} />
+          </View>
+          <View style={styles.headerTextWrap}>
             <Text style={styles.headerTitle}>Validasi Resep</Text>
             <Text style={styles.headerSub}>
-              {filteredPrescriptions.length} Resep Terfilter (
-              {prescriptions.filter((p) => p.status === "pending").length}{" "}
-              Menunggu)
+              {prescriptions.length} total ·{" "}
+              {prescriptions.filter((p) => p.status === "pending").length} menunggu validasi
             </Text>
           </View>
         </View>
@@ -448,9 +448,11 @@ export default function ValidasiResep() {
                     placeholder="Contoh: 150000"
                     placeholderTextColor={THEME.textMuted}
                     value={modalPrice}
-                    onChangeText={setModalPrice}
-                    keyboardType="numeric"
+                    onChangeText={(text) => setModalPrice(text.replace(/[^0-9]/g, ""))}
+                    keyboardType="number-pad"
+                    inputMode="numeric"
                   />
+                  <Text style={styles.inputHint}>Hanya angka bulat, tanpa titik atau koma.</Text>
                 </>
               )}
             </ScrollView>
@@ -506,7 +508,16 @@ const styles = StyleSheet.create({
     ...THEME.cardShadow,
   },
   headerTop: { flexDirection: "row", alignItems: "center" },
-  backBtn: { marginRight: 15, padding: 5 },
+  headerIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+  headerTextWrap: { flex: 1 },
   headerTitle: { fontSize: 24, fontWeight: "bold", color: THEME.white },
   headerSub: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 },
   scrollContent: { padding: 20 },
@@ -702,6 +713,12 @@ const styles = StyleSheet.create({
     padding: 14,
     fontSize: 14,
     color: THEME.textDark,
+  },
+  inputHint: {
+    fontSize: 11,
+    color: THEME.textMuted,
+    marginTop: 6,
+    fontStyle: "italic",
   },
   modalFooter: {
     flexDirection: "row",

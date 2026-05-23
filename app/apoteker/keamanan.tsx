@@ -1,18 +1,19 @@
 import { changePassword } from '@/api/authService';
-import { Ionicons } from '@expo/vector-icons';
+import { SuccessToast } from '@/components/SuccessToast';
+import { showAppAlert } from '@/utils/alert';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     KeyboardAvoidingView,
     Platform,
-    Pressable,
     ScrollView,
     StatusBar,
     StyleSheet,
     Text,
     TextInput,
+    TouchableOpacity,
     View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +29,9 @@ export default function KeamananSandi() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [loading, setLoading] = useState(false);
+    const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+    const [toastVisible, setToastVisible] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
     const [passwords, setPasswords] = useState({
         current: '',
         new: '',
@@ -35,8 +39,18 @@ export default function KeamananSandi() {
     });
 
     const handleUpdatePassword = async () => {
+        setFeedback(null);
+
         if (!passwords.current || !passwords.new || !passwords.confirm) {
-            Alert.alert('Peringatan', 'Semua kolom wajib diisi');
+            setFeedback({ type: 'error', text: 'Semua kolom wajib diisi.' });
+            return;
+        }
+        if (passwords.new.length < 8) {
+            setFeedback({ type: 'error', text: 'Kata sandi baru minimal 8 karakter.' });
+            return;
+        }
+        if (passwords.new !== passwords.confirm) {
+            setFeedback({ type: 'error', text: 'Konfirmasi kata sandi tidak cocok.' });
             return;
         }
 
@@ -47,15 +61,11 @@ export default function KeamananSandi() {
                 new_password: passwords.new,
                 new_password_confirmation: passwords.confirm,
             });
-            Alert.alert('Berhasil', res.message || 'Kata sandi Anda telah diperbarui', [
-                {
-                    text: 'OK',
-                    onPress: () => {
-                        setPasswords({ current: '', new: '', confirm: '' });
-                        router.back();
-                    },
-                },
-            ]);
+            setPasswords({ current: '', new: '', confirm: '' });
+            setFeedback({ type: 'success', text: res.message || 'Kata sandi berhasil diperbarui.' });
+            setToastMessage(res.message || 'Kata sandi berhasil diperbarui!');
+            setToastVisible(true);
+            setTimeout(() => router.back(), 1500);
         } catch (error: any) {
             let msg = 'Gagal memperbarui kata sandi';
             if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
@@ -69,21 +79,27 @@ export default function KeamananSandi() {
                 const firstKey = Object.keys(errors)[0];
                 msg = errors[firstKey][0];
             }
-            Alert.alert('Gagal', msg);
+            setFeedback({ type: 'error', text: msg });
+            showAppAlert('Gagal', msg);
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
             <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
             <Stack.Screen options={{ headerShown: false }} />
+            <SuccessToast
+                visible={toastVisible}
+                message={toastMessage}
+                onClose={() => setToastVisible(false)}
+            />
 
             <View style={styles.header}>
-                <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={12}>
+                <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
                     <Ionicons name="chevron-back" size={24} color={THEME.white} />
-                </Pressable>
+                </TouchableOpacity>
                 <Text style={styles.headerTitle}>Keamanan Akun</Text>
                 <View style={{ width: 40 }} />
             </View>
@@ -104,6 +120,22 @@ export default function KeamananSandi() {
                             Gunakan kata sandi yang kuat untuk menjaga keamanan akun Anda sebagai Apoteker.
                         </Text>
                     </View>
+
+                    {feedback ? (
+                        <View
+                            style={[
+                                styles.feedbackBox,
+                                feedback.type === 'error' ? styles.feedbackError : styles.feedbackSuccess,
+                            ]}
+                        >
+                            <Feather
+                                name={feedback.type === 'error' ? 'alert-circle' : 'check-circle'}
+                                size={18}
+                                color={feedback.type === 'error' ? '#D32F2F' : THEME.primary}
+                            />
+                            <Text style={styles.feedbackText}>{feedback.text}</Text>
+                        </View>
+                    ) : null}
 
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Kata Sandi Saat Ini</Text>
@@ -152,21 +184,18 @@ export default function KeamananSandi() {
                 </ScrollView>
 
                 <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-                    <Pressable
-                        style={({ pressed }) => [
-                            styles.btnSubmit,
-                            loading && { opacity: 0.7 },
-                            pressed && !loading && { opacity: 0.9 },
-                        ]}
+                    <TouchableOpacity
+                        style={[styles.btnSubmit, loading && { opacity: 0.7 }]}
                         onPress={handleUpdatePassword}
                         disabled={loading}
+                        activeOpacity={0.85}
                     >
                         {loading ? (
                             <ActivityIndicator color={THEME.white} />
                         ) : (
                             <Text style={styles.btnText}>Simpan Perubahan</Text>
                         )}
-                    </Pressable>
+                    </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -204,12 +233,26 @@ const styles = StyleSheet.create({
         borderColor: THEME.border,
     },
     input: { flex: 1, marginLeft: 10, fontSize: 16, color: THEME.textDark },
+    feedbackBox: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 16,
+        borderWidth: 1,
+    },
+    feedbackError: { backgroundColor: '#FFEBEE', borderColor: '#FFCDD2' },
+    feedbackSuccess: { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9' },
+    feedbackText: { flex: 1, fontSize: 13, lineHeight: 18, color: THEME.textDark },
     footer: {
         paddingHorizontal: 25,
         paddingTop: 12,
         borderTopWidth: 1,
         borderTopColor: THEME.border,
         backgroundColor: '#F8F9FA',
+        zIndex: 10,
+        elevation: 8,
     },
     btnSubmit: {
         backgroundColor: THEME.primary,

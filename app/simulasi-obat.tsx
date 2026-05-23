@@ -26,6 +26,7 @@ export default function SimulasiObatScreen() {
     // List of unique medicines loaded from DB
     const [medicines, setMedicines] = useState<string[]>([]);
     const [loadingMedicines, setLoadingMedicines] = useState(false);
+    const [loadError, setLoadError] = useState('');
     
     // Modal state for selecting medicines
     const [modalVisible, setModalVisible] = useState(false);
@@ -37,12 +38,22 @@ export default function SimulasiObatScreen() {
         const loadMedicines = async () => {
             try {
                 setLoadingMedicines(true);
+                setLoadError('');
                 const res = await getSimulationMedicines();
-                if (res && res.status === 'success') {
+                if (res?.status === 'success' && Array.isArray(res.data)) {
                     setMedicines(res.data);
+                    if (res.data.length === 0) {
+                        setLoadError('Database simulasi kosong. Jalankan seeder di backend.');
+                    }
+                } else {
+                    setLoadError('Format data simulasi tidak valid.');
                 }
-            } catch (e) {
+            } catch (e: any) {
                 console.error("Gagal memuat data obat simulasi:", e);
+                setLoadError(
+                    e.response?.data?.message ||
+                    'Gagal memuat database simulasi. Pastikan backend Laravel & MySQL berjalan.'
+                );
             } finally {
                 setLoadingMedicines(false);
             }
@@ -124,6 +135,11 @@ export default function SimulasiObatScreen() {
                     </View>
                     <Text style={styles.infoTitle}>Cek Keamanan Obat</Text>
                     <Text style={styles.infoSub}>Pilih dua nama obat dari database untuk melihat potensi interaksi kimianya saat dikonsumsi bersamaan.</Text>
+                    {loadError ? (
+                        <Text style={styles.errorBanner}>{loadError}</Text>
+                    ) : !loadingMedicines && medicines.length > 0 ? (
+                        <Text style={styles.dataInfo}>{medicines.length} nama obat tersedia di database</Text>
+                    ) : null}
                 </View>
 
                 {/* Input Area */}
@@ -306,6 +322,8 @@ const styles = StyleSheet.create({
     iconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#E8F5E9', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
     infoTitle: { fontSize: 22, fontWeight: 'bold', color: '#333', marginBottom: 8 },
     infoSub: { fontSize: 13, color: '#777', textAlign: 'center', lineHeight: 20 },
+    dataInfo: { fontSize: 12, color: '#2E8B57', marginTop: 10, fontWeight: '600' },
+    errorBanner: { fontSize: 12, color: '#D32F2F', marginTop: 12, textAlign: 'center', backgroundColor: '#FFEBEE', padding: 10, borderRadius: 8 },
     inputCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#EEE', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10 },
     label: { fontSize: 14, fontWeight: 'bold', color: '#555', marginBottom: 8 },
     dropdownTrigger: {

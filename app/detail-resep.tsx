@@ -1,5 +1,6 @@
 import { useAuth } from '@/context/AuthContext';
 import axiosClient from '@/api/axiosClient';
+import { storageUrl } from '@/constants/api';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useState, useEffect } from 'react';
@@ -156,7 +157,7 @@ export default function DetailResepScreen() {
     }
 
     const statusInfo = getStatusInfo(prescription.status, !!prescription.order);
-    const imageUrl = prescription.image_url.startsWith('http') ? prescription.image_url : `${axiosClient.defaults.baseURL}/storage/${prescription.image_url}`;
+    const imageUrl = storageUrl(prescription.image_url);
 
     return (
         <SafeAreaView style={styles.container}>

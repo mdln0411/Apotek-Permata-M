@@ -20,13 +20,18 @@ class Message extends Model
 
     public function getImageUrlAttribute()
     {
-        if ($this->image) {
-            if (filter_var($this->image, FILTER_VALIDATE_URL)) {
-                return $this->image;
-            }
-            return asset('storage/' . $this->image);
+        if (!$this->image) {
+            return null;
         }
-        return null;
+
+        if (filter_var($this->image, FILTER_VALIDATE_URL)) {
+            if (preg_match('#/storage/(.+)$#i', $this->image, $matches)) {
+                return $matches[1];
+            }
+            return $this->image;
+        }
+
+        return ltrim(str_replace('storage/', '', $this->image), '/');
     }
 
     public function consultation()

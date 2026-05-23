@@ -1,4 +1,5 @@
 import axiosClient from '@/api/axiosClient';
+import { storageUrl } from '@/constants/api';
 import { useAuth } from '@/context/AuthContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -17,8 +18,32 @@ import {
     ActivityIndicator,
     Image,
     Alert,
-    Modal
+    Modal,
+    ScrollView,
 } from 'react-native';
+
+const PatientAvatar = ({
+    patient,
+    size = 40,
+    textSize = 16,
+}: {
+    patient: { name?: string; profile_photo?: string | null } | null;
+    size?: number;
+    textSize?: number;
+}) => (
+    <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
+        {patient?.profile_photo ? (
+            <Image
+                source={{ uri: storageUrl(patient.profile_photo) }}
+                style={{ width: size, height: size, borderRadius: size / 2 }}
+            />
+        ) : (
+            <Text style={[styles.avatarText, { fontSize: textSize }]}>
+                {patient?.name?.charAt(0)?.toUpperCase() || '?'}
+            </Text>
+        )}
+    </View>
+);
 
 export default function ApotekerChatRoom() {
     const { id } = useLocalSearchParams();
@@ -32,7 +57,30 @@ export default function ApotekerChatRoom() {
     const [captionText, setCaptionText] = useState('');
     const [profileModalVisible, setProfileModalVisible] = useState(false);
     const [patientAllergies, setPatientAllergies] = useState<any[]>([]);
+    const [loadingProfile, setLoadingProfile] = useState(false);
     const flatListRef = useRef<FlatList>(null);
+
+    const fetchPatientAllergies = async (userId: number | string) => {
+        const allergyResp = await axiosClient.get(`/api/allergies/by-user`, {
+            params: { user_id: userId },
+        });
+        const list = allergyResp.data?.data;
+        setPatientAllergies(Array.isArray(list) ? list : []);
+    };
+
+    const openPatientProfile = async () => {
+        if (!patient?.id) return;
+        setProfileModalVisible(true);
+        setLoadingProfile(true);
+        try {
+            await fetchPatientAllergies(patient.id);
+        } catch (e) {
+            console.warn('Failed to fetch patient allergies', e);
+            setPatientAllergies([]);
+        } finally {
+            setLoadingProfile(false);
+        }
+    };
 
     useEffect(() => {
         markAsRead();
@@ -40,22 +88,6 @@ export default function ApotekerChatRoom() {
         const interval = setInterval(fetchChatData, 3000);
         return () => clearInterval(interval);
     }, [id]);
-
-    useEffect(() => {
-        if (profileModalVisible) {
-            // Refetch allergies each time the modal opens for real‑time data
-            (async () => {
-                try {
-                    const allergyResp = await axiosClient.get(`/api/allergies/by-user?user_id=${patient?.id}`);
-                    if (allergyResp.data && allergyResp.data.data) {
-                        setPatientAllergies(allergyResp.data.data);
-                    }
-                } catch (e) {
-                    console.warn('Failed to refresh patient allergies', e);
-                }
-            })();
-        }
-    }, [profileModalVisible]);
 
     const markAsRead = async () => {
         try {
@@ -73,14 +105,12 @@ export default function ApotekerChatRoom() {
             setMessages(response.data.data.messages);
             const userData = response.data.data.user;
             setPatient(userData);
-            // Fetch patient's allergies if possible
-            try {
-                const allergyResp = await axiosClient.get(`/api/allergies/by-user?user_id=${userData?.id}`);
-                if (allergyResp.data && allergyResp.data.data) {
-                    setPatientAllergies(allergyResp.data.data);
+            if (userData?.id) {
+                try {
+                    await fetchPatientAllergies(userData.id);
+                } catch (e) {
+                    console.warn('Failed to fetch patient allergies', e);
                 }
-            } catch (e) {
-                console.warn('Failed to fetch patient allergies', e);
             }
             setLoading(false);
         } catch (error) {
@@ -206,7 +236,7 @@ export default function ApotekerChatRoom() {
                 <View style={[styles.msgBubble, isMine ? styles.myBubble : styles.theirBubble]}>
                     {item.image_url && (
                         <Image 
-                            source={{ uri: item.image_url.startsWith('http') ? item.image_url : `${axiosClient.defaults.baseURL}/storage/${item.image_url}` }} 
+                            source={{ uri: storageUrl(item.image_url) }} 
                             style={styles.msgImage} 
                             resizeMode="cover"
                         />
@@ -232,16 +262,18 @@ export default function ApotekerChatRoom() {
                     <Ionicons name="chevron-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <View style={styles.headerInfo}>
-                    <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{patient?.name?.charAt(0)}</Text>
-                    </View>
-                    <View>
-                        <Text style={styles.headerName}>{patient?.name || 'Pasien'}</Text>
+                    <PatientAvatar patient={patient} size={40} textSize={16} />
+                    <View style={styles.headerTextWrap}>
+                        <Text style={styles.headerName} numberOfLines={1}>{patient?.name || 'Pasien'}</Text>
                         <Text style={styles.headerStatus}>Sedang Konsultasi</Text>
                     </View>
                 </View>
-                <TouchableOpacity style={styles.profileBtn} onPress={() => setProfileModalVisible(true)}>
-                    <Ionicons name="person-circle-outline" size={26} color="#2E8B57" />
+                <TouchableOpacity
+                    style={styles.profileBtn}
+                    onPress={openPatientProfile}
+                    accessibilityLabel="Lihat profil pasien"
+                >
+                    <PatientAvatar patient={patient} size={40} textSize={16} />
                 </TouchableOpacity>
             </View>
 
@@ -367,50 +399,91 @@ export default function ApotekerChatRoom() {
             >
                 <View style={styles.profileModalOverlay}>
                     <View style={styles.profileModalContent}>
-                        <View style={styles.profileAvatarLarge}>
-                            {patient?.profile_photo ? (
-                                <Image 
-                                    source={{ uri: patient.profile_photo.startsWith('http') ? patient.profile_photo : `${axiosClient.defaults.baseURL}/storage/${patient.profile_photo}` }} 
-                                    style={styles.profileImageLarge} 
-                                />
-                            ) : (
-                                <Text style={styles.profileAvatarTextLarge}>{patient?.name?.charAt(0)?.toUpperCase()}</Text>
-                            )}
-                        </View>
-                        <Text style={styles.profileName}>{patient?.name}</Text>
-                        <Text style={styles.profileRole}>Pasien</Text>
-                        
-                        <View style={styles.profileInfoBox}>
-                            <View style={styles.profileInfoRow}>
-                                <Ionicons name="mail-outline" size={20} color="#666" />
-                                <Text style={styles.profileInfoText}>{patient?.email || 'Belum diisi'}</Text>
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            style={styles.profileScroll}
+                            contentContainerStyle={styles.profileScrollContent}
+                        >
+                            <View style={styles.profileAvatarLarge}>
+                                {patient?.profile_photo ? (
+                                    <Image
+                                        source={{ uri: storageUrl(patient.profile_photo) }}
+                                        style={styles.profileImageLarge}
+                                    />
+                                ) : (
+                                    <Text style={styles.profileAvatarTextLarge}>
+                                        {patient?.name?.charAt(0)?.toUpperCase()}
+                                    </Text>
+                                )}
                             </View>
-                            <View style={styles.profileInfoRow}>
-                                <Ionicons name="call-outline" size={20} color="#666" />
-                                <Text style={styles.profileInfoText}>{patient?.phone || 'Belum diisi'}</Text>
-                            </View>
-                            <View style={styles.profileInfoRow}>
-                                <Ionicons name="location-outline" size={20} color="#666" />
-                                <Text style={styles.profileInfoText}>{patient?.address || 'Belum diisi'}</Text>
-                            </View>
-                        </View>
+                            <Text style={styles.profileName}>{patient?.name}</Text>
+                            <Text style={styles.profileRole}>Pasien</Text>
 
-                        {/* Allergies Section */}
-                        <View style={styles.profileInfoBox}>
-                            <Text style={styles.profileSectionTitle}>Alergi Pasien</Text>
-                            {patientAllergies.length > 0 ? (
-                                patientAllergies.map((a) => (
-                                    <View key={a.id} style={styles.profileAllergyItem}>
-                                        <Ionicons name="alert-circle" size={16} color="#D32F2F" />
-                                        <Text style={styles.profileAllergyText}>{a.allergen_name}</Text>
+                            <View style={styles.profileInfoBox}>
+                                <Text style={styles.profileSectionTitle}>Informasi Kontak</Text>
+                                <View style={styles.profileInfoRow}>
+                                    <Ionicons name="mail-outline" size={20} color="#666" />
+                                    <Text style={styles.profileInfoText}>{patient?.email || 'Belum diisi'}</Text>
+                                </View>
+                                <View style={styles.profileInfoRow}>
+                                    <Ionicons name="call-outline" size={20} color="#666" />
+                                    <Text style={styles.profileInfoText}>{patient?.phone || 'Belum diisi'}</Text>
+                                </View>
+                                <View style={styles.profileInfoRow}>
+                                    <Ionicons name="location-outline" size={20} color="#666" />
+                                    <Text style={styles.profileInfoText}>{patient?.address || 'Belum diisi'}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.profileInfoBox}>
+                                <Text style={styles.profileSectionTitle}>Alergi Obat Pasien</Text>
+                                {loadingProfile ? (
+                                    <ActivityIndicator color="#2E8B57" style={{ marginVertical: 12 }} />
+                                ) : patientAllergies.length > 0 ? (
+                                    patientAllergies.map((a, idx) => (
+                                        <View key={a.id}>
+                                            {idx > 0 && <View style={styles.profileDivider} />}
+                                            <View style={styles.profileAllergyItem}>
+                                                <View style={styles.profileAllergyHeader}>
+                                                    <Ionicons name="alert-circle" size={18} color="#D32F2F" />
+                                                    <Text style={styles.profileAllergyName}>{a.allergen_name}</Text>
+                                                    <View style={[
+                                                        styles.severityBadge,
+                                                        a.severity === 'berat' ? styles.severityBerat : styles.severitySedang,
+                                                    ]}>
+                                                        <Text style={[
+                                                            styles.severityText,
+                                                            a.severity === 'berat' ? styles.severityTextBerat : styles.severityTextSedang,
+                                                        ]}>
+                                                            {(a.severity || 'sedang').toUpperCase()}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                                {a.symptom ? (
+                                                    <Text style={styles.profileAllergyDetail}>
+                                                        Gejala: {a.symptom}
+                                                    </Text>
+                                                ) : null}
+                                                {a.description ? (
+                                                    <Text style={styles.profileAllergyDetail}>
+                                                        Deskripsi: {a.description}
+                                                    </Text>
+                                                ) : null}
+                                            </View>
+                                        </View>
+                                    ))
+                                ) : (
+                                    <View style={styles.profileAllergyEmpty}>
+                                        <Feather name="shield" size={16} color="#2E8B57" />
+                                        <Text style={styles.profileAllergyEmptyText}>
+                                            Pasien belum mencatat alergi obat di akunnya.
+                                        </Text>
                                     </View>
-                                ))
-                            ) : (
-                                <Text style={styles.profileInfoText}>Tidak ada alergi tercatat</Text>
-                            )}
-                        </View>
+                                )}
+                            </View>
+                        </ScrollView>
 
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.profileCloseBtn}
                             onPress={() => setProfileModalVisible(false)}
                         >
@@ -427,12 +500,13 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F0F4F0' },
     header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: Platform.OS === 'ios' ? 0 : 40, paddingBottom: 15, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#EEE' },
     backBtn: { width: 40, height: 40, justifyContent: 'center' },
-    headerInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 5 },
-    avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E3F2FD', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+    headerInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 5, minWidth: 0 },
+    headerTextWrap: { flex: 1, marginLeft: 12, minWidth: 0 },
+    avatar: { backgroundColor: '#E3F2FD', justifyContent: 'center', alignItems: 'center', marginRight: 0, overflow: 'hidden' },
     avatarText: { color: '#1976D2', fontWeight: 'bold' },
     headerName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
     headerStatus: { fontSize: 12, color: '#999' },
-    profileBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+    profileBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#2E8B57', borderRadius: 22 },
     chatList: { padding: 20 },
     msgContainer: { flexDirection: 'row', marginBottom: 15, maxWidth: '80%' },
     myMsg: { alignSelf: 'flex-end' },
@@ -462,22 +536,33 @@ const styles = StyleSheet.create({
     previewInput: { flex: 1, color: '#FFF', fontSize: 16, maxHeight: 100 },
     previewSendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#00A884', justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
 
-    // Patient profile additional styles
-    profileSectionTitle: { fontSize: 15, fontWeight: '600', color: '#2E8B57', marginBottom: 8 },
-    profileAllergyItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-    profileAllergyText: { marginLeft: 6, fontSize: 14, color: '#333' },
+    profileSectionTitle: { fontSize: 15, fontWeight: '600', color: '#2E8B57', marginBottom: 12 },
+    profileAllergyItem: { marginBottom: 4 },
+    profileAllergyHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+    profileAllergyName: { flex: 1, fontSize: 15, fontWeight: 'bold', color: '#333', minWidth: 100 },
+    profileAllergyDetail: { fontSize: 13, color: '#666', marginTop: 6, marginLeft: 26, lineHeight: 18 },
+    profileAllergyEmpty: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    profileAllergyEmptyText: { flex: 1, fontSize: 13, color: '#888', fontStyle: 'italic' },
+    profileDivider: { height: 1, backgroundColor: '#EEE', marginVertical: 12 },
+    severityBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+    severityBerat: { backgroundColor: '#FFEBEE' },
+    severitySedang: { backgroundColor: '#FFF3E0' },
+    severityText: { fontSize: 10, fontWeight: 'bold' },
+    severityTextBerat: { color: '#D32F2F' },
+    severityTextSedang: { color: '#F57C00' },
 
-    // Patient Profile Modal
     profileModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-    profileModalContent: { width: '100%', backgroundColor: '#FFF', borderRadius: 20, padding: 24, alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },
-    profileAvatarLarge: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#E3F2FD', justifyContent: 'center', alignItems: 'center', marginBottom: 16, overflow: 'hidden' },
+    profileModalContent: { width: '100%', maxHeight: '85%', backgroundColor: '#FFF', borderRadius: 20, padding: 24, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },
+    profileScroll: { width: '100%' },
+    profileScrollContent: { alignItems: 'center', paddingBottom: 8 },
+    profileAvatarLarge: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#E3F2FD', justifyContent: 'center', alignItems: 'center', marginBottom: 16, overflow: 'hidden', alignSelf: 'center' },
     profileImageLarge: { width: '100%', height: '100%' },
     profileAvatarTextLarge: { fontSize: 32, color: '#1976D2', fontWeight: 'bold' },
-    profileName: { fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 4 },
-    profileRole: { fontSize: 14, color: '#2E8B57', fontWeight: '600', marginBottom: 20 },
-    profileInfoBox: { width: '100%', backgroundColor: '#F8F9FA', borderRadius: 12, padding: 16, gap: 16, marginBottom: 24 },
+    profileName: { fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 4, textAlign: 'center' },
+    profileRole: { fontSize: 14, color: '#2E8B57', fontWeight: '600', marginBottom: 20, textAlign: 'center' },
+    profileInfoBox: { width: '100%', alignSelf: 'stretch', backgroundColor: '#F8F9FA', borderRadius: 12, padding: 16, gap: 16, marginBottom: 16 },
     profileInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     profileInfoText: { flex: 1, fontSize: 14, color: '#555' },
-    profileCloseBtn: { width: '100%', backgroundColor: '#2E8B57', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+    profileCloseBtn: { width: '100%', backgroundColor: '#2E8B57', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
     profileCloseBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
 });

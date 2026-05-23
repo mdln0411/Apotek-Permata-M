@@ -1,4 +1,5 @@
 import axiosClient from '@/api/axiosClient';
+import { storageUrl } from '@/constants/api';
 import { useAuth } from '@/context/AuthContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -177,7 +178,7 @@ export default function ChatRoom() {
                 <View style={[styles.msgBubble, isMine ? styles.myBubble : styles.theirBubble]}>
                     {item.image_url && (
                         <Image 
-                            source={{ uri: item.image_url.startsWith('http') ? item.image_url : `${axiosClient.defaults.baseURL}/storage/${item.image_url}` }} 
+                            source={{ uri: storageUrl(item.image_url) }} 
                             style={styles.msgImage} 
                             resizeMode="cover"
                         />

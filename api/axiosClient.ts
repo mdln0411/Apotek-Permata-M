@@ -1,23 +1,17 @@
-import axios from 'axios';
-import { Platform } from 'react-native';
-
-let BASE_URL = 'http://192.168.100.222:8000';
-if (Platform.OS === 'android') {
-  BASE_URL = 'http://192.168.100.222:8000';
-}
-// Note: Jika di HP fisik, ganti localhost dengan IP lokal komputer (misal: 192.168.1.x)
+import { API_BASE_URL } from '@/constants/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import Constants from 'expo-constants';
 
 const axiosClient = axios.create({
-  baseURL: BASE_URL,
-  timeout: 10000,
+  baseURL: API_BASE_URL,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   },
 });
 
-// Tambahkan interceptor untuk menyisipkan token ke setiap request
 axiosClient.interceptors.request.use(
   async (config) => {
     try {
@@ -30,9 +24,28 @@ axiosClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error),
 );
+
+axiosClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.message === 'Network Error' && __DEV__) {
+      console.error(
+        `[API] Network Error → ${API_BASE_URL}\n` +
+          `Expo hostUri: ${Constants.expoConfig?.hostUri ?? '?'}\n` +
+          'Pastikan: (1) npm start / expo running\n' +
+          '         (2) cd backend && php artisan serve --host=0.0.0.0 --port=8000\n' +
+          '         (3) MySQL/XAMPP Start',
+      );
+    }
+    return Promise.reject(error);
+  },
+);
+
+if (__DEV__) {
+  console.log('[API] Base URL:', API_BASE_URL);
+  console.log('[API] Expo hostUri:', Constants.expoConfig?.hostUri ?? '?');
+}
 
 export default axiosClient;

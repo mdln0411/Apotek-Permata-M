@@ -1,5 +1,12 @@
 import axiosClient from '@/api/axiosClient';
+import { storageUrl } from '@/constants/api';
 import { useAuth } from '@/context/AuthContext';
+import {
+    filterOrdersBySubTab,
+    getOrderStatusColors,
+    getOrderStatusLabel,
+    type OrderSubTab,
+} from '@/utils/orderStatus';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState, useEffect } from 'react';
@@ -42,27 +49,26 @@ export interface Prescription {
 
 export default function PesananScreen() {
     const { user } = useAuth();
-    const { tab } = useLocalSearchParams<{ tab?: string }>();
+    const { tab, subTab: subTabParam } = useLocalSearchParams<{ tab?: string; subTab?: string }>();
     const [orders, setOrders] = useState<Order[]>([]);
     const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState<'pesanan' | 'resep'>('pesanan');
-    const [subTab, setSubTab] = useState<'semua' | 'pending' | 'selesai' | 'dibatalkan'>('semua');
+    const [subTab, setSubTab] = useState<OrderSubTab>('semua');
 
-    const filteredOrders = orders.filter(order => {
-        if (subTab === 'semua') return true;
-        if (subTab === 'pending') return order.status !== 'selesai' && order.status !== 'dibatalkan' && order.status !== 'dilaporkan';
-        if (subTab === 'selesai') return order.status === 'selesai';
-        if (subTab === 'dibatalkan') return order.status === 'dibatalkan';
-        return true;
-    });
+    const filteredOrders = filterOrdersBySubTab(orders, subTab);
 
     useEffect(() => {
         if (tab === 'resep' || tab === 'pesanan') {
             setActiveTab(tab);
         }
-    }, [tab]);
+        const allowed = ['semua', 'pending', 'dikirim', 'selesai', 'dibatalkan'] as const;
+        const raw = Array.isArray(subTabParam) ? subTabParam[0] : subTabParam;
+        if (raw && (allowed as readonly string[]).includes(raw)) {
+            setSubTab(raw as OrderSubTab);
+        }
+    }, [tab, subTabParam]);
 
     const fetchOrders = async () => {
         if (!user) return;
@@ -84,7 +90,7 @@ export default function PesananScreen() {
     useFocusEffect(
         useCallback(() => {
             fetchOrders();
-        }, [user])
+        }, [user, subTabParam])
     );
 
     const onRefresh = () => {
@@ -108,32 +114,6 @@ export default function PesananScreen() {
             </SafeAreaView>
         );
     }
-
-    const getStatusColor = (status: string) => {
-        switch (status.toLowerCase()) {
-            case 'completed':
-            case 'selesai':
-            case 'valid':
-                return { bg: '#E8F5E9', text: '#2E8B57' };
-            case 'pending':
-            case 'menunggu':
-            case 'menunggu_pembayaran':
-            case 'menunggu_konfirmasi':
-                return { bg: '#FFF3E0', text: '#F57C00' };
-            case 'processing':
-            case 'diproses':
-            case 'perlu_diproses':
-            case 'sedang_diproses':
-            case 'dikirim':
-                return { bg: '#E3F2FD', text: '#1976D2' };
-            case 'rejected':
-            case 'ditolak':
-            case 'dibatalkan':
-                return { bg: '#FFEBEE', text: '#D32F2F' };
-            default:
-                return { bg: '#F5F5F5', text: '#666' };
-        }
-    };
 
     const formatDate = (dateStr: string) => {
         const date = new Date(dateStr);
@@ -166,9 +146,10 @@ export default function PesananScreen() {
             {activeTab === 'pesanan' && (
                 <View style={styles.subTabContainer}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabScrollContent}>
-                        {(['semua', 'pending', 'selesai', 'dibatalkan'] as const).map((tabKey) => {
-                            const label = tabKey === 'semua' ? 'Semua' 
+                        {(['semua', 'pending', 'dikirim', 'selesai', 'dibatalkan'] as const).map((tabKey) => {
+                            const label = tabKey === 'semua' ? 'Semua'
                                         : tabKey === 'pending' ? 'Dalam Proses'
+                                        : tabKey === 'dikirim' ? 'Dikirim'
                                         : tabKey === 'selesai' ? 'Selesai'
                                         : 'Dibatalkan';
                             const isActive = subTab === tabKey;
@@ -202,7 +183,15 @@ export default function PesananScreen() {
                         <View style={styles.centered}>
                             <Ionicons name="receipt-outline" size={80} color="#CCC" />
                             <Text style={styles.emptyTitle}>
-                                {subTab === 'semua' ? 'Belum ada pesanan' : `Tidak ada pesanan ${subTab}`}
+                                {subTab === 'semua'
+                                    ? 'Belum ada pesanan'
+                                    : subTab === 'pending'
+                                      ? 'Tidak ada pesanan dalam proses'
+                                      : subTab === 'dikirim'
+                                        ? 'Tidak ada pesanan dikirim'
+                                        : subTab === 'selesai'
+                                          ? 'Belum ada pesanan selesai'
+                                          : 'Tidak ada pesanan dibatalkan'}
                             </Text>
                             <Text style={styles.emptySubtitle}>
                                 {subTab === 'semua' ? 'Ayo mulai belanja obat sekarang!' : 'Coba ubah filter status pesanan Anda.'}
@@ -210,7 +199,7 @@ export default function PesananScreen() {
                         </View>
                     ) : (
                         filteredOrders.map((order) => {
-                            const statusStyle = getStatusColor(order.status);
+                            const statusStyle = getOrderStatusColors(order.status);
                             return (
                                 <TouchableOpacity 
                                     key={order.id} 
@@ -223,12 +212,7 @@ export default function PesananScreen() {
                                         </View>
                                         <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
                                             <Text style={[styles.statusText, { color: statusStyle.text }]}>
-                                                {order.status === 'menunggu_pembayaran' ? 'BELUM BAYAR' : 
-                                                 order.status === 'menunggu_konfirmasi' ? 'MENUNGGU KONFIRMASI' :
-                                                 order.status === 'perlu_diproses' ? 'PERLU DIPROSES' :
-                                                 order.status === 'sedang_diproses' ? 'DIPROSES' :
-                                                 order.status === 'dikirim' ? 'DIKIRIM' :
-                                                 order.status.replace('_', ' ').toUpperCase()}
+                                                {getOrderStatusLabel(order.status)}
                                             </Text>
                                         </View>
                                     </View>
@@ -279,7 +263,7 @@ export default function PesananScreen() {
                         prescriptions.map((prescription) => {
                             const statusStyle = prescription.order
                                 ? { bg: '#E3F2FD', text: '#1976D2' }
-                                : getStatusColor(prescription.status);
+                                : getOrderStatusColors(prescription.status);
                             return (
                                 <TouchableOpacity 
                                     key={prescription.id} 
@@ -301,7 +285,7 @@ export default function PesananScreen() {
                                         <View style={styles.imageBox}>
                                             {prescription.image_url ? (
                                                 <Image 
-                                                    source={{ uri: prescription.image_url.startsWith('http') ? prescription.image_url : `${axiosClient.defaults.baseURL}/storage/${prescription.image_url}` }} 
+                                                    source={{ uri: storageUrl(prescription.image_url) }} 
                                                     style={styles.medicinePreview}
                                                     resizeMode="cover"
                                                 />

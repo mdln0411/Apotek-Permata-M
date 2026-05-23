@@ -65,6 +65,7 @@ function InitialLayout() {
       <Stack.Screen name="edit-profil" options={{ headerShown: false }} />
       <Stack.Screen name="chat-room" options={{ headerShown: false }} />
       <Stack.Screen name="payment-qris" options={{ headerShown: false }} />
+      <Stack.Screen name="payment-transfer" options={{ headerShown: false }} />
       <Stack.Screen name="notifikasi" options={{ headerShown: true }} />
     </Stack>
   );

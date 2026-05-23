@@ -18,6 +18,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { updateProfile } from '@/api/authService';
+import { storageUrl } from '@/constants/api';
 
 export default function EditProfilScreen() {
     const { user, updateUser } = useAuth();
@@ -31,9 +32,7 @@ export default function EditProfilScreen() {
 
     const getProfilePhotoUrl = (url?: string) => {
         if (!url) return null;
-        if (url.startsWith('http://') || url.startsWith('https://')) return url;
-        const host = Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000';
-        return `${host}/storage/${url}`;
+        return storageUrl(url);
     };
 
     const pickImage = async () => {

@@ -3,6 +3,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import React, { useState, useCallback } from 'react';
 import axiosClient from '@/api/axiosClient';
+import { storageUrl } from '@/constants/api';
 import { Image } from 'expo-image';
 import {
     Modal,
@@ -20,9 +21,7 @@ export default function ProfilScreen() {
     
     const getProfilePhotoUrl = (url?: string) => {
         if (!url) return null;
-        if (url.startsWith('http://') || url.startsWith('https://')) return url;
-        const host = Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000';
-        return `${host}/storage/${url}`;
+        return storageUrl(url);
     };
 
     const [logoutModalVisible, setLogoutModalVisible] = useState(false);

@@ -1,12 +1,11 @@
 import axiosClient from '@/api/axiosClient';
+import { TimePickerInput } from '@/components/TimePickerInput';
+import { SuccessToast } from '@/components/SuccessToast';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Device from 'expo-device';
-
-const DateTimePicker = Platform.OS === 'web' ? null : require('@react-native-community/datetimepicker').default;
 import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { SuccessToast } from '@/components/SuccessToast';
 import {
     ActivityIndicator,
     Alert,
@@ -52,21 +51,16 @@ export default function PengingatScreen() {
     const [newMed, setNewMed] = useState('');
     const [newTime, setNewTime] = useState('');
     const [newDosage, setNewDosage] = useState('');
-    const [selectedTime, setSelectedTime] = useState(new Date());
-    const [showTimePicker, setShowTimePicker] = useState(false);
     const [toastVisible, setToastVisible] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
     const [deleteModalVisible, setDeleteModalVisible] = useState(false);
     const [reminderIdToDelete, setReminderIdToDelete] = useState<number | null>(null);
 
-    const onTimeChange = (event: any, selectedVal?: Date) => {
-        setShowTimePicker(Platform.OS === 'ios');
-        if (selectedVal) {
-            setSelectedTime(selectedVal);
-            const hours = selectedVal.getHours().toString().padStart(2, '0');
-            const minutes = selectedVal.getMinutes().toString().padStart(2, '0');
-            setNewTime(`${hours}:${minutes}`);
-        }
+    const openAddModal = () => {
+        setNewMed('');
+        setNewTime('');
+        setNewDosage('');
+        setModalVisible(true);
     };
 
     const showAlert = (title: string, message: string) => {
@@ -167,19 +161,16 @@ export default function PengingatScreen() {
     };
 
     const handleAddReminder = async () => {
-        if (!newMed || !newTime) {
-            showAlert('Error', 'Mohon isi nama obat dan waktu (HH:MM)');
+        if (!newMed.trim()) {
+            showAlert('Error', 'Mohon isi nama obat.');
+            return;
+        }
+        if (!newTime) {
+            showAlert('Error', 'Mohon pilih waktu pengingat.');
             return;
         }
 
-        const timeRegex = /^([01]?[0-9]|2[0-3])[:.][0-5][0-9]$/;
-        if (!timeRegex.test(newTime)) {
-            showAlert('Error', 'Format waktu salah. Gunakan HH:MM atau HH.MM (contoh: 08:30 atau 08.00)');
-            return;
-        }
-
-        // Normalisasi format waktu ke HH:MM untuk backend
-        const formattedTime = newTime.replace('.', ':');
+        const formattedTime = newTime;
 
         try {
             setLoading(true);
@@ -252,7 +243,7 @@ export default function PengingatScreen() {
                     <Ionicons name="chevron-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Pengingat Obat</Text>
-                <TouchableOpacity style={styles.addBtnHeader} onPress={() => setModalVisible(true)}>
+                <TouchableOpacity style={styles.addBtnHeader} onPress={openAddModal}>
                     <Ionicons name="add" size={28} color="#2E8B57" />
                 </TouchableOpacity>
             </View>
@@ -335,36 +326,11 @@ export default function PengingatScreen() {
                         />
 
                         <Text style={styles.inputLabel}>Waktu Pengingat</Text>
-                        {Platform.OS === 'web' ? (
-                            <TextInput 
-                                style={[styles.input, { outlineStyle: 'none' } as any]}
-                                placeholder="Contoh: 08:30"
-                                value={newTime}
-                                onChangeText={setNewTime}
-                            />
-                        ) : (
-                            <>
-                                <TouchableOpacity 
-                                    style={styles.timeSelectButton}
-                                    onPress={() => setShowTimePicker(true)}
-                                >
-                                    <Feather name="clock" size={18} color="#2E8B57" style={{ marginRight: 10 }} />
-                                    <Text style={styles.timeSelectButtonText}>
-                                        {newTime ? newTime : 'Pilih Waktu'}
-                                    </Text>
-                                </TouchableOpacity>
-
-                                {showTimePicker && DateTimePicker && (
-                                    <DateTimePicker
-                                        value={selectedTime}
-                                        mode="time"
-                                        is24Hour={true}
-                                        display="default"
-                                        onChange={onTimeChange}
-                                    />
-                                )}
-                            </>
-                        )}
+                        <TimePickerInput
+                            value={newTime}
+                            onChange={setNewTime}
+                            placeholder="Pilih jam & menit"
+                        />
 
                         <Text style={styles.inputLabel}>Dosis (Opsional)</Text>
                         <TextInput 

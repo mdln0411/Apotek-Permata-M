@@ -1,18 +1,19 @@
 import { changePassword } from '@/api/authService';
+import { SuccessToast } from '@/components/SuccessToast';
 import { useAuth } from '@/context/AuthContext';
+import { showAppAlert } from '@/utils/alert';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     KeyboardAvoidingView,
     Platform,
-    Pressable,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
+    TouchableOpacity,
     View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,17 +28,43 @@ export default function UbahKataSandiScreen() {
     const [showOld, setShowOld] = useState(false);
     const [showNew, setShowNew] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+    const [toastVisible, setToastVisible] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+
+    const goBack = () => {
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/(tabs)/profil');
+        }
+    };
 
     const handleUpdate = async () => {
+        setFeedback(null);
+
         if (!user) {
-            Alert.alert('Peringatan', 'Silakan login terlebih dahulu', [
-                { text: 'Login', onPress: () => router.replace('/login') },
-            ]);
+            setFeedback({ type: 'error', text: 'Silakan login terlebih dahulu.' });
             return;
         }
 
         if (!oldPassword.trim() || !newPassword || !confirmPassword) {
-            Alert.alert('Peringatan', 'Semua kolom wajib diisi');
+            setFeedback({ type: 'error', text: 'Semua kolom wajib diisi.' });
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            setFeedback({ type: 'error', text: 'Kata sandi baru minimal 8 karakter.' });
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setFeedback({ type: 'error', text: 'Konfirmasi kata sandi baru tidak cocok.' });
+            return;
+        }
+
+        if (oldPassword === newPassword) {
+            setFeedback({ type: 'error', text: 'Kata sandi baru harus berbeda dari kata sandi lama.' });
             return;
         }
 
@@ -48,26 +75,22 @@ export default function UbahKataSandiScreen() {
                 new_password: newPassword,
                 new_password_confirmation: confirmPassword,
             });
-            Alert.alert('Berhasil', res.message || 'Kata sandi Anda telah diperbarui', [
-                {
-                    text: 'OK',
-                    onPress: () => {
-                        setOldPassword('');
-                        setNewPassword('');
-                        setConfirmPassword('');
-                        if (router.canGoBack()) {
-                            router.back();
-                        } else {
-                            router.replace('/(tabs)/profil');
-                        }
-                    },
-                },
-            ]);
+
+            setOldPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+            setFeedback({ type: 'success', text: res.message || 'Kata sandi berhasil diperbarui.' });
+            setToastMessage(res.message || 'Kata sandi berhasil diperbarui!');
+            setToastVisible(true);
+
+            setTimeout(() => {
+                goBack();
+            }, 1500);
         } catch (error: any) {
             let msg = 'Gagal mengubah kata sandi';
             if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
                 msg =
-                    'Tidak dapat terhubung ke server. Pastikan backend Laravel aktif dan IP di axiosClient benar.';
+                    'Tidak dapat terhubung ke server. Pastikan backend Laravel aktif.';
             } else if (error.response?.status === 401) {
                 msg = 'Sesi login habis. Silakan login ulang.';
             } else if (error.response?.data?.message) {
@@ -77,28 +100,26 @@ export default function UbahKataSandiScreen() {
                 const firstKey = Object.keys(errors)[0];
                 msg = errors[firstKey][0];
             }
-            Alert.alert('Gagal', msg);
+            setFeedback({ type: 'error', text: msg });
+            showAppAlert('Gagal', msg);
         } finally {
             setLoading(false);
         }
     };
 
-    const goBack = () => {
-        if (router.canGoBack()) {
-            router.back();
-        } else {
-            router.replace('/(tabs)/profil');
-        }
-    };
-
     return (
-        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
             <Stack.Screen options={{ headerShown: false }} />
+            <SuccessToast
+                visible={toastVisible}
+                message={toastMessage}
+                onClose={() => setToastVisible(false)}
+            />
 
             <View style={styles.header}>
-                <Pressable onPress={goBack} style={styles.backBtn} hitSlop={12}>
+                <TouchableOpacity onPress={goBack} style={styles.backBtn} activeOpacity={0.7}>
                     <Ionicons name="chevron-back" size={24} color="#333" />
-                </Pressable>
+                </TouchableOpacity>
                 <Text style={styles.headerTitle}>Ubah Kata Sandi</Text>
                 <View style={{ width: 40 }} />
             </View>
@@ -122,6 +143,29 @@ export default function UbahKataSandiScreen() {
                         </Text>
                     </View>
 
+                    {feedback ? (
+                        <View
+                            style={[
+                                styles.feedbackBox,
+                                feedback.type === 'error' ? styles.feedbackError : styles.feedbackSuccess,
+                            ]}
+                        >
+                            <Feather
+                                name={feedback.type === 'error' ? 'alert-circle' : 'check-circle'}
+                                size={18}
+                                color={feedback.type === 'error' ? '#D32F2F' : '#2E8B57'}
+                            />
+                            <Text
+                                style={[
+                                    styles.feedbackText,
+                                    feedback.type === 'error' ? styles.feedbackTextError : styles.feedbackTextSuccess,
+                                ]}
+                            >
+                                {feedback.text}
+                            </Text>
+                        </View>
+                    ) : null}
+
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Kata Sandi Lama</Text>
                         <View style={styles.inputWrapper}>
@@ -133,10 +177,11 @@ export default function UbahKataSandiScreen() {
                                 placeholder="Masukkan kata sandi lama"
                                 autoCapitalize="none"
                                 autoCorrect={false}
+                                editable={!loading}
                             />
-                            <Pressable onPress={() => setShowOld(!showOld)} hitSlop={8}>
+                            <TouchableOpacity onPress={() => setShowOld(!showOld)} hitSlop={8}>
                                 <Feather name={showOld ? 'eye' : 'eye-off'} size={18} color="#999" />
-                            </Pressable>
+                            </TouchableOpacity>
                         </View>
                     </View>
 
@@ -151,10 +196,11 @@ export default function UbahKataSandiScreen() {
                                 placeholder="Minimal 8 karakter"
                                 autoCapitalize="none"
                                 autoCorrect={false}
+                                editable={!loading}
                             />
-                            <Pressable onPress={() => setShowNew(!showNew)} hitSlop={8}>
+                            <TouchableOpacity onPress={() => setShowNew(!showNew)} hitSlop={8}>
                                 <Feather name={showNew ? 'eye' : 'eye-off'} size={18} color="#999" />
-                            </Pressable>
+                            </TouchableOpacity>
                         </View>
                     </View>
 
@@ -169,31 +215,28 @@ export default function UbahKataSandiScreen() {
                                 placeholder="Ulangi kata sandi baru"
                                 autoCapitalize="none"
                                 autoCorrect={false}
+                                editable={!loading}
                             />
-                            <Pressable onPress={() => setShowConfirm(!showConfirm)} hitSlop={8}>
+                            <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} hitSlop={8}>
                                 <Feather name={showConfirm ? 'eye' : 'eye-off'} size={18} color="#999" />
-                            </Pressable>
+                            </TouchableOpacity>
                         </View>
                     </View>
                 </ScrollView>
 
-                {/* Tombol di footer tetap — tidak tertutup tab bar */}
                 <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-                    <Pressable
-                        style={({ pressed }) => [
-                            styles.updateBtn,
-                            loading && styles.disabledBtn,
-                            pressed && !loading && styles.updateBtnPressed,
-                        ]}
+                    <TouchableOpacity
+                        style={[styles.updateBtn, loading && styles.disabledBtn]}
                         onPress={handleUpdate}
                         disabled={loading}
+                        activeOpacity={0.85}
                     >
                         {loading ? (
                             <ActivityIndicator color="#FFF" />
                         ) : (
                             <Text style={styles.updateBtnText}>Simpan Kata Sandi Baru</Text>
                         )}
-                    </Pressable>
+                    </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -222,9 +265,23 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         alignItems: 'center',
         gap: 12,
-        marginBottom: 24,
+        marginBottom: 16,
     },
     infoText: { flex: 1, fontSize: 13, color: '#555', lineHeight: 18 },
+    feedbackBox: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 16,
+        borderWidth: 1,
+    },
+    feedbackError: { backgroundColor: '#FFEBEE', borderColor: '#FFCDD2' },
+    feedbackSuccess: { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9' },
+    feedbackText: { flex: 1, fontSize: 13, lineHeight: 18 },
+    feedbackTextError: { color: '#C62828' },
+    feedbackTextSuccess: { color: '#2E7D32' },
     inputGroup: { marginBottom: 20 },
     label: { fontSize: 14, fontWeight: 'bold', color: '#555', marginBottom: 8 },
     inputWrapper: {
@@ -244,6 +301,8 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: '#EEE',
         backgroundColor: '#FFF',
+        zIndex: 10,
+        elevation: 8,
     },
     updateBtn: {
         backgroundColor: '#2E8B57',
@@ -253,7 +312,6 @@ const styles = StyleSheet.create({
         minHeight: 52,
         justifyContent: 'center',
     },
-    updateBtnPressed: { opacity: 0.85 },
     updateBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
     disabledBtn: { opacity: 0.7 },
 });

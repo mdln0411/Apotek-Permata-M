@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 
@@ -36,6 +36,15 @@ export default function ApotekerLayout() {
                 }}
             />
             <Tabs.Screen
+                name="prescriptions"
+                options={{
+                    title: 'Resep',
+                    tabBarIcon: ({ color, size }) => (
+                        <MaterialCommunityIcons name="file-document-edit-outline" size={size} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
                 name="consultation"
                 options={{
                     title: 'Konsultasi',
@@ -68,7 +77,6 @@ export default function ApotekerLayout() {
             <Tabs.Screen name="dashboard" options={{ href: null }} />
             <Tabs.Screen name="orders" options={{ href: null }} />
             <Tabs.Screen name="manage-stock" options={{ href: null }} />
-            <Tabs.Screen name="prescriptions" options={{ href: null }} />
             <Tabs.Screen
                 name="keamanan"
                 options={{
