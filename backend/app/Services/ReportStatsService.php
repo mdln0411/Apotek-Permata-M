@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Medicine;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\IndonesianDateTime;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -39,9 +40,9 @@ class ReportStatsService
             'payment_stats' => $this->buildPaymentStats($allOrdersInRange),
             'order_stats' => $this->buildOrderStats($allOrdersInRange),
             'user_stats' => $this->buildUserStats(),
-            'transactions' => $this->paginateTransactions($request, $baseQuery),
+            'transactions' => $this->paginateTransactions($request, $this->buildAllOrdersQuery($request)),
             'filter_options' => $this->getFilterOptions(),
-            'generated_at' => now()->toIso8601String(),
+            'generated_at' => IndonesianDateTime::toIso8601(now()),
         ];
     }
 
@@ -67,9 +68,20 @@ class ReportStatsService
 
     private function buildFilteredQuery(Request $request, Carbon $start, Carbon $end): Builder
     {
-        $query = Order::query()
-            ->whereBetween('created_at', [$start, $end]);
+        return $this->applyOrderListFilters(
+            Order::query()->whereBetween('created_at', [$start, $end]),
+            $request,
+        );
+    }
 
+    /** Semua pesanan — sama dengan daftar transaksi admin (tanpa filter periode). */
+    private function buildAllOrdersQuery(Request $request): Builder
+    {
+        return $this->applyOrderListFilters(Order::query(), $request);
+    }
+
+    private function applyOrderListFilters(Builder $query, Request $request): Builder
+    {
         if ($request->filled('apoteker_id')) {
             $query->where('processed_by', $request->input('apoteker_id'));
         }
@@ -376,12 +388,16 @@ class ReportStatsService
 
     private function paginateTransactions(Request $request, Builder $query): array
     {
-        $perPage = min((int) $request->input('per_page', 10), 50);
+        $perPage = min((int) $request->input('per_page', 50), 100);
         $page = max((int) $request->input('page', 1), 1);
+
+        $sortDir = $request->input('sort', 'desc') === 'asc' ? 'asc' : 'desc';
 
         $paginated = (clone $query)
             ->with(['user', 'items.medicine', 'processedBy'])
-            ->orderBy('created_at', $request->input('sort', 'desc') === 'asc' ? 'asc' : 'desc')
+            ->orderByRaw(
+                "COALESCE(completed_at, updated_at, created_at) {$sortDir}",
+            )
             ->paginate($perPage, ['*'], 'page', $page);
 
         $items = collect($paginated->items())->map(fn (Order $order) => $this->formatTransaction($order))->all();
@@ -406,13 +422,19 @@ class ReportStatsService
             'subtotal' => (float) $item->subtotal,
         ])->all();
 
+        $completedAt = $order->transactionCompletedAt();
+
         return [
             'id' => $order->id,
             'order_number' => $order->order_number,
             'patient_name' => $order->user?->name ?? '—',
             'apoteker_name' => $order->processedBy?->name ?? 'Tim Apotek',
-            'created_at' => $order->created_at?->toIso8601String(),
-            'created_at_formatted' => $order->created_at?->translatedFormat('d M Y, H:i'),
+            'created_at' => IndonesianDateTime::toIso8601($order->created_at),
+            'created_at_formatted' => IndonesianDateTime::format($order->created_at),
+            'transaction_at' => IndonesianDateTime::toIso8601($completedAt),
+            'transaction_at_formatted' => $completedAt
+                ? IndonesianDateTime::format($completedAt)
+                : null,
             'total' => $this->financeStats->orderGrandTotal($order),
             'total_formatted' => $this->financeStats->formatRupiahFull($this->financeStats->orderGrandTotal($order)),
             'payment_method' => $order->payment_method ?? '—',

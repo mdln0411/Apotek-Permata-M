@@ -18,6 +18,7 @@ import {
     RefreshControl
 } from 'react-native';
 import { getAdminDashboardStats, DashboardData } from '@/api/dashboardService';
+import { getStockCounts } from '@/utils/stockStatus';
 import WeeklySalesChart from '@/components/admin/WeeklySalesChart';
 import axiosClient from '@/api/axiosClient';
 
@@ -31,7 +32,8 @@ export default function AdminDashboard() {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-    const [lowStockCount, setLowStockCount] = useState(0);
+    const [habisStockCount, setHabisStockCount] = useState(0);
+    const [menipisStockCount, setMenipisStockCount] = useState(0);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const hasLoadedRef = useRef(false);
 
@@ -55,8 +57,9 @@ export default function AdminDashboard() {
             }
 
             const medRes = await axiosClient.get('/api/medicines?per_page=500');
-            const low = (medRes.data.data || []).filter((m: any) => m.stock < 10).length;
-            setLowStockCount(low);
+            const { habis, menipis } = getStockCounts(medRes.data.data);
+            setHabisStockCount(habis);
+            setMenipisStockCount(menipis);
         } catch (e: any) {
             console.error('Error fetching dashboard stats:', e);
             if (mode !== 'silent') {
@@ -157,7 +160,7 @@ export default function AdminDashboard() {
                     )}
                 </View>
 
-                {lowStockCount > 0 && (
+                {(habisStockCount > 0 || menipisStockCount > 0) && (
                     <TouchableOpacity 
                         style={styles.lowStockBanner}
                         onPress={() => router.push('/admin/manage-medicines')}
@@ -165,9 +168,19 @@ export default function AdminDashboard() {
                     >
                         <Ionicons name="alert-circle" size={24} color="#FF5252" />
                         <View style={styles.lowStockTextContainer}>
-                            <Text style={styles.lowStockTitle}>Pemberitahuan Stok Menipis</Text>
+                            <Text style={styles.lowStockTitle}>
+                                {habisStockCount > 0 && menipisStockCount > 0
+                                    ? 'Pemberitahuan Stok Habis & Menipis'
+                                    : habisStockCount > 0
+                                      ? 'Pemberitahuan Stok Habis'
+                                      : 'Pemberitahuan Stok Menipis'}
+                            </Text>
                             <Text style={styles.lowStockDesc}>
-                                Ada {lowStockCount} obat dengan stok di bawah 10 item! Klik untuk mengelola stok.
+                                {habisStockCount > 0 && menipisStockCount > 0
+                                    ? `Ada ${habisStockCount} obat habis dan ${menipisStockCount} obat menipis. Klik untuk mengelola stok.`
+                                    : habisStockCount > 0
+                                      ? `Ada ${habisStockCount} obat dengan stok habis! Klik untuk mengelola stok.`
+                                      : `Ada ${menipisStockCount} obat dengan stok menipis (di bawah 10)! Klik untuk mengelola stok.`}
                             </Text>
                         </View>
                         <Ionicons name="chevron-forward" size={20} color="#FF5252" style={{ marginLeft: 'auto' }} />

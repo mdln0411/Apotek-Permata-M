@@ -1,4 +1,5 @@
 import axiosClient from '@/api/axiosClient';
+import { getStockCounts } from '@/utils/stockStatus';
 import { useAuth } from '@/context/AuthContext';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
@@ -128,12 +129,12 @@ export default function ApotekerDashboard() {    const { user, logout } = useAut
             const consultRes = await axiosClient.get('/api/consultations');
 
             const pending = (orderRes.data.data || []).filter((o: any) => o.status === 'pending' || o.status === 'menunggu' || o.status === 'menunggu_konfirmasi').length;
-            const low = (medRes.data.data || []).filter((m: any) => m.stock < 10).length;
+            const { habis: habisStock } = getStockCounts(medRes.data.data);
             const consultations = (consultRes.data.data || []).filter((c: any) => c.status === 'active').length;
 
             setStats({
                 pendingOrders: pending,
-                lowStock: low,
+                lowStock: habisStock,
                 totalConsultations: consultations
             });
         } catch (error) {

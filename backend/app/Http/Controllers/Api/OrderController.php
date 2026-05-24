@@ -245,7 +245,7 @@ class OrderController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Forbidden'], 403);
         }
 
-        $orders = Order::with(['user', 'items.medicine'])
+        $orders = Order::with(['user', 'items.medicine', 'processedBy'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -297,10 +297,14 @@ class OrderController extends Controller
             $this->orderStock->restoreForOrder($order);
         }
 
-        $order->update([
+        $updates = [
             'status' => $newStatus,
             'processed_by' => $request->user()->id,
-        ]);
+        ];
+        if ($newStatus === 'selesai' && !$order->completed_at) {
+            $updates['completed_at'] = now();
+        }
+        $order->update($updates);
 
         if ($newStatus === 'selesai' && !$this->orderStock->isCompletedStatus($oldStatus)) {
             $this->orderStock->deductForOrder($order->fresh());
@@ -336,7 +340,7 @@ class OrderController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Status pesanan berhasil diperbarui',
-            'data' => $order
+            'data' => $order->fresh()
         ]);
     }
 
@@ -361,6 +365,9 @@ class OrderController extends Controller
         }
 
         $order->status = 'selesai';
+        if (!$order->completed_at) {
+            $order->completed_at = now();
+        }
         $order->save();
         $this->orderStock->deductForOrder($order->fresh());
 
@@ -544,6 +551,7 @@ class OrderController extends Controller
         $updates = [
             'status' => 'selesai',
             'processed_by' => $request->user()->id,
+            'completed_at' => $order->completed_at ?? now(),
         ];
 
         if ($order->isCod()) {

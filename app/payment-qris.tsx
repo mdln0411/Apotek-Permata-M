@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,6 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import axiosClient from '@/api/axiosClient';
 import QRCode from 'react-native-qrcode-svg';
-import { saveQrCodeSvgToGallery, type QrSvgRef } from '@/utils/saveQrisToGallery';
 
 const THEME = {
   primary: '#2E8B57', // Sea Green
@@ -45,8 +44,6 @@ export default function QRISPaymentScreen() {
   // Timer: 15 minutes (900 seconds)
   const [timeLeft, setTimeLeft] = useState(900);
   const [verifying, setVerifying] = useState(false);
-  const [savingQr, setSavingQr] = useState(false);
-  const qrRef = useRef<QrSvgRef | null>(null);
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -73,32 +70,6 @@ export default function QRISPaymentScreen() {
   const handleCopyOrderNumber = () => {
     Clipboard.setString(orderNumber || '');
     Alert.alert('Salin', 'Nomor pesanan berhasil disalin ke clipboard.');
-  };
-
-  const handleSaveQR = async () => {
-    if (savingQr || verifying) return;
-
-    try {
-      setSavingQr(true);
-      const result = await saveQrCodeSvgToGallery(qrRef, `QR_${orderNumber ?? 'qris'}`);
-
-      if (result.ok) {
-        Alert.alert('Sukses', 'QR Code berhasil disimpan ke galeri ponsel Anda.');
-        return;
-      }
-
-      if (result.reason === 'permission_denied') {
-        Alert.alert('Izin Ditolak', result.message);
-        return;
-      }
-
-      Alert.alert('Gagal Menyimpan', result.message);
-    } catch (error) {
-      console.error('Gagal menyimpan QR:', error);
-      Alert.alert('Gagal Menyimpan', 'Terjadi kesalahan saat menyimpan QR Code ke galeri.');
-    } finally {
-      setSavingQr(false);
-    }
   };
 
   const handleVerifyPayment = async () => {
@@ -196,24 +167,18 @@ export default function QRISPaymentScreen() {
           </View>
         </View>
 
-        {/* Beautiful Stand QRIS Frame */}
         <View style={styles.qrisStand}>
-          {/* Header of QRIS Stand */}
           <View style={styles.qrisStandHeader}>
-            <Image 
-              source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Logo_QRIS.svg' }} 
+            <Image
+              source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Logo_QRIS.svg' }}
               style={styles.qrisLogo}
               resizeMode="contain"
             />
             <Text style={styles.qrisSubTitle}>GPN (Gerbang Pembayaran Nasional)</Text>
           </View>
 
-          {/* QR Container */}
           <View style={styles.qrCodeWrapper}>
             <QRCode
-              getRef={(ref) => {
-                qrRef.current = ref;
-              }}
               value={qrData}
               size={180}
               backgroundColor="white"
@@ -225,7 +190,6 @@ export default function QRISPaymentScreen() {
             />
           </View>
 
-          {/* Footer of QRIS Stand */}
           <View style={styles.qrisStandFooter}>
             <Text style={styles.merchantName}>APOTEK PERMATA PRATAMA</Text>
             <Text style={styles.nmid}>NMID: ID1020260517882</Text>
@@ -246,22 +210,22 @@ export default function QRISPaymentScreen() {
           
           <View style={styles.guideStep}>
             <View style={styles.stepNumber}><Text style={styles.stepNumberText}>1</Text></View>
-            <Text style={styles.stepText}>Simpan atau screenshot halaman QR Code ini ke galeri ponsel Anda.</Text>
-          </View>
-
-          <View style={styles.guideStep}>
-            <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
             <Text style={styles.stepText}>Buka aplikasi e-wallet pilihan Anda (GoPay, OVO, DANA, dll) atau M-Banking.</Text>
           </View>
 
           <View style={styles.guideStep}>
+            <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
+            <Text style={styles.stepText}>Pilih menu <Text style={{ fontWeight: 'bold' }}>Bayar / Scan QR</Text>, lalu arahkan kamera ke QRIS di atas.</Text>
+          </View>
+
+          <View style={styles.guideStep}>
             <View style={styles.stepNumber}><Text style={styles.stepNumberText}>3</Text></View>
-            <Text style={styles.stepText}>Pilih menu <Text style={{fontWeight: 'bold'}}>Bayar / Scan QR</Text>, lalu upload gambar QR Code yang baru saja disimpan.</Text>
+            <Text style={styles.stepText}>Periksa detail transaksi Anda, masukkan PIN, lalu selesaikan pembayaran.</Text>
           </View>
 
           <View style={styles.guideStep}>
             <View style={styles.stepNumber}><Text style={styles.stepNumberText}>4</Text></View>
-            <Text style={styles.stepText}>Periksa detail transaksi Anda, masukkan PIN Anda, dan klik tombol <Text style={{fontWeight: 'bold'}}>Saya Sudah Bayar</Text> di bawah.</Text>
+            <Text style={styles.stepText}>Kembali ke aplikasi ini dan tap tombol <Text style={{ fontWeight: 'bold' }}>Saya Sudah Bayar</Text> di bawah.</Text>
           </View>
         </View>
 
@@ -278,21 +242,6 @@ export default function QRISPaymentScreen() {
               <>
                 <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" style={{marginRight: 6}} />
                 <Text style={styles.verifyBtnText}>Saya Sudah Bayar</Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.saveQrBtn} 
-            onPress={handleSaveQR}
-            disabled={savingQr || verifying}
-          >
-            {savingQr ? (
-              <ActivityIndicator color={THEME.primary} />
-            ) : (
-              <>
-                <Feather name="download" size={16} color={THEME.primary} style={{marginRight: 6}} />
-                <Text style={styles.saveQrBtnText}>Simpan QR Code ke Galeri</Text>
               </>
             )}
           </TouchableOpacity>
@@ -549,21 +498,6 @@ const styles = StyleSheet.create({
   verifyBtnText: {
     color: '#FFF',
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  saveQrBtn: {
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: THEME.primary,
-    flexDirection: 'row',
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveQrBtnText: {
-    color: THEME.primary,
-    fontSize: 15,
     fontWeight: 'bold',
   },
   cancelBtn: {

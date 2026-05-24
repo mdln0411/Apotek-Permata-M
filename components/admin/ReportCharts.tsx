@@ -26,6 +26,17 @@ const chartsReady = !!(LineChart && BarChart && PieChart);
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CHART_WIDTH = SCREEN_WIDTH - 72;
 
+/** Lebar chart agar label tidak bertumpuk; bisa di-scroll horizontal di ChartCard. */
+function scrollableChartWidth(labelCount: number, pxPerLabel: number): number {
+  return Math.max(CHART_WIDTH, labelCount * pxPerLabel);
+}
+
+function barChartScrollWidth(labels: string[]): number {
+  const longest = labels.reduce((max, l) => Math.max(max, l.length), 0);
+  const pxPerLabel = Math.max(72, longest * 8);
+  return scrollableChartWidth(labels.length, pxPerLabel);
+}
+
 const chartConfig = {
   backgroundGradientFrom: '#FFFFFF',
   backgroundGradientTo: '#FFFFFF',
@@ -95,7 +106,7 @@ export default function ReportCharts({
         ) : hasRevenue ? (
           <LineChart
             data={{ labels: revenueLine.labels, datasets: [{ data: revenueLine.data.length ? revenueLine.data : [0] }] }}
-            width={Math.max(CHART_WIDTH, revenueLine.labels.length * 48)}
+            width={scrollableChartWidth(revenueLine.labels.length, 48)}
             height={200}
             chartConfig={chartConfig}
             bezier
@@ -115,7 +126,7 @@ export default function ReportCharts({
         ) : hasMonthly ? (
           <LineChart
             data={{ labels: monthlyRevenue.labels, datasets: [{ data: monthlyRevenue.data }] }}
-            width={Math.max(CHART_WIDTH, monthlyRevenue.labels.length * 56)}
+            width={scrollableChartWidth(monthlyRevenue.labels.length, 88)}
             height={200}
             chartConfig={{ ...chartConfig, color: (o = 1) => `rgba(25, 118, 210, ${o})` }}
             bezier
@@ -134,7 +145,7 @@ export default function ReportCharts({
         ) : hasBest ? (
           <BarChart
             data={{ labels: bestSellersBar.labels, datasets: [{ data: bestSellersBar.data }] }}
-            width={Math.max(CHART_WIDTH, bestSellersBar.labels.length * 52)}
+            width={barChartScrollWidth(bestSellersBar.labels)}
             height={200}
             chartConfig={{ ...chartConfig, color: (o = 1) => `rgba(46, 139, 87, ${o})` }}
             style={styles.chart}

@@ -9,6 +9,14 @@ import {
     normalizeMedicineUnit,
     sanitizeIntegerInput,
 } from '@/constants/medicineForm';
+import {
+    formatStockAlertSummary,
+    getStockCounts,
+    isStockHabis,
+    isStockMenipis,
+    matchesStockFilter,
+    normalizeStock,
+} from '@/utils/stockStatus';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -368,19 +376,13 @@ export default function ManageMedicines() {
         });
     };
 
-    const lowStockCount = Array.isArray(medicines) ? medicines.filter(m => m.stock < 10).length : 0;
-    const habisCount = Array.isArray(medicines) ? medicines.filter(m => m.stock === 0).length : 0;
-    const menipisCount = Array.isArray(medicines) ? medicines.filter(m => m.stock > 0 && m.stock < 10).length : 0;
-    const tersediaCount = Array.isArray(medicines) ? medicines.filter(m => m.stock >= 10).length : 0;
+    const { habis: habisCount, menipis: menipisCount, tersedia: tersediaCount } = getStockCounts(medicines);
+    const stockAlertSummary = formatStockAlertSummary(habisCount, menipisCount);
 
     const filteredMedicines = Array.isArray(medicines) ? medicines.filter(m => {
         const matchesSearch = (m.name || '').toLowerCase().includes(searchQuery.toLowerCase());
         if (!matchesSearch) return false;
-
-        if (statusFilter === 'habis') return m.stock === 0;
-        if (statusFilter === 'menipis') return m.stock > 0 && m.stock < 10;
-        if (statusFilter === 'tersedia') return m.stock >= 10;
-        return true;
+        return matchesStockFilter(m.stock, statusFilter);
     }) : [];
 
     const sortedFilteredMedicines = [...filteredMedicines].sort((a, b) => {
@@ -626,12 +628,12 @@ export default function ManageMedicines() {
                     </TouchableOpacity>
                 </View>
 
-                {lowStockCount > 0 && (
+                {stockAlertSummary ? (
                     <View style={styles.alertBar}>
                         <Ionicons name="alert-circle" size={18} color="#FF5252" />
-                        <Text style={styles.alertText}>{lowStockCount} Item Menipis / Habis!</Text>
+                        <Text style={styles.alertText}>{stockAlertSummary}</Text>
                     </View>
-                )}
+                ) : null}
 
                 {/* Filter Status Bar */}
                 <ScrollView
@@ -671,7 +673,8 @@ export default function ManageMedicines() {
                     ) : sortedFilteredMedicines.map((item) => (
                         <View key={item.id} style={[
                             styles.medCard,
-                            Number(item.stock) < 10 && styles.lowStockCardBorder
+                            isStockHabis(item.stock) && styles.outOfStockCardBorder,
+                            isStockMenipis(item.stock) && styles.lowStockCardBorder,
                         ]}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
                                 <View style={styles.medImageBg}>
@@ -708,10 +711,13 @@ export default function ManageMedicines() {
                                     <Text style={styles.medPrice}>
                                         Rp {item.price.toLocaleString('id-ID')} •{' '}
                                         <Text style={[
-                                            styles.medStock, 
-                                            Number(item.stock) < 10 && styles.lowStockTextCard
+                                            styles.medStock,
+                                            isStockHabis(item.stock) && styles.outOfStockTextCard,
+                                            isStockMenipis(item.stock) && styles.lowStockTextCard,
                                         ]}>
-                                            Stok: {item.stock}
+                                            {isStockHabis(item.stock)
+                                                ? 'Habis'
+                                                : `Stok: ${normalizeStock(item.stock)}`}
                                         </Text>
                                     </Text>
                                 </View>
@@ -738,12 +744,17 @@ export default function ManageMedicines() {
                                 </View>
                             </View>
                             
-                            {Number(item.stock) < 10 && (
+                            {isStockHabis(item.stock) ? (
+                                <View style={styles.outOfStockBanner}>
+                                    <Ionicons name="close-circle" size={14} color="#B71C1C" />
+                                    <Text style={styles.outOfStockText}>Stok habis</Text>
+                                </View>
+                            ) : isStockMenipis(item.stock) ? (
                                 <View style={styles.lowStockBanner}>
                                     <Ionicons name="alert-circle" size={14} color="#FF5252" />
-                                    <Text style={styles.lowStockText}>Stok hampir habis! Segera restok.</Text>
+                                    <Text style={styles.lowStockText}>Stok menipis! Segera restok.</Text>
                                 </View>
-                            )}
+                            ) : null}
                         </View>
                     ))}
                 </View>
@@ -893,12 +904,34 @@ const styles = StyleSheet.create({
     filterTabTextActive: {
         color: '#FFF',
     },
+    outOfStockCardBorder: {
+        borderColor: '#FFCDD2',
+    },
     lowStockCardBorder: {
-        borderColor: '#FFE0E0',
+        borderColor: '#FFE0B2',
+    },
+    outOfStockTextCard: {
+        color: '#B71C1C',
+        fontWeight: 'bold',
     },
     lowStockTextCard: {
-        color: '#FF5252',
+        color: '#F57C00',
         fontWeight: 'bold',
+    },
+    outOfStockBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFEBEE',
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderRadius: 8,
+        marginTop: 10,
+        gap: 6,
+    },
+    outOfStockText: {
+        fontSize: 11,
+        color: '#B71C1C',
+        fontWeight: '600',
     },
     lowStockBanner: {
         flexDirection: 'row',

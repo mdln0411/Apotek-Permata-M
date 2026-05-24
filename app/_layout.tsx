@@ -1,14 +1,19 @@
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useRootNavigationState, useSegments } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { CartProvider } from '../context/CartContext';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+export const unstable_settings = {
+  initialRouteName: '(tabs)',
+};
 
 const PUBLIC_SEGMENTS = new Set([
   'login',
   'register',
   'lupa-password',
-  'index',
   'modal',
 ]);
 
@@ -16,10 +21,18 @@ function InitialLayout() {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const navigationState = useRootNavigationState();
+  const isNavigationReady = Boolean(navigationState?.key);
 
   const firstSegment = segments[0] ?? '';
   const isPublicRoute = PUBLIC_SEGMENTS.has(firstSegment);
   const needsAuth = !isPublicRoute && firstSegment !== '(tabs)';
+
+  useEffect(() => {
+    if (!loading && isNavigationReady) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [loading, isNavigationReady]);
 
   useEffect(() => {
     if (loading) return;
@@ -45,17 +58,13 @@ function InitialLayout() {
     }
   }, [user, loading, firstSegment, needsAuth]);
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' }}>
-        <ActivityIndicator size="large" color="#2E8B57" />
-      </View>
-    );
+  if (!isNavigationReady) {
+    return null;
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" options={{ redirect: true, href: '/(tabs)' } as any} />
+    <Stack screenOptions={{ headerShown: false }} initialRouteName="(tabs)">
+      <Stack.Screen name="index" redirect href="/(tabs)" />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="admin" options={{ headerShown: false }} />
       <Stack.Screen name="apoteker" options={{ headerShown: false }} />

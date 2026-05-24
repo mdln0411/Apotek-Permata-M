@@ -1,4 +1,12 @@
 import axiosClient from '@/api/axiosClient';
+import {
+    formatStockAlertSummary,
+    getStockCounts,
+    isStockHabis,
+    isStockMenipis,
+    matchesStockFilter,
+    normalizeStock,
+} from '@/utils/stockStatus';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -80,10 +88,7 @@ export default function ManageStock() {
         const matchesSearch = m.name.toLowerCase().includes(search.toLowerCase());
         if (!matchesSearch) return false;
 
-        if (statusFilter === 'habis') return m.stock === 0;
-        if (statusFilter === 'menipis') return m.stock > 0 && m.stock < 10;
-        if (statusFilter === 'tersedia') return m.stock >= 10;
-        return true;
+        return matchesStockFilter(m.stock, statusFilter);
     });
 
     const sortedFilteredMedicines = [...filteredMedicines].sort((a, b) => {
@@ -96,7 +101,8 @@ export default function ManageStock() {
         }
     });
 
-    const lowStockCount = medicines.filter(m => m.stock < 10).length;
+    const { habis: habisCount, menipis: menipisCount, tersedia: tersediaCount } = getStockCounts(medicines);
+    const stockAlertSummary = formatStockAlertSummary(habisCount, menipisCount);
 
     return (
         <SafeAreaView style={styles.container}>
@@ -141,12 +147,12 @@ export default function ManageStock() {
                             <Text style={styles.sortBtnText}>{sortOrder === 'asc' ? 'A-Z' : 'Z-A'}</Text>
                         </TouchableOpacity>
                     </View>
-                    {lowStockCount > 0 && (
+                    {stockAlertSummary ? (
                         <View style={styles.alertBar}>
                             <Ionicons name="alert-circle" size={16} color={THEME.danger} />
-                            <Text style={styles.alertText}>{lowStockCount} Item Menipis</Text>
+                            <Text style={styles.alertText}>{stockAlertSummary}</Text>
                         </View>
-                    )}
+                    ) : null}
                 </View>
 
                 {/* Filter Status Bar */}
@@ -157,9 +163,9 @@ export default function ManageStock() {
                 >
                     {[
                         { key: 'semua', label: 'Semua', count: medicines.length },
-                        { key: 'habis', label: 'Habis', count: medicines.filter(m => m.stock === 0).length },
-                        { key: 'menipis', label: 'Menipis', count: medicines.filter(m => m.stock > 0 && m.stock < 10).length },
-                        { key: 'tersedia', label: 'Tersedia', count: medicines.filter(m => m.stock >= 10).length },
+                        { key: 'habis', label: 'Habis', count: habisCount },
+                        { key: 'menipis', label: 'Menipis', count: menipisCount },
+                        { key: 'tersedia', label: 'Tersedia', count: tersediaCount },
                     ].map(tab => (
                         <TouchableOpacity
                             key={tab.key}
@@ -220,10 +226,16 @@ export default function ManageStock() {
                                     </TouchableOpacity>
 
                                     <View style={styles.stockDisplay}>
-                                        <Text style={[styles.stockValue, item.stock < 10 && styles.lowStockValue]}>
-                                            {item.stock}
+                                        <Text style={[
+                                            styles.stockValue,
+                                            isStockHabis(item.stock) && styles.outOfStockValue,
+                                            isStockMenipis(item.stock) && styles.lowStockValue,
+                                        ]}>
+                                            {isStockHabis(item.stock) ? 'Habis' : normalizeStock(item.stock)}
                                         </Text>
-                                        <Text style={styles.stockLabel}>Stok</Text>
+                                        <Text style={styles.stockLabel}>
+                                            {isStockHabis(item.stock) ? 'Status' : 'Stok'}
+                                        </Text>
                                     </View>
 
                                     <TouchableOpacity
@@ -236,11 +248,15 @@ export default function ManageStock() {
                                 </View>
                             </View>
 
-                            {item.stock < 10 && (
-                                <View style={styles.lowStockBanner}>
-                                    <Text style={styles.lowStockText}>Segera restok!</Text>
+                            {isStockHabis(item.stock) ? (
+                                <View style={styles.outOfStockBanner}>
+                                    <Text style={styles.outOfStockText}>Stok habis</Text>
                                 </View>
-                            )}
+                            ) : isStockMenipis(item.stock) ? (
+                                <View style={styles.lowStockBanner}>
+                                    <Text style={styles.lowStockText}>Stok menipis — segera restok!</Text>
+                                </View>
+                            ) : null}
                         </View>
                     ))
                 )}
@@ -319,10 +335,13 @@ const styles = StyleSheet.create({
     },
     stockDisplay: { alignItems: 'center', minWidth: 40 },
     stockValue: { fontSize: 18, fontWeight: '800', color: THEME.textDark },
-    lowStockValue: { color: THEME.danger },
+    outOfStockValue: { color: '#B71C1C' },
+    lowStockValue: { color: THEME.warning },
     stockLabel: { fontSize: 9, color: THEME.textMuted, marginTop: -2, textTransform: 'uppercase' },
-    lowStockBanner: { backgroundColor: '#FFF5F5', paddingVertical: 4, alignItems: 'center' },
-    lowStockText: { fontSize: 10, color: THEME.danger, fontWeight: 'bold' },
+    outOfStockBanner: { backgroundColor: '#FFEBEE', paddingVertical: 4, alignItems: 'center' },
+    outOfStockText: { fontSize: 10, color: '#B71C1C', fontWeight: 'bold' },
+    lowStockBanner: { backgroundColor: '#FFF8E1', paddingVertical: 4, alignItems: 'center' },
+    lowStockText: { fontSize: 10, color: THEME.warning, fontWeight: 'bold' },
     emptyContainer: { alignItems: 'center', marginTop: 80 },
     emptyText: { color: THEME.textMuted, marginTop: 15, fontSize: 15, fontWeight: '500' },
 

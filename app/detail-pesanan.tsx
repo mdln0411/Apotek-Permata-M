@@ -1,12 +1,12 @@
 import axiosClient from '@/api/axiosClient';
 import { storageUrl } from '@/constants/api';
 import { useAuth } from '@/context/AuthContext';
-import { normalizeOrderStatus } from '@/utils/orderStatus';
+import { getOrderStatusColors, getOrderStatusLabel, normalizeToApiOrderStatus } from '@/utils/orderStatus';
 import { isPickupOrder } from '@/utils/orderFulfillment';
 import { showAppAlert } from '@/utils/alert';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -244,11 +244,12 @@ export default function DetailPesananScreen() {
                 newActualStatus = 'selesai';
             } else {
                 response = await axiosClient.put(`/api/admin/orders/${orderId}/status`, { status: newStatus });
+                newActualStatus = response.data?.data?.status ?? newStatus;
             }
             
             if (response.data.status === 'success') {
                 setConfirmModalVisible(false);
-                setOrder(prev => prev ? { ...prev, status: newActualStatus } : null);
+                setOrder(prev => prev ? { ...prev, status: normalizeToApiOrderStatus(newActualStatus) } : null);
                 
                 let successTitle = 'Status Berhasil Diubah';
                 let successMessage = `Pesanan #${order?.order_number} sekarang berstatus ${newStatus.toUpperCase()}.`;
@@ -288,11 +289,13 @@ export default function DetailPesananScreen() {
     };
 
 
-    useEffect(() => {
-        if (orderId) {
-            fetchOrderDetail();
-        }
-    }, [orderId]);
+    useFocusEffect(
+        useCallback(() => {
+            if (orderId) {
+                fetchOrderDetail();
+            }
+        }, [orderId]),
+    );
 
     if (loading) {
         return (
@@ -331,7 +334,8 @@ export default function DetailPesananScreen() {
     };
 
     const o = order!;
-    const orderStatus = normalizeOrderStatus(o.status);
+    const orderStatus = normalizeToApiOrderStatus(o.status);
+    const statusStyle = getOrderStatusColors(o.status);
 
     return (
 
@@ -533,48 +537,11 @@ export default function DetailPesananScreen() {
 
                         </View>
                         {(() => {
-                            const statusLower = (o.status || '').toLowerCase().trim();
-                            let label = o.status.toUpperCase();
-                            let color = '#666';
-                            let bgColor = '#F5F5F5';
-                            
-                            if (statusLower === 'pending' || statusLower === 'menunggu_pembayaran') {
-                                label = 'MENUNGGU PEMBAYARAN';
-                                color = '#F57C00';
-                                bgColor = '#FFF3E0';
-                            } else if (statusLower === 'menunggu_konfirmasi') {
-                                label = 'MENUNGGU VERIFIKASI';
-                                color = '#F57C00';
-                                bgColor = '#FFF3E0';
-                            } else if (statusLower === 'perlu_diproses') {
-                                label = 'PERLU DIPROSES';
-                                color = '#1976D2';
-                                bgColor = '#E3F2FD';
-                            } else if (statusLower === 'diproses' || statusLower === 'processing' || statusLower === 'sedang_diproses') {
-                                label = 'SEDANG DIPROSES';
-                                color = '#1976D2';
-                                bgColor = '#E3F2FD';
-                            } else if (statusLower === 'dikirim' || statusLower === 'shipped') {
-                                label = 'SEDANG DIKIRIM';
-                                color = '#EF6C00';
-                                bgColor = '#FFF3E0';
-                            } else if (statusLower === 'selesai' || statusLower === 'completed') {
-                                label = 'SELESAI';
-                                color = '#2E8B57';
-                                bgColor = '#E8F5E9';
-                            } else if (statusLower === 'dibatalkan' || statusLower === 'cancelled') {
-                                label = 'DIBATALKAN';
-                                color = '#D32F2F';
-                                bgColor = '#FFEBEE';
-                            } else if (statusLower === 'dilaporkan' || statusLower === 'reported') {
-                                label = 'DILAPORKAN';
-                                color = '#D32F2F';
-                                bgColor = '#FFEBEE';
-                            }
-
                             return (
-                                <View style={[styles.badgeStatus, { backgroundColor: bgColor }]}>
-                                    <Text style={[styles.badgeStatusText, { color: color }]}>{label}</Text>
+                                <View style={[styles.badgeStatus, { backgroundColor: statusStyle.bg }]}>
+                                    <Text style={[styles.badgeStatusText, { color: statusStyle.text }]}>
+                                        {getOrderStatusLabel(o.status)}
+                                    </Text>
                                 </View>
                             );
                         })()}
@@ -588,24 +555,21 @@ export default function DetailPesananScreen() {
                     </View>
 
                     {user?.role === 'member' &&
-                        ['perlu_diproses', 'sedang_diproses', 'diproses', 'processing', 'dikirim', 'selesai', 'completed'].includes(
-                            (o.status || '').toLowerCase(),
-                        ) && (
+                        ['perlu_diproses', 'sedang_diproses', 'dikirim', 'selesai'].includes(orderStatus) && (
                         <View style={styles.progressSteps}>
                             {(isPickupOrder(o)
                                 ? [
-                                    { key: 'proses', label: 'Diproses', done: ['perlu_diproses', 'sedang_diproses', 'diproses', 'processing', 'selesai', 'completed'] },
-                                    { key: 'jemput', label: 'Siap Diambil', done: ['sedang_diproses', 'selesai', 'completed'] },
-                                    { key: 'selesai', label: 'Selesai', done: ['selesai', 'completed'] },
+                                    { key: 'proses', label: 'Diproses', done: ['perlu_diproses', 'sedang_diproses', 'selesai'] },
+                                    { key: 'jemput', label: 'Siap Diambil', done: ['sedang_diproses', 'selesai'] },
+                                    { key: 'selesai', label: 'Selesai', done: ['selesai'] },
                                   ]
                                 : [
-                                    { key: 'proses', label: 'Diproses', done: ['perlu_diproses', 'sedang_diproses', 'diproses', 'processing', 'dikirim', 'selesai', 'completed'] },
-                                    { key: 'dikirim', label: 'Dikirim', done: ['dikirim', 'selesai', 'completed'] },
-                                    { key: 'selesai', label: 'Selesai', done: ['selesai', 'completed'] },
+                                    { key: 'proses', label: 'Diproses', done: ['perlu_diproses', 'sedang_diproses', 'dikirim', 'selesai'] },
+                                    { key: 'dikirim', label: 'Dikirim', done: ['dikirim', 'selesai'] },
+                                    { key: 'selesai', label: 'Selesai', done: ['selesai'] },
                                   ]
                             ).map((step, index, arr) => {
-                                const s = (o.status || '').toLowerCase();
-                                const isDone = step.done.includes(s);
+                                const isDone = step.done.includes(orderStatus);
                                 const isLast = index === arr.length - 1;
                                 return (
                                     <React.Fragment key={step.key}>
@@ -770,11 +734,6 @@ export default function DetailPesananScreen() {
                                 </TouchableOpacity>
                             )}
                         </View>
-                        {orderStatus === 'selesai' && (
-                            <Text style={styles.infoTextSmall}>
-                                Pesanan telah selesai. Jika obat belum diterima, silakan klik &quot;Laporkan Masalah&quot;.
-                            </Text>
-                        )}
                         {orderStatus === 'dikirim' && (
                             <Text style={styles.infoTextSmall}>
                                 Pesanan sedang dikirim. Tekan tombol Selesai setelah obat Anda terima.
@@ -788,7 +747,7 @@ export default function DetailPesananScreen() {
                     <View style={styles.pharmacistSection}>
                         <Text style={styles.adminTitle}>Panel Apoteker</Text>
                         <View style={styles.actionRow}>
-                            {o.status === 'menunggu_konfirmasi' && (
+                            {orderStatus === 'menunggu_konfirmasi' && (
                                 <TouchableOpacity 
                                     style={[styles.btnAction, { backgroundColor: '#2E8B57' }]} 
                                     onPress={() => confirmStatusUpdate('verify_payment')}
@@ -797,7 +756,7 @@ export default function DetailPesananScreen() {
                                     <Text style={styles.btnActionText}>Konfirmasi Pembayaran</Text>
                                 </TouchableOpacity>
                             )}
-                            {o.status === 'perlu_diproses' && (
+                            {orderStatus === 'perlu_diproses' && (
                                 <TouchableOpacity 
                                     style={[styles.btnAction, { backgroundColor: '#1976D2' }]} 
                                     onPress={() => confirmStatusUpdate('sedang_diproses')}
@@ -811,7 +770,7 @@ export default function DetailPesananScreen() {
                                     <Text style={[styles.btnActionText, { color: '#757575', textAlign: 'center' }]}>Menunggu Pembayaran Pasien</Text>
                                 </View>
                             )}
-                            {o.status === 'sedang_diproses' && (
+                            {orderStatus === 'sedang_diproses' && (
                                 isPickupOrder(o) ? (
                                     <TouchableOpacity
                                         style={[styles.btnAction, { backgroundColor: '#2E8B57' }]}
@@ -830,22 +789,22 @@ export default function DetailPesananScreen() {
                                     </TouchableOpacity>
                                 )
                             )}
-                            {o.status === 'dikirim' && (
+                            {orderStatus === 'dikirim' && (
                                 <View style={[styles.btnAction, { backgroundColor: '#E0E0E0', elevation: 0 }]}>
                                     <Text style={[styles.btnActionText, { color: '#757575', textAlign: 'center' }]}>Pesanan Sedang Dikirim</Text>
                                 </View>
                             )}
-                            {o.status === 'selesai' && (
+                            {orderStatus === 'selesai' && (
                                 <View style={[styles.btnAction, { backgroundColor: '#E8F5E9', elevation: 0 }]}>
                                     <Text style={[styles.btnActionText, { color: '#2E8B57' }]}>Pesanan Selesai</Text>
                                 </View>
                             )}
-                            {o.status === 'dibatalkan' && (
+                            {orderStatus === 'dibatalkan' && (
                                 <View style={[styles.btnAction, { backgroundColor: '#FFEBEE', elevation: 0 }]}>
                                     <Text style={[styles.btnActionText, { color: '#D32F2F' }]}>Pesanan Dibatalkan</Text>
                                 </View>
                             )}
-                            {o.status === 'dilaporkan' && (
+                            {orderStatus === 'dilaporkan' && (
                                 <TouchableOpacity 
                                     style={[styles.btnAction, { backgroundColor: '#FF5252' }]} 
                                     onPress={handleChatUser}

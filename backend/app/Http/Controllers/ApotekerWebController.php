@@ -116,7 +116,11 @@ class ApotekerWebController extends Controller
             }
         }
 
-        $order->update(['status' => $newStatus]);
+        $updates = ['status' => $newStatus];
+        if ($newStatus === 'selesai' && !$order->completed_at) {
+            $updates['completed_at'] = now();
+        }
+        $order->update($updates);
 
         // Send Notification
         $title = '';

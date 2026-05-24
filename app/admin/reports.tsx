@@ -10,11 +10,12 @@ import ReportCharts from '@/components/admin/ReportCharts';
 import { ReportSkeleton } from '@/components/admin/ReportSkeleton';
 import ReportStatCard from '@/components/admin/ReportStatCard';
 import ApotekLogo from '@/components/ApotekLogo';
+import { formatOrderDateTime, formatTransactionDateTime } from '@/utils/dateTime';
 import { exportReportPdf, printReport } from '@/utils/reportPdf';
 import { getOrderStatusColors, getOrderStatusLabel } from '@/utils/orderStatus';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -32,13 +33,10 @@ import {
 const DEFAULT_FILTERS: ReportFilters = {
   period: 'month',
   sort: 'desc',
-  page: 1,
-  per_page: 10,
 };
 
 export default function AdminReports() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  const [page, setPage] = useState(1);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -48,7 +46,7 @@ export default function AdminReports() {
   const hasLoaded = useRef(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const filters: ReportFilters = { ...DEFAULT_FILTERS, page };
+  const filters: ReportFilters = { ...DEFAULT_FILTERS };
 
   const fetchReports = useCallback(
     async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
@@ -81,12 +79,6 @@ export default function AdminReports() {
     }, [fetchReports]),
   );
 
-  useEffect(() => {
-    if (hasLoaded.current) {
-      fetchReports('silent');
-    }
-  }, [page, fetchReports]);
-
   const handlePrint = async () => {
     if (!reportData) return;
     setExporting(true);
@@ -117,10 +109,6 @@ export default function AdminReports() {
       setExporting(false);
     }
   };
-
-  const changePage = (nextPage: number) => setPage(nextPage);
-
-  const pagination = reportData?.transactions.pagination;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -265,7 +253,7 @@ export default function AdminReports() {
           )}
 
           {/* Riwayat Transaksi */}
-          <SectionTitle icon="list" title="Riwayat Transaksi" subtitle="Detail lengkap semua transaksi" />
+          <SectionTitle icon="list" title="Riwayat Transaksi" subtitle="Jam = waktu pesanan selesai (WIB)" />
 
           <View style={styles.txCard}>
             {(reportData?.transactions.data ?? []).length === 0 ? (
@@ -280,7 +268,9 @@ export default function AdminReports() {
                   <View style={styles.txLeft}>
                     <Text style={styles.txNum}>{tx.order_number}</Text>
                     <Text style={styles.txMeta}>{tx.patient_name} · {tx.apoteker_name}</Text>
-                    <Text style={styles.txDate}>{tx.created_at_formatted}</Text>
+                    <Text style={styles.txDate}>
+                      {formatTransactionDateTime(tx.transaction_at, tx.transaction_at_formatted)}
+                    </Text>
                   </View>
                   <View style={styles.txRight}>
                     <Text style={styles.txAmount}>{tx.total_formatted}</Text>
@@ -296,28 +286,6 @@ export default function AdminReports() {
               ))
             )}
           </View>
-
-          {pagination && pagination.last_page > 1 && (
-            <View style={styles.pagination}>
-              <TouchableOpacity
-                style={[styles.pageBtn, pagination.current_page <= 1 && styles.pageBtnDisabled]}
-                disabled={pagination.current_page <= 1}
-                onPress={() => changePage(pagination.current_page - 1)}
-              >
-                <Feather name="chevron-left" size={18} color={pagination.current_page <= 1 ? '#CCC' : '#2E8B57'} />
-              </TouchableOpacity>
-              <Text style={styles.pageInfo}>
-                Halaman {pagination.current_page} / {pagination.last_page} ({pagination.total} transaksi)
-              </Text>
-              <TouchableOpacity
-                style={[styles.pageBtn, pagination.current_page >= pagination.last_page && styles.pageBtnDisabled]}
-                disabled={pagination.current_page >= pagination.last_page}
-                onPress={() => changePage(pagination.current_page + 1)}
-              >
-                <Feather name="chevron-right" size={18} color={pagination.current_page >= pagination.last_page ? '#CCC' : '#2E8B57'} />
-              </TouchableOpacity>
-            </View>
-          )}
 
           <View style={{ height: 40 }} />
         </Animated.ScrollView>
@@ -338,7 +306,17 @@ export default function AdminReports() {
                 <DetailRow label="No. Transaksi" value={selectedTx.order_number} />
                 <DetailRow label="Pasien" value={selectedTx.patient_name} />
                 <DetailRow label="Apoteker" value={selectedTx.apoteker_name} />
-                <DetailRow label="Tanggal" value={selectedTx.created_at_formatted} />
+                <DetailRow
+                  label="Waktu Selesai"
+                  value={formatTransactionDateTime(
+                    selectedTx.transaction_at,
+                    selectedTx.transaction_at_formatted,
+                  )}
+                />
+                <DetailRow
+                  label="Dipesan"
+                  value={formatOrderDateTime(selectedTx.created_at, selectedTx.created_at_formatted)}
+                />
                 <DetailRow label="Metode Bayar" value={selectedTx.payment_method} />
                 <DetailRow label="Status Bayar" value={selectedTx.payment_status.toUpperCase()} />
                 <DetailRow label="Status Pesanan" value={getOrderStatusLabel(selectedTx.order_status)} />

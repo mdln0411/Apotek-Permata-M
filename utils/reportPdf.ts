@@ -1,4 +1,5 @@
 import type { ReportData } from '@/api/reportService';
+import { formatTransactionDateTime } from '@/utils/dateTime';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
@@ -32,7 +33,7 @@ function buildTransactionRows(data: ReportData): string {
       <td>${t.order_number}</td>
       <td>${t.patient_name}</td>
       <td>${t.apoteker_name}</td>
-      <td>${t.created_at_formatted}</td>
+      <td>${formatTransactionDateTime(t.transaction_at, t.transaction_at_formatted)}</td>
       <td>${t.payment_method}</td>
       <td>${t.order_status}</td>
       <td style="text-align:right">${t.total_formatted}</td>
@@ -58,7 +59,8 @@ export function buildReportHtml(data: ReportData): string {
   const printDate = new Date().toLocaleString('id-ID', {
     dateStyle: 'full',
     timeStyle: 'short',
-  });
+    timeZone: 'Asia/Jakarta',
+  }) + ' WIB';
 
   return `<!DOCTYPE html>
 <html>

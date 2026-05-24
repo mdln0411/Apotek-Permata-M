@@ -11,6 +11,26 @@ class Order extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'completed_at' => 'datetime',
+        'payment_confirmed_at' => 'datetime',
+    ];
+
+    public function isCompleted(): bool
+    {
+        return in_array(strtolower((string) $this->status), ['selesai', 'completed'], true);
+    }
+
+    /** Waktu transaksi selesai — untuk laporan & riwayat. */
+    public function transactionCompletedAt(): ?\Illuminate\Support\Carbon
+    {
+        if (!$this->isCompleted()) {
+            return null;
+        }
+
+        return $this->completed_at ?? $this->updated_at;
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);

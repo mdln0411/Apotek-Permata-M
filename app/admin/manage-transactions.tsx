@@ -7,6 +7,7 @@ import {
     getOrderStatusOptionLabel,
     normalizeToApiOrderStatus,
 } from '@/utils/orderStatus';
+import { formatOrderDateTime } from '@/utils/dateTime';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
@@ -278,7 +279,7 @@ export default function ManageTransactions() {
                                             <Text style={styles.orderId}>{item.order_number}</Text>
                                             <Text style={styles.customerName}>{item.user?.name || 'User'}</Text>
                                             <Text style={styles.orderDate}>
-                                                {new Date(item.created_at).toLocaleDateString('id-ID')}
+                                                {formatOrderDateTime(item.created_at)}
                                             </Text>
                                         </View>
                                         <View style={[styles.statusBadge, { backgroundColor: statusColor.bg }]}>

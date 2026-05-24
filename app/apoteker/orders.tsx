@@ -1,5 +1,5 @@
 import axiosClient from '@/api/axiosClient';
-import { getOrderStatusLabel, normalizeOrderStatus } from '@/utils/orderStatus';
+import { getOrderStatusLabel, normalizeToApiOrderStatus } from '@/utils/orderStatus';
 import { isPickupOrder } from '@/utils/orderFulfillment';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, router, useFocusEffect } from 'expo-router';
@@ -69,11 +69,12 @@ export default function PesananMasuk() {
 
     const handleUpdateStatus = async (id: number, status: string) => {
         try {
-            await axiosClient.put(`/api/admin/orders/${id}/status`, { status });
+            const response = await axiosClient.put(`/api/admin/orders/${id}/status`, { status });
+            const updatedStatus = normalizeToApiOrderStatus(response.data?.data?.status ?? status);
             const msg =
-                status === 'sedang_diproses'
+                updatedStatus === 'sedang_diproses'
                     ? 'Pesanan sedang diproses'
-                    : status === 'dikirim'
+                    : updatedStatus === 'dikirim'
                       ? 'Pesanan ditandai dikirim'
                       : 'Status pesanan diperbarui';
             alert(msg);
@@ -94,19 +95,19 @@ export default function PesananMasuk() {
     };
 
     const filteredOrders = orders.filter(o => {
-        const status = normalizeOrderStatus(o.status || 'pending');
+        const status = normalizeToApiOrderStatus(o.status || 'menunggu_pembayaran');
         
         if (activeTab === 'menunggu') {
             return status === 'menunggu_pembayaran' || status === 'menunggu_konfirmasi' || status === 'perlu_diproses';
         }
         if (activeTab === 'diproses') {
-            return status === 'sedang_diproses' || status === 'processing' || status === 'diproses';
+            return status === 'sedang_diproses';
         }
         if (activeTab === 'dikirim') {
-            return status === 'dikirim' || status === 'shipped';
+            return status === 'dikirim';
         }
         if (activeTab === 'selesai') {
-            return status === 'selesai' || status === 'completed';
+            return status === 'selesai';
         }
         if (activeTab === 'dilaporkan') {
             const isMasalah = status === 'dilaporkan' || status === 'reported' || isCancelledByUser(o);
@@ -157,12 +158,12 @@ export default function PesananMasuk() {
 
     const getCounts = (id: string) => {
         return orders.filter(o => {
-            const status = normalizeOrderStatus(o.status || 'menunggu_pembayaran');
+            const status = normalizeToApiOrderStatus(o.status || 'menunggu_pembayaran');
             if (id === 'menunggu') return status === 'menunggu_pembayaran' || status === 'menunggu_konfirmasi' || status === 'perlu_diproses';
-            if (id === 'diproses') return status === 'sedang_diproses' || status === 'processing' || status === 'diproses';
-            if (id === 'dikirim') return status === 'dikirim' || status === 'shipped';
-            if (id === 'selesai') return status === 'selesai' || status === 'completed';
-            if (id === 'dilaporkan') return status === 'dilaporkan' || status === 'reported' || isCancelledByUser(o);
+            if (id === 'diproses') return status === 'sedang_diproses';
+            if (id === 'dikirim') return status === 'dikirim';
+            if (id === 'selesai') return status === 'selesai';
+            if (id === 'dilaporkan') return status === 'dilaporkan' || isCancelledByUser(o);
             return false;
         }).length;
     };

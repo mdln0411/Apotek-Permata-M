@@ -361,32 +361,35 @@ export default function HomeScreen() {
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Kategori Populer</Text>
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+                <View style={styles.categoryRow}>
                     {categories.map((cat) => (
-                        <TouchableOpacity 
-                            key={cat.id} 
+                        <TouchableOpacity
+                            key={cat.id}
                             style={styles.categoryItem}
+                            activeOpacity={0.7}
                             onPress={() => {
                                 if (cat.name === 'Lain-lain') {
                                     router.push({
                                         pathname: '/(tabs)/katalog-obat',
-                                        params: { category: 'Lain-lain' }
+                                        params: { category: 'Lain-lain' },
                                     } as any);
                                 } else {
                                     router.push({
                                         pathname: '/(tabs)/katalog-obat',
-                                        params: { category: cat.name }
+                                        params: { category: cat.name },
                                     } as any);
                                 }
                             }}
                         >
                             <View style={styles.categoryIconCircle}>
-                                <MaterialCommunityIcons name={cat.icon as any} size={24} color={THEME.primary} />
+                                <MaterialCommunityIcons name={cat.icon as any} size={22} color={THEME.primary} />
                             </View>
-                            <Text style={styles.categoryLabel}>{cat.name}</Text>
+                            <Text style={styles.categoryLabel} numberOfLines={2}>
+                                {cat.name}
+                            </Text>
                         </TouchableOpacity>
                     ))}
-                </ScrollView>
+                </View>
 
                 {/* Recommendations */}
                 <View style={styles.sectionHeader}>
@@ -719,19 +722,37 @@ const styles = StyleSheet.create({
     sectionTitle: { fontSize: 18, fontWeight: '700', color: THEME.textDark },
     seeMore: { fontSize: 13, color: THEME.primary, fontWeight: 'bold' },
 
-    categoryScroll: { paddingLeft: 20, marginBottom: 10 },
-    categoryItem: { alignItems: 'center', marginRight: 20 },
+    categoryRow: {
+        flexDirection: 'row',
+        paddingHorizontal: 12,
+        marginBottom: 10,
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+    },
+    categoryItem: {
+        flex: 1,
+        alignItems: 'center',
+        paddingHorizontal: 2,
+        minWidth: 0,
+    },
     categoryIconCircle: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
+        width: 46,
+        height: 46,
+        borderRadius: 23,
         backgroundColor: THEME.white,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
         borderColor: THEME.border,
     },
-    categoryLabel: { fontSize: 12, color: THEME.textDark, marginTop: 8 },
+    categoryLabel: {
+        fontSize: 10,
+        lineHeight: 13,
+        color: THEME.textDark,
+        marginTop: 6,
+        textAlign: 'center',
+        width: '100%',
+    },
 
     productGrid: {
         flexDirection: 'row',

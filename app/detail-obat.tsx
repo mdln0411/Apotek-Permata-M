@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { LoginPromptModal } from '@/components/LoginPromptModal';
 import { SuccessToast } from '@/components/SuccessToast';
 import axiosClient from '@/api/axiosClient';
+import { normalizeToApiOrderStatus } from '@/utils/orderStatus';
 import {
     ActivityIndicator,
     Alert,
@@ -278,14 +279,17 @@ export default function DetailObatScreen() {
 
     // Mapping penerjemahan status pesanan agar lebih ramah pengguna
     const statusTranslations: Record<string, string> = {
-        pending: 'Menunggu Pembayaran',
-        diproses: 'Sedang Diproses Apoteker',
+        menunggu_pembayaran: 'Menunggu Pembayaran',
+        menunggu_konfirmasi: 'Menunggu Verifikasi',
+        perlu_diproses: 'Perlu Diproses',
+        sedang_diproses: 'Sedang Diproses Apoteker',
         dikirim: 'Dalam Pengiriman',
         selesai: 'Selesai',
         dibatalkan: 'Dibatalkan',
-        dilaporkan: 'Dilaporkan'
+        dilaporkan: 'Dilaporkan',
     };
-    const translatedStatus = orderedStatus ? (statusTranslations[orderedStatus.status] || orderedStatus.status) : '';
+    const normalizedStatus = orderedStatus ? normalizeToApiOrderStatus(orderedStatus.status) : '';
+    const translatedStatus = orderedStatus ? (statusTranslations[normalizedStatus] || orderedStatus.status) : '';
 
     return (
         <SafeAreaView style={styles.container}>

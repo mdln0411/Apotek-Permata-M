@@ -1,5 +1,6 @@
 import axiosClient from '@/api/axiosClient';
 import { isPickupOrder } from '@/utils/orderFulfillment';
+import { getOrderStatusLabel, normalizeToApiOrderStatus } from '@/utils/orderStatus';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -77,8 +78,15 @@ export default function PesananMasuk() {
 
     const handleUpdateStatus = async (id: number, status: string) => {
         try {
-            await axiosClient.put(`/api/admin/orders/${id}/status`, { status });
-            alert(`Pesanan berhasil di${status === 'sedang_diproses' ? 'proses' : status === 'dikirim' ? 'kirim' : 'perbarui'}`);
+            const response = await axiosClient.put(`/api/admin/orders/${id}/status`, { status });
+            const updatedStatus = normalizeToApiOrderStatus(response.data?.data?.status ?? status);
+            const msg =
+                updatedStatus === 'sedang_diproses'
+                    ? 'Pesanan sedang diproses'
+                    : updatedStatus === 'dikirim'
+                      ? 'Pesanan ditandai dikirim'
+                      : 'Status pesanan diperbarui';
+            alert(msg);
             fetchOrders();
         } catch (error: any) {
             alert(error.response?.data?.message || 'Gagal memperbarui status');
@@ -96,19 +104,19 @@ export default function PesananMasuk() {
     };
 
     const filteredOrders = orders.filter(o => {
-        const status = (o.status || 'pending').toLowerCase().trim();
+        const status = normalizeToApiOrderStatus(o.status || 'menunggu_pembayaran');
         
         if (activeTab === 'menunggu') {
             return status === 'menunggu_pembayaran' || status === 'menunggu_konfirmasi' || status === 'perlu_diproses';
         }
         if (activeTab === 'diproses') {
-            return status === 'sedang_diproses' || status === 'processing';
+            return status === 'sedang_diproses';
         }
         if (activeTab === 'dikirim') {
-            return status === 'dikirim' || status === 'shipped';
+            return status === 'dikirim';
         }
         if (activeTab === 'selesai') {
-            return status === 'selesai' || status === 'completed';
+            return status === 'selesai';
         }
         if (activeTab === 'dilaporkan') {
             const isMasalah = status === 'dilaporkan' || status === 'reported' || isCancelledByUser(o);
@@ -159,12 +167,12 @@ export default function PesananMasuk() {
 
     const getCounts = (id: string) => {
         return orders.filter(o => {
-            const status = (o.status || 'menunggu_pembayaran').toLowerCase().trim();
+            const status = normalizeToApiOrderStatus(o.status || 'menunggu_pembayaran');
             if (id === 'menunggu') return status === 'menunggu_pembayaran' || status === 'menunggu_konfirmasi' || status === 'perlu_diproses';
-            if (id === 'diproses') return status === 'sedang_diproses' || status === 'processing';
-            if (id === 'dikirim') return status === 'dikirim' || status === 'shipped';
-            if (id === 'selesai') return status === 'selesai' || status === 'completed';
-            if (id === 'dilaporkan') return status === 'dilaporkan' || status === 'reported' || isCancelledByUser(o);
+            if (id === 'diproses') return status === 'sedang_diproses';
+            if (id === 'dikirim') return status === 'dikirim';
+            if (id === 'selesai') return status === 'selesai';
+            if (id === 'dilaporkan') return status === 'dilaporkan' || isCancelledByUser(o);
             return false;
         }).length;
     };
@@ -276,8 +284,8 @@ export default function PesananMasuk() {
                                             item.status === 'dibatalkan' ? { color: '#455A64' } : { color: THEME.primary }
                                         ]}>
                                             {item.status === 'dibatalkan' ? 'DIBATALKAN PASIEN' : 
-                                             item.status === 'menunggu_konfirmasi' ? 'PERLU VERIFIKASI' : 
-                                             (item.status || 'Baru').replace('_', ' ').toUpperCase()}
+                                             normalizeToApiOrderStatus(item.status) === 'menunggu_konfirmasi' ? 'PERLU VERIFIKASI' : 
+                                             getOrderStatusLabel(item.status)}
                                         </Text>
                                     </View>
                                     <Text style={styles.orderNumber}>ORD-{item.id}{new Date(item.created_at).getTime().toString().slice(-4)}</Text>

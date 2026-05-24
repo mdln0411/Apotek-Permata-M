@@ -48,6 +48,9 @@ export interface ReportTransaction {
   apoteker_name: string;
   created_at: string;
   created_at_formatted: string;
+  /** Waktu pesanan selesai (WIB) — dipakai di riwayat transaksi laporan */
+  transaction_at: string | null;
+  transaction_at_formatted: string | null;
   total: number;
   total_formatted: string;
   payment_method: string;

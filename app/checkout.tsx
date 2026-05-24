@@ -461,9 +461,6 @@ export default function CheckoutScreen() {
                                 <Text style={styles.paymentAccountName}>A/N: Apotek Permata</Text>
                             </View>
                         )}
-                        <Text style={styles.instructionsNote}>
-                            *Simpan bukti transfer Anda untuk diunggah/diperlihatkan ke apoteker saat verifikasi.
-                        </Text>
                     </View>
                 )}
 
@@ -651,9 +648,4 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#333',
     },
-    instructionsNote: {
-        fontSize: 11,
-        color: '#E74C3C',
-        fontStyle: 'italic',
-    }
 });
