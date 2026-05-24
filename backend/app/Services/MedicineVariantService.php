@@ -6,6 +6,40 @@ use App\Models\Medicine;
 
 class MedicineVariantService
 {
+  /** @var array<string, true> */
+  private array $catalogKeys = [];
+
+  public function __construct()
+  {
+    $this->refreshCatalogKeys();
+  }
+
+  private function refreshCatalogKeys(): void
+  {
+    $this->catalogKeys = [];
+    Medicine::query()
+      ->where('is_active', true)
+      ->get(['id', 'name', 'unit', 'category'])
+      ->each(function (Medicine $medicine) {
+        $this->catalogKeys[MedicineDedupService::catalogKey($medicine)] = true;
+      });
+  }
+
+  private function rememberCatalogKey(Medicine $medicine): void
+  {
+    $this->catalogKeys[MedicineDedupService::catalogKey($medicine)] = true;
+  }
+
+  private function hasCatalogKey(string $name, ?string $unit, ?string $category): bool
+  {
+    $probe = new Medicine([
+      'name' => $name,
+      'unit' => $unit,
+      'category' => $category,
+    ]);
+
+    return isset($this->catalogKeys[MedicineDedupService::catalogKey($probe)]);
+  }
   /**
    * Pisahkan obat dengan banyak varian satuan (mis. Cair 30 Ml, Cair 60 Ml)
    * menjadi baris terpisah — ukuran di judul, satuan dasar di kolom unit.
@@ -65,9 +99,14 @@ class MedicineVariantService
 
         if ($first) {
           $medicine->update($payload);
+          $this->rememberCatalogKey($medicine->fresh());
           $first = false;
         } else {
-          Medicine::create($payload);
+          if ($this->hasCatalogKey($displayName, $baseUnit, $medicine->category)) {
+            continue;
+          }
+          $created = Medicine::create($payload);
+          $this->rememberCatalogKey($created);
         }
         $count++;
       }
@@ -146,9 +185,14 @@ class MedicineVariantService
 
         if ($first) {
           $medicine->update($payload);
+          $this->rememberCatalogKey($medicine->fresh());
           $first = false;
         } else {
-          Medicine::create($payload);
+          if ($this->hasCatalogKey($payload['name'], $payload['unit'], $medicine->category)) {
+            continue;
+          }
+          $created = Medicine::create($payload);
+          $this->rememberCatalogKey($created);
         }
         $count++;
       }

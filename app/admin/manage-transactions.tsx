@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     statusBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
     statusText: { fontSize: 11, fontWeight: 'bold' },
     divider: { height: 1, backgroundColor: '#F5F5F5', marginBottom: 16 },
-    cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    cardFooter: { gap: 6 },
     itemDetail: { fontSize: 12, color: '#777' },
     totalAmount: { fontSize: 15, fontWeight: 'bold', color: '#2E8B57' },
 

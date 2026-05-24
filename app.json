@@ -9,10 +9,20 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.apotekpermata.app",
+      "infoPlist": {
+        "NSPhotoLibraryAddUsageDescription": "Aplikasi membutuhkan izin untuk menyimpan QR Code QRIS ke galeri foto Anda.",
+        "NSPhotoLibraryUsageDescription": "Aplikasi membutuhkan izin galeri foto untuk menyimpan QR Code QRIS."
+      }
     },
     "android": {
       "usesCleartextTraffic": true,
+      "package": "com.apotekpermata.app",
+      "blockedPermissions": [
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#F8FBF8",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -28,6 +38,16 @@
     },
     "plugins": [
       "expo-router",
+      "expo-asset",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Izinkan $(PRODUCT_NAME) mengakses foto untuk menyimpan QRIS.",
+          "savePhotosPermission": "Izinkan $(PRODUCT_NAME) menyimpan QR Code QRIS ke galeri foto.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": ["photo"]
+        }
+      ],
       [
         "expo-splash-screen",
         {

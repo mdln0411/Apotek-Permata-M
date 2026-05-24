@@ -17,8 +17,7 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import axiosClient from '@/api/axiosClient';
 import QRCode from 'react-native-qrcode-svg';
-import * as FileSystem from 'expo-file-system';
-import * as MediaLibrary from 'expo-media-library';
+import { saveQrCodeSvgToGallery, type QrSvgRef } from '@/utils/saveQrisToGallery';
 
 const THEME = {
   primary: '#2E8B57', // Sea Green
@@ -46,8 +45,8 @@ export default function QRISPaymentScreen() {
   // Timer: 15 minutes (900 seconds)
   const [timeLeft, setTimeLeft] = useState(900);
   const [verifying, setVerifying] = useState(false);
-  const qrRef = useRef<any>(null);
-  const [permissionResponse, requestPermission] = MediaLibrary.usePermissions();
+  const [savingQr, setSavingQr] = useState(false);
+  const qrRef = useRef<QrSvgRef | null>(null);
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -77,33 +76,29 @@ export default function QRISPaymentScreen() {
   };
 
   const handleSaveQR = async () => {
-    if (permissionResponse?.status !== 'granted') {
-      const { status } = await requestPermission();
-      if (status !== 'granted') {
-        Alert.alert('Izin Ditolak', 'Dibutuhkan izin galeri untuk menyimpan QR Code.');
+    if (savingQr || verifying) return;
+
+    try {
+      setSavingQr(true);
+      const result = await saveQrCodeSvgToGallery(qrRef, `QR_${orderNumber ?? 'qris'}`);
+
+      if (result.ok) {
+        Alert.alert('Sukses', 'QR Code berhasil disimpan ke galeri ponsel Anda.');
         return;
       }
-    }
 
-    if (!qrRef.current) return;
-
-    setVerifying(true);
-    qrRef.current.toDataURL(async (dataURL: string) => {
-      try {
-        const filePath = FileSystem.cacheDirectory + `QR_${orderNumber}.jpg`;
-        await FileSystem.writeAsStringAsync(filePath, dataURL, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-
-        await MediaLibrary.saveToLibraryAsync(filePath);
-        Alert.alert('Sukses', 'QR Code berhasil disimpan ke galeri ponsel Anda.');
-      } catch (error) {
-        console.error('Gagal menyimpan QR:', error);
-        Alert.alert('Error', 'Gagal menyimpan QR Code ke galeri.');
-      } finally {
-        setVerifying(false);
+      if (result.reason === 'permission_denied') {
+        Alert.alert('Izin Ditolak', result.message);
+        return;
       }
-    });
+
+      Alert.alert('Gagal Menyimpan', result.message);
+    } catch (error) {
+      console.error('Gagal menyimpan QR:', error);
+      Alert.alert('Gagal Menyimpan', 'Terjadi kesalahan saat menyimpan QR Code ke galeri.');
+    } finally {
+      setSavingQr(false);
+    }
   };
 
   const handleVerifyPayment = async () => {
@@ -151,7 +146,6 @@ export default function QRISPaymentScreen() {
 
   // Scannable dynamic QR Code URL
   const qrData = `ApotekPermata_Order_${orderNumber}_Amount_${priceNum}`;
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}`;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -217,7 +211,9 @@ export default function QRISPaymentScreen() {
           {/* QR Container */}
           <View style={styles.qrCodeWrapper}>
             <QRCode
-              getRef={qrRef}
+              getRef={(ref) => {
+                qrRef.current = ref;
+              }}
               value={qrData}
               size={180}
               backgroundColor="white"
@@ -289,10 +285,16 @@ export default function QRISPaymentScreen() {
           <TouchableOpacity 
             style={styles.saveQrBtn} 
             onPress={handleSaveQR}
-            disabled={verifying}
+            disabled={savingQr || verifying}
           >
-            <Feather name="download" size={16} color={THEME.primary} style={{marginRight: 6}} />
-            <Text style={styles.saveQrBtnText}>Simpan QR Code ke Galeri</Text>
+            {savingQr ? (
+              <ActivityIndicator color={THEME.primary} />
+            ) : (
+              <>
+                <Feather name="download" size={16} color={THEME.primary} style={{marginRight: 6}} />
+                <Text style={styles.saveQrBtnText}>Simpan QR Code ke Galeri</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
 

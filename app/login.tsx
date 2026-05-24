@@ -122,16 +122,44 @@ export default function LoginScreen() {
             console.log("Response Error:", e.response?.data);
             triggerShake();
 
-            const errorMsg =
-                e.response?.data?.message ||
-                e.message ||
-                "Terjadi kesalahan koneksi ke server";
-            
-            if (e.response?.status === 401 || errorMsg.toLowerCase().includes('invalid') || errorMsg.toLowerCase().includes('salah')) {
-                setErrors({ ...errors, server: 'Email atau password yang Anda masukkan salah.' });
-            } else {
-                setErrors({ ...errors, server: errorMsg });
+            const status = e.response?.status;
+            const apiMessage = e.response?.data?.message as string | undefined;
+
+            if (!e.response) {
+                setErrors({
+                    ...errors,
+                    server:
+                        'Tidak dapat terhubung ke server. Pastikan:\n' +
+                        '1. MySQL/XAMPP sudah Start\n' +
+                        '2. Backend jalan: cd backend && php artisan serve --host=0.0.0.0 --port=8000\n' +
+                        '3. Expo jalan: npx expo start\n' +
+                        '4. HP & laptop satu Wi-Fi yang sama',
+                });
+                return;
             }
+
+            if (status === 502 || apiMessage?.includes('Backend tidak terjangkau')) {
+                setErrors({
+                    ...errors,
+                    server: 'Backend Laravel tidak aktif. Jalankan: cd backend && php artisan serve --host=0.0.0.0 --port=8000',
+                });
+                return;
+            }
+
+            if (status === 401 || apiMessage?.toLowerCase().includes('invalid')) {
+                setErrors({ ...errors, server: 'Email atau password yang Anda masukkan salah.' });
+                return;
+            }
+
+            if (status === 403) {
+                setErrors({ ...errors, server: apiMessage || 'Akun Anda dinonaktifkan.' });
+                return;
+            }
+
+            setErrors({
+                ...errors,
+                server: apiMessage || e.message || 'Terjadi kesalahan koneksi ke server',
+            });
         } finally {
             setLoading(false);
         }

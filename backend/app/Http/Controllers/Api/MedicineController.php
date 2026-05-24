@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Medicine;
 use App\Services\MedicineUnitService;
+use App\Services\MedicineDedupService;
 use Illuminate\Http\Request;
 
 class MedicineController extends Controller
@@ -299,6 +300,14 @@ class MedicineController extends Controller
 
         if (!empty($validated['unit'])) {
             $validated['unit'] = MedicineUnitService::displayUnit($validated['unit']);
+        }
+
+        $probe = new Medicine(array_merge($validated, ['is_active' => true]));
+        if (MedicineDedupService::findActiveDuplicate($probe)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Obat dengan nama dan satuan yang sama sudah ada di katalog',
+            ], 422);
         }
 
         $validated['is_active'] = true;

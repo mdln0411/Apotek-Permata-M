@@ -144,7 +144,7 @@ class ApotekerWebController extends Controller
 
     public function medicines(Request $request)
     {
-        $query = Medicine::query();
+        $query = Medicine::query()->active();
 
         if ($request->has('q') && $request->q != '') {
             $query->where('name', 'LIKE', '%' . $request->q . '%')

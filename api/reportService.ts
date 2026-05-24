@@ -77,7 +77,7 @@ export interface ReportData {
     payments_verified: number;
   }>;
   payment_stats: {
-    by_method: Array<{ method: string; count: number; revenue: number }>;
+    by_method: Array<{ method: string; label?: string; count: number; revenue: number }>;
     by_status: Array<{ status: string; label: string; count: number }>;
   };
   order_stats: Array<{ status: string; count: number }>;

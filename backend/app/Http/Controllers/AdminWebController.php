@@ -131,7 +131,7 @@ class AdminWebController extends Controller
     // Medicine Management (Admin view)
     public function medicines(Request $request)
     {
-        $query = Medicine::query();
+        $query = Medicine::query()->active();
         if ($request->has('q') && $request->q != '') {
             $query->where(function($q) use ($request) {
                 $q->where('name', 'LIKE', '%' . $request->q . '%')

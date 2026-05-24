@@ -75,7 +75,7 @@ class ReportStatsService
         }
 
         if ($request->filled('payment_method')) {
-            $query->where('payment_method', $request->input('payment_method'));
+            $this->applyPaymentMethodFilter($query, $request->input('payment_method'));
         }
 
         if ($request->filled('status')) {
@@ -324,21 +324,17 @@ class ReportStatsService
 
     private function buildPaymentStats(Collection $orders): array
     {
-        $methods = ['QRIS', 'Transfer', 'Tunai', 'Lainnya'];
+        $categories = $this->paymentMethodCategories();
         $stats = [];
 
-        foreach ($methods as $method) {
-            $filtered = $orders->filter(function (Order $o) use ($method) {
-                $pm = strtoupper(trim((string) ($o->payment_method ?? 'QRIS')));
-                if ($method === 'Lainnya') {
-                    return !in_array($pm, ['QRIS', 'TRANSFER', 'TUNAI'], true);
-                }
-
-                return $pm === strtoupper($method);
-            });
+        foreach ($categories as $category) {
+            $filtered = $orders->filter(
+                fn (Order $o) => $this->normalizePaymentMethod($o->payment_method) === $category['key']
+            );
 
             $stats[] = [
-                'method' => $method,
+                'method' => $category['key'],
+                'label' => $category['label'],
                 'count' => $filtered->count(),
                 'revenue' => (int) round($filtered->sum(fn (Order $o) => $this->financeStats->orderGrandTotal($o))),
             ];
@@ -436,11 +432,12 @@ class ReportStatsService
                 ->get()
                 ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])
                 ->all(),
-            'payment_methods' => [
-                ['value' => 'QRIS', 'label' => 'QRIS'],
-                ['value' => 'Transfer', 'label' => 'Transfer Bank'],
-                ['value' => 'Tunai', 'label' => 'Tunai'],
-            ],
+            'payment_methods' => collect($this->paymentMethodCategories())
+                ->map(fn (array $category) => [
+                    'value' => $category['key'],
+                    'label' => $category['label'],
+                ])
+                ->all(),
             'statuses' => [
                 ['value' => 'menunggu_pembayaran', 'label' => 'Menunggu Pembayaran'],
                 ['value' => 'menunggu_konfirmasi', 'label' => 'Menunggu Konfirmasi'],
@@ -458,5 +455,74 @@ class ReportStatsService
                 ['value' => 'custom', 'label' => 'Custom Tanggal'],
             ],
         ];
+    }
+
+    /** @return array<int, array{key: string, label: string}> */
+    private function paymentMethodCategories(): array
+    {
+        return [
+            ['key' => 'QRIS', 'label' => 'QRIS'],
+            ['key' => 'Transfer Bank', 'label' => 'Transfer Bank'],
+            ['key' => 'DANA', 'label' => 'DANA'],
+            ['key' => 'Tunai', 'label' => 'Tunai'],
+        ];
+    }
+
+    private function normalizePaymentMethod(?string $paymentMethod): string
+    {
+        if (Order::isCodPayment($paymentMethod, null)) {
+            return 'Tunai';
+        }
+
+        $pm = strtoupper(trim((string) ($paymentMethod ?? '')));
+
+        if ($pm === '' || $pm === '—') {
+            return 'QRIS';
+        }
+
+        if (str_contains($pm, 'QRIS')) {
+            return 'QRIS';
+        }
+
+        if (str_contains($pm, 'DANA')) {
+            return 'DANA';
+        }
+
+        if (str_contains($pm, 'BANK') || str_contains($pm, 'TRANSFER')) {
+            return 'Transfer Bank';
+        }
+
+        if (str_contains($pm, 'TUNAI') || str_contains($pm, 'CASH')) {
+            return 'Tunai';
+        }
+
+        return 'QRIS';
+    }
+
+    private function applyPaymentMethodFilter(Builder $query, string $paymentMethod): void
+    {
+        $category = $this->normalizePaymentMethod($paymentMethod);
+
+        $query->where(function (Builder $q) use ($category) {
+            match ($category) {
+                'QRIS' => $q->where(function (Builder $sub) {
+                    $sub->whereNull('payment_method')
+                        ->orWhere('payment_method', '')
+                        ->orWhere('payment_method', 'like', '%QRIS%');
+                }),
+                'DANA' => $q->where('payment_method', 'like', '%DANA%'),
+                'Transfer Bank' => $q->where(function (Builder $sub) {
+                    $sub->where('payment_method', 'like', '%Transfer%')
+                        ->orWhere('payment_method', 'like', '%Bank%');
+                }),
+                'Tunai' => $q->where(function (Builder $sub) {
+                    $sub->where('payment_method', 'like', '%Tunai%')
+                        ->orWhere('payment_method', 'like', '%Cash%')
+                        ->orWhere('payment_method', 'like', '%COD%')
+                        ->orWhere('payment_method', 'like', '%Bayar di Apotek%');
+                }),
+                default => $q->where('payment_method', $category),
+            };
+        });
     }
 }

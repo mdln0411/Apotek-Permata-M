@@ -213,7 +213,7 @@ export default function AdminReports() {
                 <Text style={styles.infoCardTitle}>Statistik Pembayaran</Text>
                 {reportData.payment_stats.by_method.map((p) => (
                   <View key={p.method} style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>{p.method}</Text>
+                    <Text style={styles.infoLabel}>{p.label ?? p.method}</Text>
                     <Text style={styles.infoValue}>{p.count}x</Text>
                   </View>
                 ))}

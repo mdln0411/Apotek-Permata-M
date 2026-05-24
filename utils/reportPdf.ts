@@ -108,7 +108,7 @@ export function buildReportHtml(data: ReportData): string {
       ${data.payment_stats.by_method
         .map(
           (p) =>
-            `<tr><td>${p.method}</td><td>${p.count}</td><td style="text-align:right">${formatRupiah(p.revenue)}</td></tr>`,
+            `<tr><td>${p.label ?? p.method}</td><td>${p.count}</td><td style="text-align:right">${formatRupiah(p.revenue)}</td></tr>`,
         )
         .join('')}
     </tbody>
