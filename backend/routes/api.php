@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\EducationController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\FinanceController;
 use App\Http\Controllers\MedicineReminderController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\ConsultationController;
@@ -54,6 +56,7 @@ Route::post('/auth/reset-password', [\App\Http\Controllers\Api\PasswordResetCont
 // --- Medicines Routes (Public & Admin) ---
 Route::prefix('medicines')->group(function () {
     Route::get('/categories', [MedicineController::class, 'categories']);
+    Route::get('/units', [MedicineController::class, 'units']);
     Route::get('/', [MedicineController::class, 'index']);
     Route::get('/{id}', [MedicineController::class, 'show']);
     
@@ -109,6 +112,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // --- Shared Admin/Apoteker Routes ---
     Route::middleware('role:admin,apoteker')->group(function () {
+        Route::get('/finance/summary', [FinanceController::class, 'summary']);
         Route::get('/admin/orders', [OrderController::class, 'allOrders']);
         Route::put('/admin/orders/{id}/status', [OrderController::class, 'updateStatus']);
         Route::post('/admin/orders/{id}/verify-payment', [OrderController::class, 'verifyPayment']);
@@ -120,6 +124,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users', [AuthController::class, 'storeUser']);
         Route::put('/users/{id}', [AuthController::class, 'updateUser']);
         Route::delete('/users/{id}', [AuthController::class, 'destroyUser']);
+        Route::get('/dashboard/stats', [DashboardController::class, 'index']);
     });
 
 

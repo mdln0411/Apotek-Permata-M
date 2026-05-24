@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Medicine;
+use App\Services\MedicineUnitService;
 use Illuminate\Http\Request;
 
 class CartController extends Controller
@@ -20,7 +21,7 @@ class CartController extends Controller
             return [
                 'id' => $item->id,
                 'medicine_id' => $item->medicine_id,
-                'name' => $item->medicine->name,
+                'name' => MedicineUnitService::displayName($item->medicine->name, $item->medicine->unit),
                 'price' => (float) $item->price,
                 'price_formatted' => 'Rp ' . number_format($item->price, 0, ',', '.'),
                 'quantity' => $item->quantity,
@@ -28,7 +29,7 @@ class CartController extends Controller
                 'subtotal_formatted' => 'Rp ' . number_format($item->price * $item->quantity, 0, ',', '.'),
                 'image_url' => $item->medicine->image_url,
                 'category' => $item->medicine->category,
-                'unit' => $item->medicine->unit,
+                'unit' => MedicineUnitService::displayUnit($item->medicine->unit),
                 'stock' => $item->medicine->stock,
             ];
         });

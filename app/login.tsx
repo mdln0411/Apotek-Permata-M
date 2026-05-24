@@ -1,4 +1,5 @@
 import { login as apiLogin } from "@/api/authService";
+import ApotekLogo from "@/components/ApotekLogo";
 import { useAuth } from "@/context/AuthContext";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { router, Stack } from "expo-router";
@@ -7,7 +8,6 @@ import {
     ActivityIndicator,
     Alert,
     Animated,
-    Image,
     ScrollView,
     StyleSheet,
     Text,
@@ -157,11 +157,7 @@ export default function LoginScreen() {
                         <Ionicons name="arrow-back" size={24} color="#FFF" />
                     </TouchableOpacity>
                     <View style={styles.logoContainer}>
-                        <Image
-                            source={require("../assets/images/logoimk.png")}
-                            style={{ width: 28, height: 28 }}
-                            resizeMode="contain"
-                        />
+                        <ApotekLogo size={28} borderRadius={8} />
                         <Text style={styles.headerTitle}>Apotek Permata</Text>
                     </View>
                 </View>
@@ -181,11 +177,7 @@ export default function LoginScreen() {
                     {/* Logo & Title */}
                     <View style={styles.titleContainer}>
                         <View style={styles.iconWrapper}>
-                            <Image
-                                source={require("../assets/images/logoimk.png")}
-                                style={{ width: 55, height: 55 }}
-                                resizeMode="contain"
-                            />
+                            <ApotekLogo size={55} borderRadius={14} />
                         </View>
                         <Text style={styles.mainTitle}>Masuk ke Akun</Text>
                         <Text style={styles.subTitle}>Masuk untuk melanjutkan pembelian</Text>

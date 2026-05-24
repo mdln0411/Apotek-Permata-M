@@ -1,7 +1,7 @@
-import axiosClient from '@/api/axiosClient';
+import { getFinanceSummary, getOrderGrandTotal } from '@/api/financeService';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Stack, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Platform,
@@ -47,44 +47,24 @@ export default function KeuanganApoteker() {
         recentOrders: [] as any[]
     });
 
-    useEffect(() => {
-        fetchFinanceData();
-    }, []);
+    const hasLoadedRef = useRef(false);
 
-    const fetchFinanceData = async () => {
+    const fetchFinanceData = async (silent = false) => {
         try {
-            setLoading(true);
-            const response = await axiosClient.get('/api/admin/orders');
-            const allOrders = response.data.data || [];
-            
-            let total = 0;
-            let items = 0;
-            let today = 0;
-            const todayStr = new Date().toDateString();
-
-            const validOrders = allOrders.filter((o: any) => {
-                const s = (o.status || '').toLowerCase().trim();
-                return o.payment_status === 'paid' || s === 'perlu_diproses' || s === 'sedang_diproses' || s === 'dikirim' || s === 'selesai' || s === 'completed';
-            });
-
-            validOrders.forEach((order: any) => {
-                const isDelivery = order.shipping_address && order.shipping_address !== 'Ambil di Apotek';
-                const price = Number(order.total_amount || order.total_price || 0) + 2000 + (isDelivery ? 10000 : 0);
-                total += price;
-                items += order.items?.length || 0;
-                
-                if (new Date(order.created_at).toDateString() === todayStr) {
-                    today += price;
-                }
-            });
+            if (!silent && !hasLoadedRef.current) {
+                setLoading(true);
+            }
+            const res = await getFinanceSummary();
+            const data = res.data;
 
             setFinanceData({
-                totalRevenue: total,
-                totalOrders: validOrders.length,
-                totalItems: items,
-                todayRevenue: today,
-                recentOrders: validOrders.slice(0, 15)
+                totalRevenue: data.total_revenue,
+                totalOrders: data.total_orders,
+                totalItems: data.total_items,
+                todayRevenue: data.today_revenue,
+                recentOrders: data.recent_orders || [],
             });
+            hasLoadedRef.current = true;
         } catch (error) {
             console.error('Error fetching finance data:', error);
         } finally {
@@ -92,6 +72,14 @@ export default function KeuanganApoteker() {
             setRefreshing(false);
         }
     };
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchFinanceData(hasLoadedRef.current);
+            const intervalId = setInterval(() => fetchFinanceData(true), 15000);
+            return () => clearInterval(intervalId);
+        }, [])
+    );
 
     const StatusBadge = ({ status }: { status: string }) => {
         const s = status?.toLowerCase();
@@ -148,7 +136,7 @@ export default function KeuanganApoteker() {
             <ScrollView 
                 showsVerticalScrollIndicator={false} 
                 contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchFinanceData(); }} colors={[THEME.primary]} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchFinanceData(false); }} colors={[THEME.primary]} />}
             >
                 {loading && !refreshing ? (
                     <View style={styles.loader}>
@@ -173,7 +161,7 @@ export default function KeuanganApoteker() {
                         {/* Recent Transactions */}
                         <View style={styles.recentHeader}>
                             <Text style={styles.sectionTitle}>Transaksi Terakhir</Text>
-                            <TouchableOpacity onPress={fetchFinanceData}>
+                            <TouchableOpacity onPress={() => { setRefreshing(true); fetchFinanceData(false); }}>
                                 <Text style={styles.viewMoreText}>Refresh</Text>
                             </TouchableOpacity>
                         </View>
@@ -193,7 +181,7 @@ export default function KeuanganApoteker() {
                                         <View style={styles.txContent}>
                                             <View style={styles.txRow}>
                                                 <Text style={styles.txId}>ORD-{order.id}</Text>
-                                                <Text style={styles.txAmount}>Rp {Math.round(Number(order.total_amount || order.total_price || 0) + 2000 + ((order.shipping_address && order.shipping_address !== 'Ambil di Apotek') ? 10000 : 0)).toLocaleString('id-ID')}</Text>
+                                                <Text style={styles.txAmount}>Rp {Math.round(getOrderGrandTotal(order)).toLocaleString('id-ID')}</Text>
                                             </View>
                                             <View style={styles.txRow}>
                                                 <Text style={styles.txDate}>{new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} • {order.user?.name || 'Customer'}</Text>

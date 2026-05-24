@@ -1,8 +1,9 @@
 import axiosClient from '@/api/axiosClient';
+import { getFinanceSummary } from '@/api/financeService';
 import AdminSidebar from '@/components/AdminSidebar';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { router, Stack } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, Stack, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import { 
     SafeAreaView, 
     ScrollView, 
@@ -26,41 +27,25 @@ export default function AdminReports() {
         bestSellers: [] as any[]
     });
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
     const fetchData = async () => {
         try {
             setLoading(true);
-            const response = await axiosClient.get('/api/admin/orders');
-            const allOrders = response.data.data;
+            const [ordersRes, financeRes] = await Promise.all([
+                axiosClient.get('/api/admin/orders'),
+                getFinanceSummary(),
+            ]);
+
+            const allOrders = ordersRes.data.data || [];
+            const finance = financeRes.data;
+
             setOrders(allOrders);
-
-            // Hitung Stats
-            let revenue = 0;
-            const productSales: any = {};
-
-            allOrders.forEach((order: any) => {
-                if (order.status !== 'dibatalkan') {
-                    revenue += Number(order.total_price) || 0;
-                    
-                    order.items?.forEach((item: any) => {
-                        const name = item.medicine?.name || 'Obat Terhapus';
-                        productSales[name] = (productSales[name] || 0) + item.quantity;
-                    });
-                }
-            });
-
-            const sortedProducts = Object.entries(productSales)
-                .map(([name, qty]) => ({ name, qty }))
-                .sort((a: any, b: any) => b.qty - a.qty)
-                .slice(0, 5);
-
             setStats({
-                totalRevenue: revenue,
-                totalOrders: allOrders.length,
-                bestSellers: sortedProducts
+                totalRevenue: finance.total_revenue,
+                totalOrders: finance.total_orders,
+                bestSellers: (finance.best_sellers || []).map((item) => ({
+                    name: item.name,
+                    qty: item.qty,
+                })),
             });
         } catch (error) {
             console.error('Error fetching report data:', error);
@@ -68,6 +53,12 @@ export default function AdminReports() {
             setLoading(false);
         }
     };
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchData();
+        }, [])
+    );
 
     const handlePrint = () => {
         Alert.alert(

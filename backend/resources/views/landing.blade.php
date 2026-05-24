@@ -17,11 +17,7 @@
     <nav class="fixed w-full z-50 glass border-b border-slate-200">
         <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
             <div class="flex items-center gap-2">
-                <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.673.337a4 4 0 01-1.909.477H9m10.428-3.142a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.673.337a4 4 0 01-1.909.477H9m9.927-4.47a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.673.337A4 4 0 018.154 4H5" />
-                    </svg>
-                </div>
+                <img src="{{ asset('images/logo-apotek-permata.png') }}" alt="Apotek Permata" class="w-10 h-10 rounded-xl object-contain bg-white p-1 shadow-sm">
                 <span class="text-2xl font-bold text-emerald-800 tracking-tight">Apotek Permata</span>
             </div>
             

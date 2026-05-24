@@ -42,6 +42,40 @@ export function getOrderStatusColors(status: string): { bg: string; text: string
 
 export type OrderSubTab = 'semua' | 'pending' | 'dikirim' | 'selesai' | 'dibatalkan';
 
+/** Opsi status untuk admin — nilai harus sama dengan validasi backend */
+export const ADMIN_ORDER_STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: 'menunggu_pembayaran', label: 'Menunggu Pembayaran' },
+  { value: 'menunggu_konfirmasi', label: 'Menunggu Konfirmasi' },
+  { value: 'perlu_diproses', label: 'Perlu Diproses' },
+  { value: 'sedang_diproses', label: 'Sedang Diproses' },
+  { value: 'dikirim', label: 'Dikirim' },
+  { value: 'selesai', label: 'Selesai' },
+  { value: 'dilaporkan', label: 'Dilaporkan' },
+  { value: 'dibatalkan', label: 'Dibatalkan' },
+];
+
+/** Normalisasi status lama / alias ke slug API */
+export function normalizeToApiOrderStatus(status: string): string {
+  const s = normalizeOrderStatus(status);
+  const alias: Record<string, string> = {
+    pending: 'menunggu_pembayaran',
+    menunggu: 'menunggu_pembayaran',
+    diproses: 'sedang_diproses',
+    processing: 'sedang_diproses',
+    completed: 'selesai',
+    cancelled: 'dibatalkan',
+    shipped: 'dikirim',
+  };
+  return alias[s] || s;
+}
+
+export function getOrderStatusOptionLabel(status: string): string {
+  const api = normalizeToApiOrderStatus(status);
+  const found = ADMIN_ORDER_STATUS_OPTIONS.find((o) => o.value === api);
+  if (found) return found.label;
+  return getOrderStatusLabel(status);
+}
+
 export function filterOrdersBySubTab<T extends { status: string }>(
   orders: T[],
   subTab: OrderSubTab,

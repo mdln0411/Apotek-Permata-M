@@ -12,8 +12,18 @@ import {
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
+import ApotekLogo from '@/components/ApotekLogo';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+function formatDisplayName(name?: string | null): string {
+    if (!name?.trim()) return 'Admin Apotek';
+    return name
+        .trim()
+        .split(/\s+/)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+}
 
 interface AdminSidebarProps {
     visible: boolean;
@@ -76,20 +86,28 @@ export default function AdminSidebar({ visible, onClose, activePage }: AdminSide
                     {/* Sidebar Header */}
                     <View style={styles.sidebarHeader}>
                         <View style={styles.logoRow}>
-                            <Ionicons name="medical" size={30} color="#FFF" />
-                            <View>
-                                <Text style={styles.logoTitle}>Permata</Text>
-                                <Text style={styles.logoSub}>Admin Panel</Text>
+                            <ApotekLogo size={40} borderRadius={12} />
+                            <View style={styles.brandText}>
+                                <Text style={styles.brandLine}>Admin Panel</Text>
+                                <Text style={styles.brandLineAccent}>Apotek Permata</Text>
                             </View>
                         </View>
-                        
+
+                        <View style={styles.headerDivider} />
+
                         <View style={styles.adminProfile}>
                             <View style={styles.avatar}>
-                                <Text style={styles.avatarText}>{user?.name?.charAt(0) || 'A'}</Text>
+                                <Text style={styles.avatarText}>
+                                    {formatDisplayName(user?.name).charAt(0)}
+                                </Text>
                             </View>
-                            <View>
-                                <Text style={styles.adminName}>{user?.name || 'Administrator'}</Text>
-                                <Text style={styles.adminRole}>Super Admin</Text>
+                            <View style={styles.adminMeta}>
+                                <Text style={styles.adminName} numberOfLines={1}>
+                                    {formatDisplayName(user?.name)}
+                                </Text>
+                                <View style={styles.roleBadge}>
+                                    <Text style={styles.adminRole}>Super Admin</Text>
+                                </View>
                             </View>
                         </View>
                     </View>
@@ -141,15 +159,36 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         elevation: 10
     },
-    sidebarHeader: { backgroundColor: '#2E8B57', padding: 25, paddingTop: 60, gap: 20 },
+    sidebarHeader: { backgroundColor: '#2E8B57', padding: 24, paddingTop: 58, gap: 18 },
     logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    logoTitle: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
-    logoSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
-    adminProfile: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
-    avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#4CA474', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFF' },
+    brandText: { flex: 1 },
+    brandLine: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600', letterSpacing: 0.3 },
+    brandLineAccent: { color: '#FFF', fontSize: 17, fontWeight: 'bold', marginTop: 2, lineHeight: 22 },
+    headerDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginTop: 2 },
+    adminProfile: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    avatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#4CA474',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.35)',
+    },
     avatarText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 },
-    adminName: { color: '#FFF', fontSize: 15, fontWeight: 'bold' },
-    adminRole: { color: 'rgba(255,255,255,0.8)', fontSize: 11 },
+    adminMeta: { flex: 1 },
+    adminName: { color: '#FFF', fontSize: 15, fontWeight: 'bold', marginBottom: 6 },
+    roleBadge: {
+        alignSelf: 'flex-start',
+        backgroundColor: 'rgba(255,255,255,0.18)',
+        paddingHorizontal: 10,
+        paddingVertical: 3,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.25)',
+    },
+    adminRole: { color: '#FFF', fontSize: 11, fontWeight: '600', letterSpacing: 0.2 },
     menuList: { flex: 1, paddingVertical: 20 },
     menuItem: { 
         flexDirection: 'row', 

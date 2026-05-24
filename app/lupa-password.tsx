@@ -1,10 +1,10 @@
+import ApotekLogo from '@/components/ApotekLogo';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { router, Stack } from 'expo-router';
 import React, { useState } from 'react';
 import {
     Alert,
-    Image,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -52,11 +52,7 @@ export default function LupaPasswordScreen() {
                         <Ionicons name="arrow-back" size={24} color="#FFF" />
                     </TouchableOpacity>
                     <View style={styles.logoContainer}>
-                        <Image
-                            source={require('../assets/images/logoimk.png')}
-                            style={{ width: 28, height: 28 }}
-                            resizeMode="contain"
-                        />
+                        <ApotekLogo size={28} borderRadius={8} />
                         <Text style={styles.headerTitle}>Apotek Permata</Text>
                     </View>
                 </View>

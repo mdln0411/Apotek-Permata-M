@@ -19,10 +19,8 @@
         <!-- Sidebar -->
         <aside class="w-72 bg-white border-r border-slate-200 flex flex-col fixed h-full z-50">
             <div class="p-8 flex items-center gap-3">
-                <div class="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
-                    <i data-lucide="cross" class="text-white w-5 h-5"></i>
-                </div>
-                <span class="text-xl font-bold text-slate-800 tracking-tight">Permata Staff</span>
+                <img src="{{ asset('images/logo-apotek-permata.png') }}" alt="Apotek Permata" class="w-10 h-10 rounded-xl object-contain bg-white p-1 shadow-sm">
+                <span class="text-xl font-bold text-slate-800 tracking-tight">Apotek Permata Staff</span>
             </div>
 
             <nav class="flex-1 px-4 space-y-1">

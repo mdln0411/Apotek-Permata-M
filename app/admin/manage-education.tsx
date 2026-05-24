@@ -1,5 +1,7 @@
 import axiosClient from '@/api/axiosClient';
 import AdminSidebar from '@/components/AdminSidebar';
+import { AppAlertModal, AppAlertType } from '@/components/AppAlertModal';
+import { storageUrl } from '@/constants/api';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -17,6 +19,75 @@ import {
     Modal
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+
+const EDUCATION_CATEGORIES = [
+    'Tips Kesehatan',
+    'Nutrisi',
+    'Info Penyakit',
+    'Edukasi Obat',
+    'Tips',
+] as const;
+
+function OptionPicker({
+    label,
+    options,
+    value,
+    onChange,
+}: {
+    label: string;
+    options: readonly string[];
+    value: string;
+    onChange: (val: string) => void;
+}) {
+    return (
+        <View style={styles.pickerBlock}>
+            <Text style={styles.inputLabel}>{label}</Text>
+            <View style={styles.optionGrid}>
+                {options.map((opt) => {
+                    const active = value === opt;
+                    return (
+                        <TouchableOpacity
+                            key={opt}
+                            style={[styles.optionPill, active && styles.optionPillActive]}
+                            onPress={() => onChange(opt)}
+                            activeOpacity={0.75}
+                        >
+                            <Text style={[styles.optionPillText, active && styles.optionPillTextActive]}>
+                                {opt}
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+        </View>
+    );
+}
+
+function resolveEducationImageUri(imageUrl?: string | null): string | null {
+    if (!imageUrl?.trim()) return null;
+    const trimmed = imageUrl.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('blob:') || trimmed.startsWith('file:')) {
+        return trimmed;
+    }
+    return storageUrl(trimmed);
+}
+
+type AlertConfig = {
+    visible: boolean;
+    type: AppAlertType;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm?: () => void;
+};
+
+const DEFAULT_ALERT: AlertConfig = {
+    visible: false,
+    type: 'info',
+    title: '',
+    message: '',
+};
 
 export default function ManageEducation() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -38,6 +109,21 @@ export default function ManageEducation() {
         image_url: '',
     });
     const [imageUri, setImageUri] = useState<string | null>(null);
+    const [existingImagePath, setExistingImagePath] = useState<string | null>(null);
+    const [alertConfig, setAlertConfig] = useState<AlertConfig>(DEFAULT_ALERT);
+
+    const showAlert = (config: Omit<AlertConfig, 'visible'>) => {
+        setAlertConfig({ ...config, visible: true });
+    };
+
+    const closeAlert = () => {
+        setAlertConfig((prev) => ({ ...prev, visible: false, onConfirm: undefined }));
+    };
+
+    const formPreviewUri =
+        imageUri ||
+        (formData.image_url.trim() ? resolveEducationImageUri(formData.image_url) : null) ||
+        (existingImagePath ? resolveEducationImageUri(existingImagePath) : null);
 
     useEffect(() => {
         fetchArticles();
@@ -65,6 +151,7 @@ export default function ManageEducation() {
 
         if (!result.canceled) {
             setImageUri(result.assets[0].uri);
+            setExistingImagePath(null);
             setFormData({ ...formData, image_url: '' });
         }
     };
@@ -78,19 +165,22 @@ export default function ManageEducation() {
             image_url: '',
         });
         setImageUri(null);
+        setExistingImagePath(null);
         setIsEditing(false);
         setModalVisible(true);
     };
 
     const handleEdit = (item: any) => {
+        const isExternalUrl = item.image_url?.startsWith('http');
         setFormData({
             title: item.title,
             category: item.category,
             content: item.content,
             author: item.author || 'Admin Apotek',
-            image_url: item.image_url && item.image_url.startsWith('http') ? item.image_url : '',
+            image_url: isExternalUrl ? item.image_url : '',
         });
         setImageUri(null);
+        setExistingImagePath(item.image_url && !isExternalUrl ? item.image_url : null);
         setCurrentId(item.id);
         setIsEditing(true);
         setModalVisible(true);
@@ -98,7 +188,12 @@ export default function ManageEducation() {
 
     const handleSave = async () => {
         if (!formData.title || !formData.content) {
-            alert('Judul dan Konten wajib diisi');
+            showAlert({
+                type: 'warning',
+                title: 'Data Belum Lengkap',
+                message: 'Judul dan konten artikel wajib diisi sebelum disimpan.',
+                confirmText: 'Mengerti',
+            });
             return;
         }
 
@@ -118,10 +213,10 @@ export default function ManageEducation() {
                 
                 // Proses Gambar untuk Web vs Mobile
                 if (Platform.OS === 'web') {
-                    // Di Web, kita harus fetch URI-nya dan ubah ke Blob
                     const response = await fetch(imageUri);
                     const blob = await response.blob();
-                    data.append('image', blob, 'upload.jpg');
+                    const ext = blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
+                    data.append('image', blob, `upload.${ext}`);
                 } else {
                     // Di Mobile (Android/iOS)
                     const filename = imageUri.split('/').pop();
@@ -151,27 +246,68 @@ export default function ManageEducation() {
             }
             
             console.log('Save response:', response.data);
-            alert(isEditing ? 'Artikel berhasil diperbarui' : 'Artikel baru berhasil diterbitkan');
             setModalVisible(false);
             fetchArticles();
+            showAlert(
+                isEditing
+                    ? {
+                          type: 'success',
+                          title: 'Berhasil Diperbarui!',
+                          message: 'Perubahan artikel edukasi telah disimpan dan sudah tampil untuk pengguna.',
+                          confirmText: 'Selesai',
+                      }
+                    : {
+                          type: 'success',
+                          title: 'Artikel Diterbitkan!',
+                          message: 'Artikel edukasi baru berhasil ditambahkan dan siap dibaca pengguna.',
+                          confirmText: 'Selesai',
+                      },
+            );
         } catch (error: any) {
             console.error('Full Error details:', error.response?.data || error.message);
             const errMsg = error.response?.data?.message || 'Gagal menyimpan artikel';
-            alert('Error: ' + errMsg);
+            showAlert({
+                type: 'error',
+                title: 'Gagal Menyimpan',
+                message: errMsg,
+                confirmText: 'Coba Lagi',
+            });
         }
     };
 
     const handleDelete = (id: number) => {
-        if (confirm('Hapus artikel ini?')) {
-            (async () => {
-                try {
-                    await axiosClient.delete(`/api/education/${id}`);
-                    fetchArticles();
-                } catch (error) {
-                    alert('Gagal menghapus artikel');
-                }
-            })();
-        }
+        showAlert({
+            type: 'confirm',
+            title: 'Hapus Artikel?',
+            message: 'Artikel yang dihapus tidak dapat dikembalikan. Lanjutkan?',
+            confirmText: 'Ya, Hapus',
+            cancelText: 'Batal',
+            onConfirm: () => {
+                (async () => {
+                    try {
+                        await axiosClient.delete(`/api/education/${id}`);
+                        fetchArticles();
+                        setTimeout(() => {
+                            showAlert({
+                                type: 'success',
+                                title: 'Artikel Dihapus',
+                                message: 'Artikel edukasi berhasil dihapus dari daftar.',
+                                confirmText: 'Selesai',
+                            });
+                        }, 250);
+                    } catch {
+                        setTimeout(() => {
+                            showAlert({
+                                type: 'error',
+                                title: 'Gagal Menghapus',
+                                message: 'Artikel tidak dapat dihapus. Silakan coba lagi.',
+                                confirmText: 'Tutup',
+                            });
+                        }, 250);
+                    }
+                })();
+            },
+        });
     };
 
     const filteredArticles = articles.filter(a => 
@@ -188,82 +324,114 @@ export default function ManageEducation() {
                 activePage="education" 
             />
 
-            <Modal
-                visible={modalVisible}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>{isEditing ? 'Edit Artikel' : 'Tulis Edukasi Baru'}</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)}>
-                                <Ionicons name="close" size={24} color="#333" />
-                            </TouchableOpacity>
-                        </View>
+            <AppAlertModal
+                visible={alertConfig.visible}
+                type={alertConfig.type}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                confirmText={alertConfig.confirmText}
+                cancelText={alertConfig.cancelText}
+                onClose={closeAlert}
+                onConfirm={alertConfig.onConfirm}
+            />
 
-                        <ScrollView showsVerticalScrollIndicator={false} style={styles.formScroll}>
-                            <Text style={styles.inputLabel}>Judul Artikel *</Text>
-                            <TextInput 
-                                style={styles.input}
-                                placeholder="Masukkan judul"
-                                value={formData.title}
-                                onChangeText={(text) => setFormData({...formData, title: text})}
-                            />
-
-                            <Text style={styles.inputLabel}>Kategori</Text>
-                            <TextInput 
-                                style={styles.input}
-                                placeholder="Contoh: Tips Kesehatan"
-                                value={formData.category}
-                                onChangeText={(text) => setFormData({...formData, category: text})}
-                            />
-
-                            <Text style={styles.inputLabel}>Gambar Sampul</Text>
-                            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                                <TouchableOpacity style={[styles.input, { flex: 1, justifyContent: 'center' }]} onPress={pickImage}>
-                                    <Text style={{ color: imageUri ? '#2E8B57' : '#999' }}>
-                                        {imageUri ? 'Gambar Terpilih ✓' : 'Pilih dari Galeri'}
-                                    </Text>
+            {modalVisible && (
+                <Modal
+                    visible={modalVisible}
+                    animationType="slide"
+                    transparent={true}
+                    onRequestClose={() => setModalVisible(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>{isEditing ? 'Edit Artikel' : 'Tulis Edukasi Baru'}</Text>
+                                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                                    <Ionicons name="close" size={24} color="#333" />
                                 </TouchableOpacity>
-                                <Text>atau</Text>
-                                <TextInput 
-                                    style={[styles.input, { flex: 1 }]}
-                                    placeholder="Link URL"
-                                    value={formData.image_url}
-                                    onChangeText={(text) => {
-                                        setFormData({...formData, image_url: text});
-                                        setImageUri(null);
-                                    }}
-                                />
                             </View>
 
-                            <Text style={styles.inputLabel}>Konten Artikel *</Text>
-                            <TextInput 
-                                style={[styles.input, styles.textArea]}
-                                placeholder="Tulis isi edukasi di sini..."
-                                multiline
-                                numberOfLines={10}
-                                value={formData.content}
-                                onChangeText={(text) => setFormData({...formData, content: text})}
-                            />
+                            <ScrollView showsVerticalScrollIndicator={false} style={styles.formScroll}>
+                                <Text style={styles.inputLabel}>Judul Artikel *</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    placeholder="Masukkan judul"
+                                    value={formData.title}
+                                    onChangeText={(text) => setFormData({...formData, title: text})}
+                                />
 
-                            <Text style={styles.inputLabel}>Penulis</Text>
-                            <TextInput 
-                                style={styles.input}
-                                placeholder="Nama penulis"
-                                value={formData.author}
-                                onChangeText={(text) => setFormData({...formData, author: text})}
-                            />
-                        </ScrollView>
+                                <OptionPicker
+                                    label="Kategori"
+                                    options={EDUCATION_CATEGORIES}
+                                    value={formData.category}
+                                    onChange={(category) => setFormData({ ...formData, category })}
+                                />
 
-                        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                            <Text style={styles.saveBtnText}>{isEditing ? 'Simpan Perubahan' : 'Terbitkan Sekarang'}</Text>
-                        </TouchableOpacity>
+                                <Text style={styles.inputLabel}>Gambar Sampul</Text>
+                                {formPreviewUri ? (
+                                    <View style={styles.previewWrap}>
+                                        <Image
+                                            source={{ uri: formPreviewUri }}
+                                            style={styles.previewImage}
+                                            resizeMode="cover"
+                                        />
+                                        <TouchableOpacity
+                                            style={styles.previewRemoveBtn}
+                                            onPress={() => {
+                                                setImageUri(null);
+                                                setExistingImagePath(null);
+                                                setFormData({ ...formData, image_url: '' });
+                                            }}
+                                        >
+                                            <Ionicons name="close-circle" size={22} color="#FF5252" />
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : null}
+                                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                                    <TouchableOpacity style={[styles.input, { flex: 1, justifyContent: 'center' }]} onPress={pickImage}>
+                                        <Text style={{ color: imageUri ? '#2E8B57' : '#999' }}>
+                                            {imageUri ? 'Ganti Gambar' : 'Pilih dari Galeri'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <Text>atau</Text>
+                                    <TextInput 
+                                        style={[styles.input, { flex: 1 }]}
+                                        placeholder="Link URL"
+                                        value={formData.image_url}
+                                        onChangeText={(text) => {
+                                            setFormData({...formData, image_url: text});
+                                            setImageUri(null);
+                                            setExistingImagePath(null);
+                                        }}
+                                    />
+                                </View>
+
+                                <Text style={styles.inputLabel}>Konten Artikel *</Text>
+                                <TextInput 
+                                    style={[styles.input, styles.textArea]}
+                                    placeholder="Tulis isi edukasi di sini..."
+                                    multiline
+                                    numberOfLines={10}
+                                    value={formData.content}
+                                    onChangeText={(text) => setFormData({...formData, content: text})}
+                                />
+
+                                <Text style={styles.inputLabel}>Penulis</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    placeholder="Nama penulis"
+                                    value={formData.author}
+                                    onChangeText={(text) => setFormData({...formData, author: text})}
+                                />
+                            </ScrollView>
+
+                            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+                                <Text style={styles.saveBtnText}>{isEditing ? 'Simpan Perubahan' : 'Terbitkan Sekarang'}</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
-            </Modal>
+                </Modal>
+            )}
 
             <View style={styles.topBar}>
                 <View style={styles.headerLeft}>
@@ -302,16 +470,17 @@ export default function ManageEducation() {
                 <View style={styles.listContainer}>
                     {loading ? (
                         <ActivityIndicator size="large" color="#2E8B57" style={{ marginTop: 20 }} />
-                    ) : filteredArticles.map((item) => (
+                    ) : filteredArticles.map((item) => {
+                        const cardImageUri = resolveEducationImageUri(item.image_url);
+                        return (
                         <View key={item.id} style={styles.articleCard}>
-                            <Image 
-                                source={{ 
-                                    uri: item.image_url && item.image_url.startsWith('http') 
-                                        ? item.image_url 
-                                        : `http://127.0.0.1:8000/storage/${item.image_url}` 
-                                }} 
-                                style={styles.articleImg} 
-                            />
+                            {cardImageUri ? (
+                                <Image source={{ uri: cardImageUri }} style={styles.articleImg} resizeMode="cover" />
+                            ) : (
+                                <View style={[styles.articleImg, styles.articleImgPlaceholder]}>
+                                    <Ionicons name="image-outline" size={24} color="#CCC" />
+                                </View>
+                            )}
                             <View style={styles.articleInfo}>
                                 <Text style={styles.articleCat}>{item.category}</Text>
                                 <Text style={styles.articleTitle} numberOfLines={2}>{item.title}</Text>
@@ -326,7 +495,8 @@ export default function ManageEducation() {
                                 </TouchableOpacity>
                             </View>
                         </View>
-                    ))}
+                        );
+                    })}
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -359,6 +529,10 @@ const styles = StyleSheet.create({
     listContainer: { gap: 16 },
     articleCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 12, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#EEE' },
     articleImg: { width: 60, height: 60, borderRadius: 10, backgroundColor: '#F5F5F5' },
+    articleImgPlaceholder: { justifyContent: 'center', alignItems: 'center' },
+    previewWrap: { position: 'relative', marginBottom: 12, borderRadius: 12, overflow: 'hidden' },
+    previewImage: { width: '100%', height: 160, borderRadius: 12, backgroundColor: '#F5F5F5' },
+    previewRemoveBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: '#FFF', borderRadius: 12 },
     articleInfo: { flex: 1, marginLeft: 12 },
     articleCat: { fontSize: 10, color: '#2E8B57', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 2 },
     articleTitle: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 4 },
@@ -373,6 +547,22 @@ const styles = StyleSheet.create({
     inputLabel: { fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 8, marginTop: 16 },
     input: { backgroundColor: '#F8FBF8', borderWidth: 1, borderColor: '#E8F5E9', borderRadius: 12, padding: 14, fontSize: 15, color: '#333' },
     textArea: { height: 120, textAlignVertical: 'top' },
+    pickerBlock: { marginTop: 4 },
+    optionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    optionPill: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#E8F5E9',
+        backgroundColor: '#F8FBF8',
+    },
+    optionPillActive: {
+        backgroundColor: '#2E8B57',
+        borderColor: '#2E8B57',
+    },
+    optionPillText: { fontSize: 12, color: '#555', fontWeight: '600' },
+    optionPillTextActive: { color: '#FFF' },
     saveBtn: { backgroundColor: '#2E8B57', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 20 },
     saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
 });

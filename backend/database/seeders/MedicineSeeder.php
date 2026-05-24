@@ -123,13 +123,15 @@ class MedicineSeeder extends Seeder
                         $newName = $namaObat . ' ' . $cleanUnit;
                     }
 
+                    $baseUnit = \App\Services\MedicineUnitService::displayUnit($u);
+
                     Medicine::create([
                         'name'                  => trim($newName),
                         'category'              => $kategori ?: 'Umum',
                         'indication'            => $this->cleanText($row[3] ?? null),
-                        'unit'                  => $u,
+                        'unit'                  => $baseUnit,
                         'price'                 => $unitPrice,
-                        'price_detail'          => $u . ': Rp ' . number_format($unitPrice, 0, ',', '.'),
+                        'price_detail'          => $baseUnit . ': Rp ' . number_format($unitPrice, 0, ',', '.'),
                         'stock'                 => $stok > 0 ? $stok : rand(10, 100),
                         'usage_rules'           => $this->cleanText($row[7] ?? null),
                         'dosage'                => $this->cleanText($row[8] ?? null),
@@ -147,14 +149,16 @@ class MedicineSeeder extends Seeder
                 // Obat padat atau cairan dengan kemasan tunggal - Simpan kemasan pertama saja
                 $primaryUnit = $units[0] ?? 'Pcs';
                 $unitPrice = $priceMap[strtolower($primaryUnit)] ?? $hargaMulai;
+                $baseUnit = \App\Services\MedicineUnitService::displayUnit($primaryUnit);
+                $displayName = \App\Services\MedicineUnitService::displayName($namaObat, $primaryUnit);
 
                 Medicine::create([
-                    'name'                  => $namaObat,
+                    'name'                  => $displayName,
                     'category'              => $kategori ?: 'Umum',
                     'indication'            => $this->cleanText($row[3] ?? null),
-                    'unit'                  => $primaryUnit,
+                    'unit'                  => $baseUnit,
                     'price'                 => $unitPrice,
-                    'price_detail'          => $primaryUnit . ': Rp ' . number_format($unitPrice, 0, ',', '.'),
+                    'price_detail'          => $baseUnit . ': Rp ' . number_format($unitPrice, 0, ',', '.'),
                     'stock'                 => $stok > 0 ? $stok : rand(10, 100),
                     'usage_rules'           => $this->cleanText($row[7] ?? null),
                     'dosage'                => $this->cleanText($row[8] ?? null),

@@ -62,17 +62,9 @@ export default function ApotekerLayout() {
                     ),
                 }}
             />
-            <Tabs.Screen
-                name="profile"
-                options={{
-                    title: 'Profil',
-                    tabBarIcon: ({ color, size }) => (
-                        <Feather name="user" size={size} color={color} />
-                    ),
-                }}
-            />
 
             {/* Sembunyikan halaman yang bukan merupakan Tab utama */}
+            <Tabs.Screen name="profile" options={{ href: null }} />
             <Tabs.Screen name="chat-room" options={{ href: null }} />
             <Tabs.Screen name="dashboard" options={{ href: null }} />
             <Tabs.Screen name="orders" options={{ href: null }} />

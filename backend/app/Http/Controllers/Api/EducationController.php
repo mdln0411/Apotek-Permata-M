@@ -33,6 +33,7 @@ class EducationController extends Controller
             $path = $request->file('image')->store('educations', 'public');
             $validated['image_url'] = $path;
         }
+        unset($validated['image']);
 
         $education = Education::create($validated);
 
@@ -72,6 +73,7 @@ class EducationController extends Controller
             $path = $request->file('image')->store('educations', 'public');
             $validated['image_url'] = $path;
         }
+        unset($validated['image']);
 
         $education->update($validated);
 

@@ -1,23 +1,23 @@
 import axiosClient from '@/api/axiosClient';
+import ApotekLogo from '@/components/ApotekLogo';
+import { SuccessToast } from '@/components/SuccessToast';
 import { Feather } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React, { useState, useRef } from 'react';
-import { 
-    ActivityIndicator, 
+import {
+    ActivityIndicator,
     Animated,
-    Image,
-    SafeAreaView, 
-    ScrollView, 
-    StyleSheet, 
-    Text, 
-    TextInput, 
-    TouchableOpacity, 
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
     View,
     KeyboardAvoidingView,
     Platform,
-    Vibration
+    Vibration,
 } from 'react-native';
-import { SuccessToast } from '@/components/SuccessToast';
 
 export default function RegisterScreen() {
     const [name, setName] = useState('');
@@ -169,11 +169,7 @@ export default function RegisterScreen() {
 
             <View style={styles.header}>
                 <View style={styles.logoContainer}>
-                    <Image 
-                        source={require('../assets/images/logoimk.png')} 
-                        style={{ width: 28, height: 28 }}
-                        resizeMode="contain"
-                    />
+                    <ApotekLogo size={28} borderRadius={8} />
                     <Text style={styles.headerTitle}>Apotek Permata</Text>
                 </View>
             </View>

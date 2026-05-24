@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import ApotekLogo from '@/components/ApotekLogo';
 
 // ── Tipe data ──────────────────────────────────────────────────────────────
 interface Product {
@@ -102,10 +103,7 @@ export default function HomeScreen() {
       {/* ── Header / Navbar ── */}
       <View style={styles.navbar}>
         <View style={styles.navBrand}>
-          {/* Ikon apotek sederhana */}
-          <View style={styles.navIcon}>
-            <Text style={styles.navIconText}>✚</Text>
-          </View>
+          <ApotekLogo size={36} borderRadius={10} />
           <Text style={styles.navTitle}>Apotek Permata</Text>
         </View>
         <TouchableOpacity onPress={() => router.push('/login' as any)}>

@@ -59,7 +59,6 @@
                             <select name="role" onchange="this.form.submit()" class="bg-slate-50 border border-slate-200 text-[10px] font-bold rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="member" {{ $user->role == 'member' ? 'selected' : '' }}>MEMBER (Pasien)</option>
                                 <option value="apoteker" {{ $user->role == 'apoteker' ? 'selected' : '' }}>APOTEKER (Staff)</option>
-                                <option value="admin" {{ $user->role == 'admin' ? 'selected' : '' }}>ADMIN (Super)</option>
                             </select>
                         </form>
                     </td>

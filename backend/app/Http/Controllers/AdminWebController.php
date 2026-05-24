@@ -29,14 +29,18 @@ class AdminWebController extends Controller
 
     public function users()
     {
-        $users = User::latest()->get();
+        $users = User::where('role', '!=', 'admin')->latest()->get();
         return view('admin.users', compact('users'));
     }
 
     public function updateUserRole(Request $request, User $user)
     {
+        if ($user->role === 'admin') {
+            return back()->with('error', 'Role admin tidak dapat diubah.');
+        }
+
         $request->validate([
-            'role' => 'required|in:admin,apoteker,member'
+            'role' => 'required|in:apoteker,member'
         ]);
 
         $user->update(['role' => $request->role]);
@@ -45,6 +49,10 @@ class AdminWebController extends Controller
 
     public function destroyUser(User $user)
     {
+        if ($user->role === 'admin') {
+            return back()->with('error', 'Akun admin tidak dapat dihapus.');
+        }
+
         if ($user->id === auth()->id()) {
             return back()->with('error', 'Anda tidak bisa menghapus akun anda sendiri.');
         }

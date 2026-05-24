@@ -1,6 +1,6 @@
-import { Image } from 'expo-image';
 import { Platform, StyleSheet } from 'react-native';
 
+import ApotekLogo from '@/components/ApotekLogo';
 import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
@@ -12,10 +12,7 @@ export default function HomeScreen() {
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
       headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
+        <ApotekLogo size={120} borderRadius={24} style={styles.reactLogo} />
       }
     >
       <ThemedView style={styles.titleContainer}>

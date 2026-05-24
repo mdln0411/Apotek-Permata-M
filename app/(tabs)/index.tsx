@@ -1,3 +1,4 @@
+import ApotekLogo from '@/components/ApotekLogo';
 import axiosClient from '@/api/axiosClient';
 import { storageUrl } from '@/constants/api';
 import { LoginPromptModal } from '@/components/LoginPromptModal';
@@ -217,11 +218,7 @@ export default function HomeScreen() {
             {/* Sticky Header Top */}
             <View style={styles.topHeader}>
                 <View style={styles.userInfoSide}>
-                    <Image 
-                        source={require('../../assets/images/logoimk.png')} 
-                        style={{ width: 40, height: 40, borderRadius: 12, marginRight: 10 }}
-                        resizeMode="contain"
-                    />
+                    <ApotekLogo size={40} borderRadius={12} style={{ marginRight: 10 }} />
                     <View style={styles.nameSection}>
                         <Text style={styles.appName}>APOTEK PERMATA</Text>
                         <Text style={styles.tagline}>Solusi Sehat Keluarga</Text>

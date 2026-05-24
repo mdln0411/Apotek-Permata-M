@@ -1,8 +1,9 @@
 import AdminSidebar from '@/components/AdminSidebar';
+import ApotekLogo from '@/components/ApotekLogo';
 import { useAuth } from '@/context/AuthContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { router, Stack } from 'expo-router';
-import React, { useState } from 'react';
+import { router, Stack, useFocusEffect } from 'expo-router';
+import React, { useState, useCallback, useRef } from 'react';
 import { 
     SafeAreaView, 
     ScrollView, 
@@ -12,27 +13,108 @@ import {
     View, 
     Dimensions,
     Platform,
-    Image
+    Image,
+    ActivityIndicator,
+    RefreshControl
 } from 'react-native';
+import { getAdminDashboardStats, DashboardData } from '@/api/dashboardService';
+import WeeklySalesChart from '@/components/admin/WeeklySalesChart';
+import axiosClient from '@/api/axiosClient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const POLL_INTERVAL_MS = 15000;
 
 export default function AdminDashboard() {
     const { user, logout } = useAuth();
     const [sidebarVisible, setSidebarVisible] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+    const [lowStockCount, setLowStockCount] = useState(0);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    const hasLoadedRef = useRef(false);
 
-    const stats = [
-        { label: 'Total Penjualan', value: 'Rp 15.8Jt', icon: 'trending-up', color: '#E8F5E9', iconColor: '#2E8B57' },
-        { label: 'Total Pesanan', value: '156', icon: 'shopping-cart', color: '#E3F2FD', iconColor: '#1976D2' },
-        { label: 'Total Pelanggan', value: '89', icon: 'users', color: '#F3E5F5', iconColor: '#7B1FA2' },
-        { label: 'Pertumbuhan', value: '+12.5%', icon: 'activity', color: '#FFF3E0', iconColor: '#F57C00' },
+    const fetchDashboardData = async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
+        if (mode === 'refresh') {
+            setRefreshing(true);
+        } else if (mode === 'initial' && !hasLoadedRef.current) {
+            setLoading(true);
+        }
+        if (mode !== 'silent') {
+            setError(null);
+        }
+        try {
+            const res = await getAdminDashboardStats();
+            if (res.status === 'success') {
+                setDashboardData(res.data);
+                setLastUpdated(new Date());
+                hasLoadedRef.current = true;
+            } else if (mode !== 'silent') {
+                setError('Gagal memuat data dari server');
+            }
+
+            const medRes = await axiosClient.get('/api/medicines?per_page=500');
+            const low = (medRes.data.data || []).filter((m: any) => m.stock < 10).length;
+            setLowStockCount(low);
+        } catch (e: any) {
+            console.error('Error fetching dashboard stats:', e);
+            if (mode !== 'silent') {
+                setError(e.response?.data?.message || e.message || 'Terjadi kesalahan koneksi');
+            }
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchDashboardData(hasLoadedRef.current ? 'silent' : 'initial');
+            const intervalId = setInterval(() => fetchDashboardData('silent'), POLL_INTERVAL_MS);
+            return () => clearInterval(intervalId);
+        }, [])
+    );
+
+    const onRefresh = () => {
+        fetchDashboardData('refresh');
+    };
+
+    if (loading && !refreshing) {
+        return (
+            <SafeAreaView style={styles.loadingContainer}>
+                <Stack.Screen options={{ headerShown: false }} />
+                <ActivityIndicator size="large" color="#2E8B57" />
+                <Text style={styles.loadingText}>Memuat data dasbor...</Text>
+            </SafeAreaView>
+        );
+    }
+
+    if (error && !dashboardData) {
+        return (
+            <SafeAreaView style={styles.loadingContainer}>
+                <Stack.Screen options={{ headerShown: false }} />
+                <Ionicons name="cloud-offline-outline" size={60} color="#D32F2F" />
+                <Text style={styles.errorTextTitle}>Gagal Memuat Data</Text>
+                <Text style={styles.errorTextSub}>{error}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={() => fetchDashboardData()}>
+                    <Text style={styles.retryButtonText}>Coba Lagi</Text>
+                </TouchableOpacity>
+            </SafeAreaView>
+        );
+    }
+
+    const stats = dashboardData?.stats || [
+        { label: 'Total Penjualan', value: 'Rp 0', icon: 'trending-up', color: '#E8F5E9', iconColor: '#2E8B57' },
+        { label: 'Total Pesanan', value: '0', icon: 'shopping-cart', color: '#E3F2FD', iconColor: '#1976D2' },
+        { label: 'Total Pelanggan', value: '0', icon: 'users', color: '#F3E5F5', iconColor: '#7B1FA2' },
+        { label: 'Pertumbuhan', value: '+0.0%', icon: 'activity', color: '#FFF3E0', iconColor: '#F57C00' },
     ];
 
-    const bestSellers = [
-        { id: '1', name: 'Paracetamol 500mg', sold: '245 terjual', income: 'Rp 3675k' },
-        { id: '2', name: 'Vitamin C 1000mg', sold: '180 terjual', income: 'Rp 6300k' },
-        { id: '3', name: 'Ibuprofen 400mg', sold: '156 terjual', income: 'Rp 3900k' },
-    ];
+    const bestSellers = dashboardData?.best_sellers || [];
+
+    const chartValues = dashboardData?.chart?.data || [0, 0, 0, 0, 0, 0, 0];
+    const chartLabels = dashboardData?.chart?.labels || ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 
     return (
         <SafeAreaView style={styles.container}>
@@ -50,21 +132,47 @@ export default function AdminDashboard() {
                     <Ionicons name="menu" size={28} color="#FFF" />
                 </TouchableOpacity>
                 <View style={styles.logoRow}>
-                    <Ionicons name="medical" size={24} color="#FFF" />
+                    <ApotekLogo size={32} borderRadius={10} />
                     <Text style={styles.logoText}>Apotek Permata</Text>
                 </View>
-                <TouchableOpacity style={styles.profileCircle}>
-                    <Ionicons name="person-outline" size={20} color="#FFF" />
-                </TouchableOpacity>
+                <View style={styles.headerSpacer} />
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <ScrollView 
+                showsVerticalScrollIndicator={false} 
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2E8B57']} />
+                }
+            >
                 
                 {/* Dashboard Header Banner */}
                 <View style={styles.bannerCard}>
                     <Text style={styles.bannerTitle}>Dashboard Admin</Text>
                     <Text style={styles.bannerSub}>Ringkasan sistem apotek</Text>
+                    {lastUpdated && (
+                        <Text style={styles.liveHint}>
+                            Data keuangan sinkron dengan apoteker · diperbarui {lastUpdated.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </Text>
+                    )}
                 </View>
+
+                {lowStockCount > 0 && (
+                    <TouchableOpacity 
+                        style={styles.lowStockBanner}
+                        onPress={() => router.push('/admin/manage-medicines')}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="alert-circle" size={24} color="#FF5252" />
+                        <View style={styles.lowStockTextContainer}>
+                            <Text style={styles.lowStockTitle}>Pemberitahuan Stok Menipis</Text>
+                            <Text style={styles.lowStockDesc}>
+                                Ada {lowStockCount} obat dengan stok di bawah 10 item! Klik untuk mengelola stok.
+                            </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#FF5252" style={{ marginLeft: 'auto' }} />
+                    </TouchableOpacity>
+                )}
 
                 {/* Stats Grid */}
                 <View style={styles.statsGrid}>
@@ -81,42 +189,42 @@ export default function AdminDashboard() {
                     ))}
                 </View>
 
-                {/* Weekly Sales Chart Placeholder */}
-                <View style={styles.chartCard}>
-                    <Text style={styles.cardTitle}>Penjualan Mingguan</Text>
-                    <View style={styles.chartContainer}>
-                        {/* Simulasi Bar Chart */}
-                        <View style={styles.chartBars}>
-                            {[40, 25, 60, 65, 80, 55, 70].map((h, i) => (
-                                <View key={i} style={styles.barWrapper}>
-                                    <View style={[styles.bar, { height: h }]} />
-                                    <Text style={styles.barLabel}>{['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'][i]}</Text>
-                                </View>
-                            ))}
-                        </View>
-                        {/* Grid Lines */}
-                        <View style={styles.gridLines}>
-                            <View style={styles.gridLine} /><View style={styles.gridLine} /><View style={styles.gridLine} />
+                <WeeklySalesChart
+                    labels={chartLabels}
+                    data={chartValues}
+                    onPress={() => router.push('/admin/reports')}
+                />
+
+                {/* Produk Terlaris — data sama dengan Laporan Apotek */}
+                <TouchableOpacity
+                    style={styles.bestSellerCard}
+                    onPress={() => router.push('/admin/reports')}
+                    activeOpacity={0.85}
+                >
+                    <View style={styles.bestSellerHeader}>
+                        <Text style={styles.bestSellerTitle}>Produk Terlaris</Text>
+                        <View style={styles.bestSellerLink}>
+                            <Text style={styles.bestSellerLinkText}>Lihat laporan</Text>
+                            <Ionicons name="chevron-forward" size={16} color="#2E8B57" />
                         </View>
                     </View>
-                </View>
-
-                {/* Produk Terlaris */}
-                <View style={styles.bestSellerCard}>
-                    <Text style={styles.cardTitle}>Produk Terlaris</Text>
-                    {bestSellers.map((item) => (
-                        <View key={item.id} style={styles.sellerItem}>
-                            <View style={styles.sellerRank}>
-                                <Text style={styles.rankText}>{item.id}</Text>
+                    {bestSellers.length === 0 ? (
+                        <Text style={styles.bestSellerEmpty}>Belum ada data penjualan.</Text>
+                    ) : (
+                        bestSellers.map((item) => (
+                            <View key={item.id} style={styles.sellerItem}>
+                                <View style={styles.sellerRank}>
+                                    <Text style={styles.rankText}>{item.id}</Text>
+                                </View>
+                                <View style={styles.sellerInfo}>
+                                    <Text style={styles.sellerName}>{item.name}</Text>
+                                    <Text style={styles.sellerSold}>{item.sold}</Text>
+                                </View>
+                                <Text style={styles.sellerIncome}>{item.income}</Text>
                             </View>
-                            <View style={styles.sellerInfo}>
-                                <Text style={styles.sellerName}>{item.name}</Text>
-                                <Text style={styles.sellerSold}>{item.sold}</Text>
-                            </View>
-                            <Text style={styles.sellerIncome}>{item.income}</Text>
-                        </View>
-                    ))}
-                </View>
+                        ))
+                    )}
+                </TouchableOpacity>
 
                 {/* Navigation Menu Buttons */}
                 <View style={styles.navGrid}>
@@ -157,11 +265,12 @@ const styles = StyleSheet.create({
     logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginLeft: 15 },
     logoText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
     menuIcon: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-    profileCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+    headerSpacer: { width: 40 },
     scrollContent: { padding: 16, paddingBottom: 40 },
     bannerCard: { backgroundColor: '#4CA474', borderRadius: 12, padding: 20, marginBottom: 20 },
     bannerTitle: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
     bannerSub: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 4 },
+    liveHint: { color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 8, fontStyle: 'italic' },
     statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
     statCard: { 
         width: (SCREEN_WIDTH - 42) / 2, 
@@ -187,6 +296,11 @@ const styles = StyleSheet.create({
     gridLines: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 25, justifyContent: 'space-between' },
     gridLine: { height: 1, backgroundColor: '#F0F0F0' },
     bestSellerCard: { backgroundColor: '#FFF', borderRadius: 12, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#EEE' },
+    bestSellerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    bestSellerTitle: { fontSize: 15, fontWeight: 'bold', color: '#333' },
+    bestSellerLink: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+    bestSellerLinkText: { fontSize: 12, color: '#2E8B57', fontWeight: '600' },
+    bestSellerEmpty: { textAlign: 'center', color: '#999', paddingVertical: 16, fontSize: 13 },
     sellerItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
     sellerRank: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#F0F4F0', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
     rankText: { fontSize: 12, fontWeight: 'bold', color: '#2E8B57' },
@@ -209,5 +323,42 @@ const styles = StyleSheet.create({
         shadowRadius: 5,
         elevation: 2
     },
-    navBtnText: { marginTop: 8, fontSize: 13, color: '#333', fontWeight: '500' }
+    navBtnText: { marginTop: 8, fontSize: 13, color: '#333', fontWeight: '500' },
+    loadingContainer: { flex: 1, backgroundColor: '#F8FBF8', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    loadingText: { marginTop: 12, fontSize: 14, color: '#666', fontWeight: '500' },
+    errorTextTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginTop: 16, marginBottom: 8 },
+    errorTextSub: { fontSize: 14, color: '#888', textAlign: 'center', marginBottom: 20 },
+    retryButton: { backgroundColor: '#2E8B57', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8 },
+    retryButtonText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
+    lowStockBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF5F5',
+        borderWidth: 1,
+        borderColor: '#FFE0E0',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+        elevation: 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+    },
+    lowStockTextContainer: {
+        flex: 1,
+        marginLeft: 12,
+        marginRight: 8,
+    },
+    lowStockTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#FF5252',
+        marginBottom: 2,
+    },
+    lowStockDesc: {
+        fontSize: 12,
+        color: '#7F8C8D',
+        lineHeight: 16,
+    },
 });

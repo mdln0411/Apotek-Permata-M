@@ -222,7 +222,7 @@ export default function QRISPaymentScreen() {
               size={180}
               backgroundColor="white"
               color="black"
-              logo={require('../assets/images/icon.png')}
+              logo={require('../assets/images/logoimk.png')}
               logoSize={40}
               logoBackgroundColor="white"
               logoBorderRadius={8}

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Medicine;
+use App\Services\MedicineUnitService;
 use Illuminate\Http\Request;
 
 class MedicineController extends Controller
@@ -174,17 +175,7 @@ class MedicineController extends Controller
             'status' => 'success',
             'message' => 'Data obat berhasil diambil',
             'data' => $medicines->getCollection()->map(function ($medicine) {
-                return [
-                    'id' => $medicine->id,
-                    'name' => $medicine->name,
-                    'category' => $medicine->category,
-                    'unit' => $medicine->unit,
-                    'price' => $medicine->price,
-                    'price_formatted' => 'Rp ' . number_format($medicine->price, 0, ',', '.'),
-                    'stock' => $medicine->stock,
-                    'image_url' => $medicine->image_url,
-                    'prescription_required' => $medicine->prescription_required,
-                ];
+                return $this->formatMedicineListItem($medicine);
             }),
             'pagination' => [
                 'current_page' => $medicines->currentPage(),
@@ -214,16 +205,9 @@ class MedicineController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Detail obat berhasil diambil',
-            'data' => [
-                'id' => $medicine->id,
-                'name' => $medicine->name,
-                'category' => $medicine->category,
+            'data' => array_merge($this->formatMedicineListItem($medicine), [
                 'indication' => $medicine->indication,
-                'unit' => $medicine->unit,
-                'price' => $medicine->price,
-                'price_formatted' => 'Rp ' . number_format($medicine->price, 0, ',', '.'),
                 'price_detail' => $medicine->price_detail,
-                'stock' => $medicine->stock,
                 'usage_rules' => $medicine->usage_rules,
                 'dosage' => $medicine->dosage,
                 'side_effects' => $medicine->side_effects,
@@ -231,12 +215,44 @@ class MedicineController extends Controller
                 'usage_duration' => $medicine->usage_duration,
                 'composition' => $medicine->composition,
                 'contraindications' => $medicine->contraindications,
-                'image_url' => $medicine->image_url,
-                'prescription_required' => $medicine->prescription_required,
                 'created_at' => $medicine->created_at,
                 'updated_at' => $medicine->updated_at,
-            ],
+            ]),
         ]);
+    }
+
+    /**
+     * GET /api/medicines/units
+     * Daftar satuan unik dari database (untuk picker tambah obat).
+     */
+    public function units()
+    {
+        $rawUnits = Medicine::query()
+            ->whereNotNull('unit')
+            ->where('unit', '!=', '')
+            ->distinct()
+            ->pluck('unit');
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Daftar satuan berhasil diambil',
+            'data' => MedicineUnitService::collectDistinctUnits($rawUnits),
+        ]);
+    }
+
+    private function formatMedicineListItem(Medicine $medicine): array
+    {
+        return [
+            'id' => $medicine->id,
+            'name' => MedicineUnitService::displayName($medicine->name, $medicine->unit),
+            'category' => $medicine->category,
+            'unit' => MedicineUnitService::displayUnit($medicine->unit),
+            'price' => $medicine->price,
+            'price_formatted' => 'Rp ' . number_format($medicine->price, 0, ',', '.'),
+            'stock' => $medicine->stock,
+            'image_url' => $medicine->image_url,
+            'prescription_required' => $medicine->prescription_required,
+        ];
     }
 
     /**
@@ -263,7 +279,7 @@ class MedicineController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'category' => 'required|string',
-            'price' => 'required|numeric|min:0',
+            'price' => 'required|integer|min:0',
             'stock' => 'required|integer|min:0',
             'unit' => 'nullable|string',
             'prescription_required' => 'boolean',
@@ -280,6 +296,10 @@ class MedicineController extends Controller
             $validated['image_url'] = $path;
         }
 
+        if (!empty($validated['unit'])) {
+            $validated['unit'] = MedicineUnitService::displayUnit($validated['unit']);
+        }
+
         $medicine = Medicine::create($validated);
 
         return response()->json(['status' => 'success', 'message' => 'Obat berhasil ditambahkan', 'data' => $medicine], 201);
@@ -294,7 +314,7 @@ class MedicineController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'category' => 'sometimes|required|string',
-            'price' => 'sometimes|required|numeric|min:0',
+            'price' => 'sometimes|required|integer|min:0',
             'stock' => 'sometimes|required|integer|min:0',
             'unit' => 'nullable|string',
             'prescription_required' => 'boolean',
@@ -313,6 +333,10 @@ class MedicineController extends Controller
             }
             $path = $request->file('image')->store('medicines', 'public');
             $validated['image_url'] = $path;
+        }
+
+        if (!empty($validated['unit'])) {
+            $validated['unit'] = MedicineUnitService::displayUnit($validated['unit']);
         }
 
         $medicine->update($validated);

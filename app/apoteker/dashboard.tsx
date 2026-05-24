@@ -2,8 +2,9 @@ import axiosClient from '@/api/axiosClient';
 import { useAuth } from '@/context/AuthContext';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+    Dimensions,
     Platform,
     RefreshControl,
     SafeAreaView,
@@ -15,8 +16,12 @@ import {
     View
 } from 'react-native';
 
-const THEME = {
-    primary: '#2E8B57', // Hijau Apotek
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const GRID_GAP = 12;
+const GRID_PADDING = 20;
+const CARD_WIDTH = (SCREEN_WIDTH - GRID_PADDING * 2 - GRID_GAP) / 2;
+
+const THEME = {    primary: '#2E8B57', // Hijau Apotek
     secondary: '#F0F9F4',
     white: '#FFFFFF',
     textDark: '#2C3E50',
@@ -28,8 +33,81 @@ const THEME = {
     border: '#E8ECEF',
 };
 
-export default function ApotekerDashboard() {
-    const { user, logout } = useAuth();
+type MenuItem = {
+    id: string;
+    label: string;
+    desc: string;
+    route: string;
+    icon: keyof typeof MaterialCommunityIcons.glyphMap;
+    iconColor: string;
+    iconBg: string;
+};
+
+const MENU_ITEMS: MenuItem[] = [
+    {
+        id: 'orders',
+        label: 'Kelola Pesanan',
+        desc: 'Proses belanja user',
+        route: '/apoteker',
+        icon: 'clipboard-text-play',
+        iconColor: '#1976D2',
+        iconBg: '#E3F2FD',
+    },
+    {
+        id: 'consultation',
+        label: 'Konsultasi',
+        desc: 'Tanya jawab obat',
+        route: '/apoteker/consultation',
+        icon: 'chat-processing',
+        iconColor: '#9C27B0',
+        iconBg: '#F3E5F5',
+    },
+    {
+        id: 'stock',
+        label: 'Stok Obat',
+        desc: 'Update stok gudang',
+        route: '/apoteker/manage-stock',
+        icon: 'package-variant-closed',
+        iconColor: '#FFA000',
+        iconBg: '#FFF3E0',
+    },
+    {
+        id: 'prescriptions',
+        label: 'Resep Digital',
+        desc: 'Validasi resep dokter',
+        route: '/apoteker/prescriptions',
+        icon: 'file-document-edit',
+        iconColor: '#2E8B57',
+        iconBg: '#E0F2F1',
+    },
+    {
+        id: 'finance',
+        label: 'Laporan Keuangan',
+        desc: 'Omzet & penjualan',
+        route: '/apoteker/finance',
+        icon: 'finance',
+        iconColor: '#2C3E50',
+        iconBg: '#F0F4F7',
+    },
+];
+
+function MenuCard({ item }: { item: MenuItem }) {
+    return (
+        <TouchableOpacity
+            style={styles.menuCard}
+            activeOpacity={0.85}
+            onPress={() => router.push(item.route as any)}
+        >
+            <View style={[styles.iconBox, { backgroundColor: item.iconBg }]}>
+                <MaterialCommunityIcons name={item.icon} size={26} color={item.iconColor} />
+            </View>
+            <Text style={styles.menuLabel} numberOfLines={2}>{item.label}</Text>
+            <Text style={styles.menuDesc} numberOfLines={2}>{item.desc}</Text>
+        </TouchableOpacity>
+    );
+}
+
+export default function ApotekerDashboard() {    const { user, logout } = useAuth();
     const [stats, setStats] = useState({
         pendingOrders: 0,
         lowStock: 0,
@@ -76,8 +154,15 @@ export default function ApotekerDashboard() {
         fetchDashboardData();
     };
 
-    return (
-        <SafeAreaView style={styles.container}>
+    const menuRows = useMemo(() => {
+        const rows: MenuItem[][] = [];
+        for (let i = 0; i < MENU_ITEMS.length; i += 2) {
+            rows.push(MENU_ITEMS.slice(i, i + 2));
+        }
+        return rows;
+    }, []);
+
+    return (        <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
             <Stack.Screen options={{ headerShown: false }} />
 
@@ -123,75 +208,22 @@ export default function ApotekerDashboard() {
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME.primary]} />}
             >
                 <Text style={styles.sectionTitle}>Menu Operasional</Text>
-                
+
                 <View style={styles.gridMenu}>
-                    <TouchableOpacity 
-                        style={styles.menuCard} 
-                        onPress={() => router.push('/apoteker')}
-                    >
-                        <View style={[styles.iconBox, { backgroundColor: '#E3F2FD' }]}>
-                            <MaterialCommunityIcons name="clipboard-text-play" size={28} color={THEME.info} />
+                    {menuRows.map((row, rowIndex) => (
+                        <View
+                            key={`row-${rowIndex}`}
+                            style={[
+                                styles.menuRow,
+                                row.length === 1 && styles.menuRowSingle,
+                            ]}
+                        >
+                            {row.map((item) => (
+                                <MenuCard key={item.id} item={item} />
+                            ))}
                         </View>
-                        <Text style={styles.menuLabel}>Kelola Pesanan</Text>
-                        <Text style={styles.menuDesc}>Proses belanja user</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        style={styles.menuCard} 
-                        onPress={() => router.push('/apoteker/consultation')}
-                    >
-                        <View style={[styles.iconBox, { backgroundColor: '#F3E5F5' }]}>
-                            <MaterialCommunityIcons name="chat-processing" size={28} color="#9C27B0" />
-                        </View>
-                        <Text style={styles.menuLabel}>Konsultasi</Text>
-                        <Text style={styles.menuDesc}>Tanya jawab obat</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        style={styles.menuCard} 
-                        onPress={() => router.push('/apoteker/manage-stock')}
-                    >
-                        <View style={[styles.iconBox, { backgroundColor: '#FFF3E0' }]}>
-                            <MaterialCommunityIcons name="package-variant-closed" size={28} color={THEME.warning} />
-                        </View>
-                        <Text style={styles.menuLabel}>Stok Obat</Text>
-                        <Text style={styles.menuDesc}>Update stok gudang</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        style={styles.menuCard} 
-                        onPress={() => router.push('/apoteker/prescriptions')}
-                    >
-                        <View style={[styles.iconBox, { backgroundColor: '#E0F2F1' }]}>
-                            <MaterialCommunityIcons name="file-document-edit" size={28} color={THEME.primary} />
-                        </View>
-                        <Text style={styles.menuLabel}>Resep Digital</Text>
-                        <Text style={styles.menuDesc}>Validasi resep dokter</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        style={styles.menuCard} 
-                        onPress={() => router.push('/apoteker/finance')}
-                    >
-                        <View style={[styles.iconBox, { backgroundColor: '#F0F4F7' }]}>
-                            <MaterialCommunityIcons name="finance" size={28} color={THEME.textDark} />
-                        </View>
-                        <Text style={styles.menuLabel}>Laporan Keuangan</Text>
-                        <Text style={styles.menuDesc}>Omzet & Penjualan</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        style={styles.menuCard} 
-                        onPress={() => router.push('/apoteker/profile')}
-                    >
-                        <View style={[styles.iconBox, { backgroundColor: '#E8F5E9' }]}>
-                            <MaterialCommunityIcons name="account-cog" size={28} color={THEME.primary} />
-                        </View>
-                        <Text style={styles.menuLabel}>Pengaturan Profil</Text>
-                        <Text style={styles.menuDesc}>Data diri apoteker</Text>
-                    </TouchableOpacity>
+                    ))}
                 </View>
-
                 {/* Info Box */}
                 <View style={styles.infoBanner}>
                     <Ionicons name="information-circle" size={20} color={THEME.info} />
@@ -294,38 +326,50 @@ const styles = StyleSheet.create({
         marginBottom: 15,
     },
     gridMenu: {
+        gap: GRID_GAP,
+    },
+    menuRow: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
+        gap: GRID_GAP,
+    },
+    menuRowSingle: {
+        justifyContent: 'center',
     },
     menuCard: {
-        width: '48%',
+        width: CARD_WIDTH,
+        minHeight: 132,
         backgroundColor: THEME.white,
         borderRadius: 16,
-        padding: 15,
-        marginBottom: 15,
+        padding: 14,
         borderWidth: 1,
         borderColor: THEME.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
+        elevation: 2,
     },
     iconBox: {
-        width: 50,
-        height: 50,
+        width: 48,
+        height: 48,
         borderRadius: 14,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 10,
     },
     menuLabel: {
         fontSize: 14,
         fontWeight: '700',
         color: THEME.textDark,
+        lineHeight: 18,
+        minHeight: 36,
     },
     menuDesc: {
         fontSize: 11,
         color: THEME.textMuted,
-        marginTop: 4,
-    },
-    infoBanner: {
+        marginTop: 2,
+        lineHeight: 16,
+    },    infoBanner: {
         flexDirection: 'row',
         backgroundColor: '#E3F2FD',
         padding: 15,

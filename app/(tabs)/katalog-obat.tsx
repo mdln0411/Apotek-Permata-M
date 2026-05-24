@@ -1,3 +1,4 @@
+import ApotekLogo from '@/components/ApotekLogo';
 import axiosClient from '@/api/axiosClient';
 import { getMedicineCategories, getMedicines, MedicineListItem } from '@/api/medicineService';
 import { QuantityModal } from '@/components/QuantityModal';
@@ -364,11 +365,7 @@ export default function KatalogObatScreen() {
              {/* Header Mirroring Home Screen */}
             <View style={styles.header}>
                 <View style={styles.logoContainer}>
-                    <Image 
-                        source={require('../../assets/images/logoimk.png')} 
-                        style={{ width: 36, height: 36, borderRadius: 10, marginRight: 10 }}
-                        resizeMode="contain"
-                    />
+                    <ApotekLogo size={36} borderRadius={10} style={{ marginRight: 10 }} />
                     <View>
                         <Text style={styles.headerTitle}>APOTEK PERMATA</Text>
                         <Text style={styles.tagline}>Solusi Sehat Keluarga</Text>

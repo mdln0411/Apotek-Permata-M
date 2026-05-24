@@ -64,6 +64,12 @@ export const getMedicineCategories = async (): Promise<{ status: string; data: s
   return response.data;
 };
 
+/** Ambil daftar satuan unik dari database */
+export const getMedicineUnits = async (): Promise<{ status: string; data: string[] }> => {
+  const response = await axiosClient.get('/api/medicines/units');
+  return response.data;
+};
+
 /** Ambil daftar nama obat unik untuk simulasi */
 export const getSimulationMedicines = async (): Promise<{ status: string; data: string[] }> => {
   const response = await axiosClient.get('/api/simulasi-obat/list');

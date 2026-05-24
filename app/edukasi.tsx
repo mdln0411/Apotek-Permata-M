@@ -15,6 +15,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import axiosClient from '@/api/axiosClient';
+import { storageUrl } from '@/constants/api';
 
 interface Education {
     id: number;
@@ -117,7 +118,7 @@ export default function EdukasiScreen() {
                 ) : (
                     filteredArticles.map((article) => (
                         <TouchableOpacity key={article.id} style={styles.articleCard}>
-                            <Image source={{ uri: article.image_url }} style={styles.articleImage} />
+                            <Image source={{ uri: storageUrl(article.image_url) }} style={styles.articleImage} />
                             <View style={styles.articleInfo}>
                                 <View style={styles.categoryBadge}>
                                     <Text style={styles.categoryBadgeText}>{article.category}</Text>

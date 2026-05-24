@@ -15,13 +15,32 @@ import {
     Switch,
     ActivityIndicator,
     Modal,
-    Alert
 } from 'react-native';
+
+type AdminUser = {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+    phone?: string | null;
+    address?: string | null;
+    is_active?: boolean;
+    created_at: string;
+};
+
+const isAdminUser = (user: AdminUser) => user.role === 'admin';
+
+const isUserActive = (user: AdminUser) => user.is_active !== false;
+
+const normalizeUser = (user: any): AdminUser => ({
+    ...user,
+    is_active: user.is_active !== false,
+});
 
 export default function ManageUsers() {
     const [searchQuery, setSearchQuery] = useState('');
     const [sidebarVisible, setSidebarVisible] = useState(false);
-    const [users, setUsers] = useState<any[]>([]);
+    const [users, setUsers] = useState<AdminUser[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Modal State
@@ -48,7 +67,7 @@ export default function ManageUsers() {
             setLoading(true);
             const response = await axiosClient.get('/api/admin/users');
             if (response.data && response.data.data) {
-                setUsers(response.data.data);
+                setUsers(response.data.data.map(normalizeUser));
             } else {
                 alert('Debug: Server mengirim data kosong');
             }
@@ -65,12 +84,13 @@ export default function ManageUsers() {
         setModalVisible(true);
     };
 
-    const handleEdit = (user: any) => {
+    const handleEdit = (user: AdminUser) => {
+        const safeRole = user.role === 'apoteker' ? 'apoteker' : 'member';
         setFormData({ 
             name: user.name, 
             email: user.email, 
             password: '', 
-            role: user.role,
+            role: safeRole,
             phone: user.phone || '',
             address: user.address || ''
         });
@@ -82,6 +102,11 @@ export default function ManageUsers() {
     const handleSave = async () => {
         if (!formData.name || !formData.email || (!isEditing && !formData.password)) {
             alert('Mohon isi semua field yang wajib');
+            return;
+        }
+
+        if (formData.role !== 'member' && formData.role !== 'apoteker') {
+            alert('Role tidak valid. Pilih Member atau Apoteker.');
             return;
         }
 
@@ -114,13 +139,30 @@ export default function ManageUsers() {
         }
     };
 
-    const filteredUsers = users.filter(u => 
+    const manageableUsers = users.filter((u) => !isAdminUser(u));
+
+    const filteredUsers = manageableUsers.filter(u => 
         u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         u.email.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const toggleUserStatus = (id: string) => {
-        setUsers(users.map(u => u.id === id ? { ...u, active: !u.active } : u));
+    const toggleUserStatus = async (id: number) => {
+        const user = users.find((u) => u.id === id);
+        if (!user) return;
+
+        const nextActive = !isUserActive(user);
+        const previousUsers = users;
+
+        setUsers((prev) =>
+            prev.map((u) => (u.id === id ? { ...u, is_active: nextActive } : u))
+        );
+
+        try {
+            await axiosClient.put(`/api/admin/users/${id}`, { is_active: nextActive });
+        } catch {
+            setUsers(previousUsers);
+            alert('Gagal mengubah status user');
+        }
     };
 
     return (
@@ -134,94 +176,101 @@ export default function ManageUsers() {
             />
 
             {/* Modal Form */}
-            <Modal
-                visible={modalVisible}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>{isEditing ? 'Edit Pengguna' : 'Tambah Pengguna Baru'}</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)}>
-                                <Ionicons name="close" size={24} color="#333" />
-                            </TouchableOpacity>
-                        </View>
+            {modalVisible && (
+                <Modal
+                    visible={modalVisible}
+                    animationType="slide"
+                    transparent={true}
+                    onRequestClose={() => setModalVisible(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>{isEditing ? 'Edit Pengguna' : 'Tambah Pengguna Baru'}</Text>
+                                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                                    <Ionicons name="close" size={24} color="#333" />
+                                </TouchableOpacity>
+                            </View>
 
-                        <ScrollView showsVerticalScrollIndicator={false} style={styles.formScroll}>
-                            <Text style={styles.inputLabel}>Nama Lengkap *</Text>
-                            <TextInput 
-                                style={styles.input}
-                                placeholder="Masukkan nama lengkap"
-                                value={formData.name}
-                                onChangeText={(text) => setFormData({...formData, name: text})}
-                            />
+                            <ScrollView showsVerticalScrollIndicator={false} style={styles.formScroll}>
+                                <Text style={styles.inputLabel}>Nama Lengkap *</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    placeholder="Masukkan nama lengkap"
+                                    value={formData.name}
+                                    onChangeText={(text) => setFormData({...formData, name: text})}
+                                />
 
-                            <Text style={styles.inputLabel}>Email *</Text>
-                            <TextInput 
-                                style={styles.input}
-                                placeholder="nama@mail.com"
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                                value={formData.email}
-                                onChangeText={(text) => setFormData({...formData, email: text})}
-                            />
+                                <Text style={styles.inputLabel}>Email *</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    placeholder="nama@mail.com"
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                    value={formData.email}
+                                    onChangeText={(text) => setFormData({...formData, email: text})}
+                                />
 
-                            <Text style={styles.inputLabel}>Nomor Telepon</Text>
-                            <TextInput 
-                                style={styles.input}
-                                placeholder="0812..."
-                                keyboardType="phone-pad"
-                                value={formData.phone}
-                                onChangeText={(text) => setFormData({...formData, phone: text})}
-                            />
+                                <Text style={styles.inputLabel}>Nomor Telepon</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    placeholder="0812..."
+                                    keyboardType="phone-pad"
+                                    value={formData.phone}
+                                    onChangeText={(text) => setFormData({...formData, phone: text})}
+                                />
 
-                            <Text style={styles.inputLabel}>Alamat</Text>
-                            <TextInput 
-                                style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-                                placeholder="Alamat lengkap"
-                                multiline
-                                numberOfLines={3}
-                                value={formData.address}
-                                onChangeText={(text) => setFormData({...formData, address: text})}
-                            />
+                                <Text style={styles.inputLabel}>Alamat</Text>
+                                <TextInput 
+                                    style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                                    placeholder="Alamat lengkap"
+                                    multiline
+                                    numberOfLines={3}
+                                    value={formData.address}
+                                    onChangeText={(text) => setFormData({...formData, address: text})}
+                                />
 
-                            {!isEditing && (
-                                <>
-                                    <Text style={styles.inputLabel}>Password *</Text>
-                                    <TextInput 
-                                        style={styles.input}
-                                        placeholder="Minimal 8 karakter"
-                                        secureTextEntry
-                                        value={formData.password}
-                                        onChangeText={(text) => setFormData({...formData, password: text})}
-                                    />
-                                </>
-                            )}
+                                {!isEditing && (
+                                    <>
+                                        <Text style={styles.inputLabel}>Password *</Text>
+                                        <TextInput 
+                                            style={styles.input}
+                                            placeholder="Minimal 8 karakter"
+                                            secureTextEntry
+                                            value={formData.password}
+                                            onChangeText={(text) => setFormData({...formData, password: text})}
+                                        />
+                                    </>
+                                )}
 
-                            <Text style={styles.inputLabel}>Role / Peran *</Text>
-                            <View style={styles.roleSelection}>
-                                {['member', 'apoteker', 'admin'].map((role) => (
+                                <Text style={styles.inputLabel}>Role / Peran *</Text>
+                                <View style={styles.roleSelection}>
                                     <TouchableOpacity 
-                                        key={role}
-                                        style={[styles.roleOption, formData.role === role && styles.roleOptionActive]}
-                                        onPress={() => setFormData({...formData, role: role})}
+                                        style={[styles.roleOption, formData.role === 'member' && styles.roleOptionActive]}
+                                        onPress={() => setFormData({ ...formData, role: 'member' })}
                                     >
-                                        <Text style={[styles.roleOptionText, formData.role === role && styles.roleOptionTextActive]}>
-                                            {role.toUpperCase()}
+                                        <Text style={[styles.roleOptionText, formData.role === 'member' && styles.roleOptionTextActive]}>
+                                            MEMBER
                                         </Text>
                                     </TouchableOpacity>
-                                ))}
-                            </View>
-                        </ScrollView>
+                                    <TouchableOpacity 
+                                        style={[styles.roleOption, formData.role === 'apoteker' && styles.roleOptionActive]}
+                                        onPress={() => setFormData({ ...formData, role: 'apoteker' })}
+                                    >
+                                        <Text style={[styles.roleOptionText, formData.role === 'apoteker' && styles.roleOptionTextActive]}>
+                                            APOTEKER
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </ScrollView>
 
-                        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                            <Text style={styles.saveBtnText}>{isEditing ? 'Simpan Perubahan' : 'Buat Akun'}</Text>
-                        </TouchableOpacity>
+                            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+                                <Text style={styles.saveBtnText}>{isEditing ? 'Simpan Perubahan' : 'Buat Akun'}</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
-            </Modal>
+                </Modal>
+            )}
 
             {/* Header */}
             <View style={styles.topBar}>
@@ -234,9 +283,6 @@ export default function ManageUsers() {
                         <Text style={styles.backText}>Kembali</Text>
                     </TouchableOpacity>
                 </View>
-                <TouchableOpacity style={styles.profileCircle}>
-                    <Ionicons name="person-outline" size={20} color="#FFF" />
-                </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -245,7 +291,7 @@ export default function ManageUsers() {
                 <View style={styles.headerRow}>
                     <View>
                         <Text style={styles.pageTitle}>Data Pengguna</Text>
-                        <Text style={styles.pageSub}>{users.length} total akun</Text>
+                        <Text style={styles.pageSub}>{manageableUsers.length} total akun</Text>
                     </View>
                     <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
                         <Ionicons name="person-add" size={18} color="#FFF" />
@@ -268,8 +314,10 @@ export default function ManageUsers() {
                 <View style={styles.listContainer}>
                     {loading ? (
                         <ActivityIndicator size="large" color="#2E8B57" style={{ marginTop: 20 }} />
-                    ) : filteredUsers.map((user) => (
-                        <View key={user.id} style={[styles.userCard, !user.active && styles.inactiveCard]}>
+                    ) : filteredUsers.map((user) => {
+                        const active = isUserActive(user);
+                        return (
+                        <View key={user.id} style={[styles.userCard, !active && styles.inactiveCard]}>
                             <View style={styles.avatarWrapper}>
                                 <View style={styles.avatar}>
                                     <Ionicons name="person" size={24} color="#2E8B57" />
@@ -279,7 +327,7 @@ export default function ManageUsers() {
                             <View style={styles.userInfo}>
                                 <View style={styles.nameRoleRow}>
                                     <Text style={styles.userName} numberOfLines={1}>{user.name}</Text>
-                                    <View style={[styles.roleBadge, { backgroundColor: user.role === 'admin' ? '#1B5E20' : user.role === 'apoteker' ? '#2E8B57' : '#E8F5E9' }]}>
+                                    <View style={[styles.roleBadge, { backgroundColor: user.role === 'apoteker' ? '#2E8B57' : '#E8F5E9' }]}>
                                         <Text style={[styles.roleText, { color: user.role === 'member' ? '#2E8B57' : '#FFF' }]}>{user.role.toUpperCase()}</Text>
                                     </View>
                                 </View>
@@ -300,14 +348,15 @@ export default function ManageUsers() {
 
                             <View style={styles.actionArea}>
                                 <Switch 
-                                    value={user.active !== false} 
+                                    value={active} 
                                     onValueChange={() => toggleUserStatus(user.id)}
                                     trackColor={{ false: '#DDD', true: '#A5D6A7' }}
-                                    thumbColor={user.active !== false ? '#2E8B57' : '#FFF'}
+                                    thumbColor={active ? '#2E8B57' : '#FFF'}
                                 />
                             </View>
                         </View>
-                    ))}
+                        );
+                    })}
                 </View>
 
             </ScrollView>
@@ -330,7 +379,6 @@ const styles = StyleSheet.create({
     menuIcon: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
     backRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     backText: { color: '#FFF', fontSize: 14, fontWeight: '500' },
-    profileCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
     scrollContent: { padding: 20 },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
     headerTitleRow: { marginBottom: 20 },

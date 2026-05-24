@@ -55,6 +55,15 @@ class AuthController extends Controller
         }
 
         $user = User::where('email', $request['email'])->firstOrFail();
+
+        if ($user->is_active === false) {
+            Auth::logout();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Akun Anda dinonaktifkan. Hubungi admin.',
+            ], 403);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -93,7 +102,7 @@ class AuthController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => User::orderBy('created_at', 'desc')->get()
+            'data' => User::where('role', '!=', 'admin')->orderBy('created_at', 'desc')->get()
         ]);
     }
 
@@ -103,7 +112,7 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
-            'role' => 'required|string|in:member,apoteker,admin',
+            'role' => 'required|string|in:member,apoteker',
         ]);
 
         $user = User::create([
@@ -119,11 +128,18 @@ class AuthController extends Controller
     public function updateUser(Request $request, $id)
     {
         $user = User::findOrFail($id);
+
+        if ($user->role === 'admin') {
+            return response()->json(['status' => 'error', 'message' => 'Data admin tidak dapat diubah'], 403);
+        }
         
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'email' => 'sometimes|required|email|unique:users,email,'.$id,
-            'role' => 'sometimes|required|string|in:member,apoteker,admin',
+            'role' => 'sometimes|required|string|in:member,apoteker',
+            'phone' => 'nullable|string',
+            'address' => 'nullable|string',
+            'is_active' => 'sometimes|boolean',
         ]);
 
         $user->update($validated);

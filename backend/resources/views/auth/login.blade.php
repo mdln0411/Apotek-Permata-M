@@ -16,11 +16,7 @@
         <!-- Brand Side -->
         <div class="md:w-1/2 bg-emerald-50 p-12 flex flex-col justify-between relative overflow-hidden">
             <div class="relative z-10">
-                <div class="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-emerald-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.673.337a4 4 0 01-1.909.477H9" />
-                    </svg>
-                </div>
+                <img src="{{ asset('images/logo-apotek-permata.png') }}" alt="Apotek Permata" class="w-12 h-12 rounded-2xl object-contain bg-white p-1 shadow-lg shadow-emerald-200 mb-8">
                 <h1 class="text-3xl font-extrabold text-emerald-900 leading-tight mb-4">Portal Khusus <br/>Staff Apotek</h1>
                 <p class="text-emerald-700 opacity-70 text-sm leading-relaxed">Kelola pesanan, stok obat, dan konsultasi pasien dalam satu sistem yang terintegrasi.</p>
             </div>
