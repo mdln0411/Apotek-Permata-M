@@ -64,6 +64,12 @@ export const getMedicineCategories = async (): Promise<{ status: string; data: s
   return response.data;
 };
 
+/** Hapus obat dari katalog (soft delete di backend) */
+export const deleteMedicine = async (id: number): Promise<{ status: string; message: string }> => {
+  const response = await axiosClient.delete(`/api/medicines/${id}`);
+  return response.data;
+};
+
 /** Ambil daftar satuan unik dari database */
 export const getMedicineUnits = async (): Promise<{ status: string; data: string[] }> => {
   const response = await axiosClient.get('/api/medicines/units');

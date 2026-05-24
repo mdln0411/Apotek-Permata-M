@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\EducationController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\FinanceController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\MedicineReminderController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\ConsultationController;
@@ -116,6 +117,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/orders', [OrderController::class, 'allOrders']);
         Route::put('/admin/orders/{id}/status', [OrderController::class, 'updateStatus']);
         Route::post('/admin/orders/{id}/verify-payment', [OrderController::class, 'verifyPayment']);
+        Route::post('/admin/orders/{id}/pickup-complete', [OrderController::class, 'markPickupComplete']);
     });
 
     // --- Admin Only Routes ---
@@ -125,6 +127,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/users/{id}', [AuthController::class, 'updateUser']);
         Route::delete('/users/{id}', [AuthController::class, 'destroyUser']);
         Route::get('/dashboard/stats', [DashboardController::class, 'index']);
+        Route::get('/reports', [ReportController::class, 'index']);
     });
 
 

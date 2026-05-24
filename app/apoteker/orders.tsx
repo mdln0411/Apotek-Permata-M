@@ -1,5 +1,6 @@
 import axiosClient from '@/api/axiosClient';
 import { getOrderStatusLabel, normalizeOrderStatus } from '@/utils/orderStatus';
+import { isPickupOrder } from '@/utils/orderFulfillment';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -79,6 +80,16 @@ export default function PesananMasuk() {
             fetchOrders();
         } catch (error: any) {
             alert(error.response?.data?.message || 'Gagal memperbarui status');
+        }
+    };
+
+    const handlePickupComplete = async (id: number) => {
+        try {
+            const res = await axiosClient.post(`/api/admin/orders/${id}/pickup-complete`);
+            alert(res.data?.message || 'Pesanan selesai — sudah dijemput pasien.');
+            fetchOrders();
+        } catch (error: any) {
+            alert(error.response?.data?.message || 'Gagal menandai pesanan sudah dijemput');
         }
     };
 
@@ -316,12 +327,21 @@ export default function PesananMasuk() {
                                     </View>
                                 )}
                                 {activeTab === 'diproses' && (
-                                    <TouchableOpacity 
-                                        style={[styles.btnTerima, { backgroundColor: THEME.warning }]}
-                                        onPress={() => handleUpdateStatus(item.id, 'dikirim')}
-                                    >
-                                        <Text style={styles.btnTerimaText}>Tandai Dikirim</Text>
-                                    </TouchableOpacity>
+                                    isPickupOrder(item) ? (
+                                        <TouchableOpacity
+                                            style={[styles.btnTerima, { backgroundColor: THEME.primary }]}
+                                            onPress={() => handlePickupComplete(item.id)}
+                                        >
+                                            <Text style={styles.btnTerimaText}>Sudah di Jemput</Text>
+                                        </TouchableOpacity>
+                                    ) : (
+                                        <TouchableOpacity
+                                            style={[styles.btnTerima, { backgroundColor: THEME.warning }]}
+                                            onPress={() => handleUpdateStatus(item.id, 'dikirim')}
+                                        >
+                                            <Text style={styles.btnTerimaText}>Tandai Dikirim</Text>
+                                        </TouchableOpacity>
+                                    )
                                 )}
                                 {activeTab === 'dikirim' && (
                                     <View style={[styles.btnTerima, { backgroundColor: '#FFF3E0', elevation: 0 }]}>

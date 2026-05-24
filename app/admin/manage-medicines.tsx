@@ -1,6 +1,7 @@
 import axiosClient from '@/api/axiosClient';
 import { getMedicineCategories, getMedicineUnits } from '@/api/medicineService';
 import AdminSidebar from '@/components/AdminSidebar';
+import { AppAlertModal, AppAlertType } from '@/components/AppAlertModal';
 import {
     MEDICINE_CATEGORIES,
     mergeUnitOptions,
@@ -54,6 +55,23 @@ const EMPTY_FORM: FormData = {
     composition: '',
     usage_duration: '',
     image_url: '',
+};
+
+type AlertConfig = {
+    visible: boolean;
+    type: AppAlertType;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm?: () => void;
+};
+
+const DEFAULT_ALERT: AlertConfig = {
+    visible: false,
+    type: 'info',
+    title: '',
+    message: '',
 };
 
 function OptionPicker({
@@ -115,6 +133,16 @@ export default function ManageMedicines() {
     const [categoryOptions, setCategoryOptions] = useState<string[]>([...MEDICINE_CATEGORIES]);
     const [dbUnitOptions, setDbUnitOptions] = useState<string[]>([]);
     const [imageUri, setImageUri] = useState<string | null>(null);
+    const [alertConfig, setAlertConfig] = useState<AlertConfig>(DEFAULT_ALERT);
+    const [deletingId, setDeletingId] = useState<number | null>(null);
+
+    const showAlert = (config: Omit<AlertConfig, 'visible'>) => {
+        setAlertConfig({ ...config, visible: true });
+    };
+
+    const closeAlert = () => {
+        setAlertConfig((prev) => ({ ...prev, visible: false, onConfirm: undefined }));
+    };
 
     useEffect(() => {
         fetchMedicines();
@@ -302,17 +330,42 @@ export default function ManageMedicines() {
         }
     };
 
-    const handleDelete = (id: number) => {
-        if (confirm('Apakah Anda yakin ingin menghapus obat ini?')) {
-            (async () => {
-                try {
-                    await axiosClient.delete(`/api/medicines/${id}`);
-                    fetchMedicines();
-                } catch (error) {
-                    alert('Gagal menghapus obat');
-                }
-            })();
-        }
+    const handleDelete = (item: { id: number; name: string }) => {
+        showAlert({
+            type: 'confirm',
+            title: 'Buang Obat?',
+            message: `Obat "${item.name}" akan dihapus dari katalog dan tidak tampil lagi untuk admin, apoteker, maupun pasien.`,
+            confirmText: 'Ya, Buang',
+            cancelText: 'Batal',
+            onConfirm: () => {
+                (async () => {
+                    try {
+                        setDeletingId(item.id);
+                        await axiosClient.delete(`/api/medicines/${item.id}`);
+                        setMedicines((prev) => prev.filter((m) => m.id !== item.id));
+                        setTimeout(() => {
+                            showAlert({
+                                type: 'success',
+                                title: 'Obat Dibuang',
+                                message: `"${item.name}" telah dihapus dari katalog aplikasi.`,
+                                confirmText: 'Selesai',
+                            });
+                        }, 250);
+                    } catch (error: any) {
+                        setTimeout(() => {
+                            showAlert({
+                                type: 'error',
+                                title: 'Gagal Membuang',
+                                message: error.response?.data?.message || 'Obat tidak dapat dihapus. Silakan coba lagi.',
+                                confirmText: 'Tutup',
+                            });
+                        }, 250);
+                    } finally {
+                        setDeletingId(null);
+                    }
+                })();
+            },
+        });
     };
 
     const lowStockCount = Array.isArray(medicines) ? medicines.filter(m => m.stock < 10).length : 0;
@@ -348,6 +401,17 @@ export default function ManageMedicines() {
                 visible={sidebarVisible} 
                 onClose={() => setSidebarVisible(false)} 
                 activePage="medicines" 
+            />
+
+            <AppAlertModal
+                visible={alertConfig.visible}
+                type={alertConfig.type}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                confirmText={alertConfig.confirmText}
+                cancelText={alertConfig.cancelText}
+                onClose={closeAlert}
+                onConfirm={alertConfig.onConfirm}
             />
 
             {/* Modal Form */}
@@ -656,8 +720,20 @@ export default function ManageMedicines() {
                                     <TouchableOpacity style={styles.actionBtn} onPress={() => handleEdit(item)}>
                                         <Feather name="edit-3" size={18} color="#999" />
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item.id)}>
-                                        <Feather name="trash-2" size={18} color="#FF5252" />
+                                    <TouchableOpacity
+                                        style={[styles.actionBtn, styles.discardBtn]}
+                                        onPress={() => handleDelete(item)}
+                                        disabled={deletingId === item.id}
+                                        accessibilityLabel="Buang obat"
+                                    >
+                                        {deletingId === item.id ? (
+                                            <ActivityIndicator size="small" color="#FF5252" />
+                                        ) : (
+                                            <>
+                                                <Feather name="trash-2" size={16} color="#FF5252" />
+                                                <Text style={styles.discardBtnText}>Buang</Text>
+                                            </>
+                                        )}
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -713,8 +789,20 @@ const styles = StyleSheet.create({
     unitText: { fontSize: 10, color: '#1976D2', fontWeight: 'bold' },
     medPrice: { fontSize: 13, color: '#2E8B57', fontWeight: 'bold' },
     medStock: { color: '#999', fontWeight: 'normal' },
-    actionBtns: { flexDirection: 'row', gap: 10, marginLeft: 10 },
+    actionBtns: { flexDirection: 'row', gap: 10, marginLeft: 10, alignItems: 'center' },
     actionBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F9F9F9', justifyContent: 'center', alignItems: 'center' },
+    discardBtn: {
+        width: 'auto',
+        minWidth: 72,
+        height: 36,
+        flexDirection: 'row',
+        gap: 4,
+        paddingHorizontal: 10,
+        backgroundColor: '#FFF5F5',
+        borderWidth: 1,
+        borderColor: '#FFCDD2',
+    },
+    discardBtnText: { fontSize: 11, fontWeight: '700', color: '#FF5252' },
     
     // Modal Styles
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },

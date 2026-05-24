@@ -50,11 +50,30 @@ class CartController extends Controller
         ]);
 
         $medicine = Medicine::findOrFail($request->medicine_id);
+
+        if (!$medicine->is_active) {
+            return response()->json(['status' => 'error', 'message' => 'Obat tidak tersedia.'], 400);
+        }
+
+        $available = max(0, (int) $medicine->stock);
+        if ($available < 1) {
+            return response()->json(['status' => 'error', 'message' => 'Stok obat habis.'], 400);
+        }
+
         $cart = Cart::firstOrCreate(['user_id' => $request->user()->id]);
 
         $cartItem = CartItem::where('cart_id', $cart->id)
             ->where('medicine_id', $medicine->id)
             ->first();
+
+        $requestedQty = (int) $request->quantity;
+        $newQty = $requestedQty + ($cartItem ? (int) $cartItem->quantity : 0);
+        if ($newQty > $available) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Stok tidak mencukupi. Maksimal {$available} unit.",
+            ], 400);
+        }
 
         if ($cartItem) {
             $cartItem->update([
@@ -83,14 +102,23 @@ class CartController extends Controller
             'quantity' => 'required|integer|min:1',
         ]);
 
-        $cartItem = CartItem::findOrFail($id);
+        $cartItem = CartItem::with('medicine')->findOrFail($id);
         
         // Pastikan item milik user yang login
         if ($cartItem->cart->user_id !== $request->user()->id) {
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
         }
 
-        $cartItem->update(['quantity' => $request->quantity]);
+        $available = max(0, (int) ($cartItem->medicine->stock ?? 0));
+        $requestedQty = (int) $request->quantity;
+        if ($requestedQty > $available) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Stok tidak mencukupi. Maksimal {$available} unit.",
+            ], 400);
+        }
+
+        $cartItem->update(['quantity' => $requestedQty]);
 
         return response()->json([
             'status' => 'success',

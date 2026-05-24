@@ -7,12 +7,17 @@ use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Notifications\AppNotification;
+use App\Services\OrderStockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
+    public function __construct(private OrderStockService $orderStock)
+    {
+    }
+
     public function index(Request $request)
     {
         $orders = Order::where('user_id', $request->user()->id)
@@ -31,6 +36,7 @@ class OrderController extends Controller
         $request->validate([
             'shipping_address' => 'required|string',
             'notes' => 'nullable|string',
+            'payment_method' => 'nullable|string|max:100',
             'item_ids' => 'nullable|array',
             'item_ids.*' => 'integer',
             'prescription_id' => 'nullable|integer|exists:prescriptions,id',
@@ -72,7 +78,7 @@ class OrderController extends Controller
                 );
 
                 // Create Order
-                $order = Order::create([
+                $orderPayload = [
                     'user_id' => $user->id,
                     'prescription_id' => $prescription->id,
                     'order_number' => 'ORD-' . strtoupper(Str::random(10)),
@@ -81,7 +87,20 @@ class OrderController extends Controller
                     'total_price' => $prescription->total_price,
                     'shipping_address' => $request->shipping_address,
                     'notes' => $request->notes,
-                ]);
+                ];
+
+                if ($request->filled('payment_method')) {
+                    $orderPayload['payment_method'] = $request->payment_method;
+                }
+
+                if (
+                    Order::isPickupAddress($request->shipping_address)
+                    && Order::isCodPayment($request->payment_method, $request->notes)
+                ) {
+                    $orderPayload['status'] = 'perlu_diproses';
+                }
+
+                $order = Order::create($orderPayload);
 
                 // Create Order Item representing the prescription
                 OrderItem::create([
@@ -132,6 +151,14 @@ class OrderController extends Controller
         }
 
         return DB::transaction(function () use ($user, $cart, $request, $cartItems, $itemIds) {
+            $stockError = $this->orderStock->assertCartItemsInStock($cartItems);
+            if ($stockError) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $stockError,
+                ], 400);
+            }
+
             $totalPrice = 0;
 
             // Hitung total harga
@@ -140,7 +167,7 @@ class OrderController extends Controller
             }
 
             // Buat Order
-            $order = Order::create([
+            $orderPayload = [
                 'user_id' => $user->id,
                 'order_number' => 'ORD-' . strtoupper(Str::random(10)),
                 'status' => 'menunggu_pembayaran',
@@ -148,7 +175,20 @@ class OrderController extends Controller
                 'total_price' => $totalPrice,
                 'shipping_address' => $request->shipping_address,
                 'notes' => $request->notes,
-            ]);
+            ];
+
+            if ($request->filled('payment_method')) {
+                $orderPayload['payment_method'] = $request->payment_method;
+            }
+
+            if (
+                Order::isPickupAddress($request->shipping_address)
+                && Order::isCodPayment($request->payment_method, $request->notes)
+            ) {
+                $orderPayload['status'] = 'perlu_diproses';
+            }
+
+            $order = Order::create($orderPayload);
 
             // Pindahkan item dari cart ke order_items
             foreach ($cartItems as $item) {
@@ -160,12 +200,6 @@ class OrderController extends Controller
                     'price' => $item->price,
                     'subtotal' => $item->price * $item->quantity,
                 ]);
-
-                // Kurangi stok obat
-                $medicine = $item->medicine;
-                if ($medicine && $medicine->stock >= $item->quantity) {
-                    $medicine->decrement('stock', $item->quantity);
-                }
             }
 
             // Kosongkan keranjang (hanya item yang dicheckout)
@@ -251,17 +285,26 @@ class OrderController extends Controller
             ]);
         }
 
-        // Return stock if cancelled
-        if ($newStatus === 'dibatalkan' && $oldStatus !== 'dibatalkan') {
-            foreach ($order->items as $item) {
-                $medicine = \App\Models\Medicine::find($item->medicine_id);
-                if ($medicine) {
-                    $medicine->increment('stock', $item->quantity);
-                }
-            }
+        if ($order->isPickup() && $newStatus === 'dikirim') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pesanan ambil di apotek tidak dapat ditandai dikirim. Gunakan tombol "Sudah di Jemput".',
+            ], 400);
         }
 
-        $order->update(['status' => $newStatus]);
+        // Kembalikan stok jika pesanan dibatalkan setelah selesai / stok sudah dikurangi
+        if ($newStatus === 'dibatalkan' && $oldStatus !== 'dibatalkan') {
+            $this->orderStock->restoreForOrder($order);
+        }
+
+        $order->update([
+            'status' => $newStatus,
+            'processed_by' => $request->user()->id,
+        ]);
+
+        if ($newStatus === 'selesai' && !$this->orderStock->isCompletedStatus($oldStatus)) {
+            $this->orderStock->deductForOrder($order->fresh());
+        }
 
         // Send notifications based on status change
         $title = '';
@@ -319,6 +362,7 @@ class OrderController extends Controller
 
         $order->status = 'selesai';
         $order->save();
+        $this->orderStock->deductForOrder($order->fresh());
 
         $order->user->notify(new AppNotification(
             'Pesanan Selesai',
@@ -395,14 +439,17 @@ class OrderController extends Controller
 
         $order->update([
             'payment_status' => 'paid',
-            'status' => 'perlu_diproses',
+            'status' => $order->isPickup() ? 'sedang_diproses' : 'perlu_diproses',
             'payment_confirmed_at' => now(),
+            'processed_by' => $request->user()->id,
         ]);
 
         // Send Notification to User
         $order->user->notify(new AppNotification(
             'Pembayaran Berhasil Diverifikasi',
-            "Pembayaran untuk pesanan {$order->order_number} telah berhasil diverifikasi oleh apoteker dan sekarang sedang disiapkan.",
+            $order->isPickup()
+                ? "Pembayaran pesanan {$order->order_number} telah diverifikasi. Obat sedang disiapkan — silakan ambil di apotek."
+                : "Pembayaran untuk pesanan {$order->order_number} telah berhasil diverifikasi oleh apoteker dan sekarang sedang disiapkan.",
             'order'
         ));
 
@@ -451,13 +498,7 @@ class OrderController extends Controller
             'notes' => $order->notes . $cancellationNote
         ]);
 
-        // Return stock back
-        foreach ($order->items as $item) {
-            $medicine = \App\Models\Medicine::find($item->medicine_id);
-            if ($medicine) {
-                $medicine->increment('stock', $item->quantity);
-            }
-        }
+        $this->orderStock->restoreForOrder($order->fresh());
 
         // Kirim Notifikasi
         $order->user->notify(new AppNotification(
@@ -470,6 +511,69 @@ class OrderController extends Controller
             'status' => 'success',
             'message' => 'Pesanan berhasil dibatalkan.',
             'data' => $order->load('items')
+        ]);
+    }
+
+    /**
+     * Apoteker menandai pesanan ambil di apotek sudah dijemput pasien → selesai.
+     * Untuk COD, pembayaran dicatat ke keuangan saat ini.
+     */
+    public function markPickupComplete(Request $request, $id)
+    {
+        $userRole = $request->user()->role;
+        if ($userRole !== 'admin' && $userRole !== 'apoteker') {
+            return response()->json(['status' => 'error', 'message' => 'Forbidden'], 403);
+        }
+
+        $order = Order::findOrFail($id);
+
+        if (!$order->isPickup()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Aksi ini hanya untuk pesanan ambil di apotek.',
+            ], 400);
+        }
+
+        if ($order->status !== 'sedang_diproses') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pesanan harus berstatus sedang diproses sebelum ditandai sudah dijemput.',
+            ], 400);
+        }
+
+        $updates = [
+            'status' => 'selesai',
+            'processed_by' => $request->user()->id,
+        ];
+
+        if ($order->isCod()) {
+            $updates['payment_status'] = 'paid';
+            $updates['payment_confirmed_at'] = now();
+            if (!$order->payment_method) {
+                $updates['payment_method'] = 'Bayar di Apotek (COD)';
+            }
+        } elseif ($order->payment_status !== 'paid') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pembayaran belum diverifikasi. Verifikasi pembayaran terlebih dahulu.',
+            ], 400);
+        }
+
+        $order->update($updates);
+        $this->orderStock->deductForOrder($order->fresh());
+
+        $order->user->notify(new AppNotification(
+            'Pesanan Selesai',
+            "Pesanan {$order->order_number} telah selesai. Terima kasih telah berbelanja di Apotek Permata!",
+            'order'
+        ));
+
+        return response()->json([
+            'status' => 'success',
+            'message' => $order->isCod()
+                ? 'Pesanan selesai. Pembayaran COD telah dicatat ke keuangan.'
+                : 'Pesanan berhasil ditandai sudah dijemput.',
+            'data' => $order->fresh(),
         ]);
     }
 }

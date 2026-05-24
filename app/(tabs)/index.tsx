@@ -405,11 +405,15 @@ export default function HomeScreen() {
                         >
                             <View style={styles.productImageWrapper}>
                                 {renderMedicineImage(item)}
-                                {item.stock < 5 && (
+                                {Number(item.stock) === 0 ? (
+                                    <View style={[styles.stockLabel, styles.stockLabelEmpty]}>
+                                        <Text style={styles.stockText}>Habis</Text>
+                                    </View>
+                                ) : Number(item.stock) < 5 ? (
                                     <View style={styles.stockLabel}>
                                         <Text style={styles.stockText}>Sisa {item.stock}</Text>
                                     </View>
-                                )}
+                                ) : null}
                             </View>
                             <View style={styles.productInfo}>
                                 <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
@@ -767,6 +771,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderBottomRightRadius: 10,
+    },
+    stockLabelEmpty: {
+        backgroundColor: 'rgba(211, 47, 47, 0.9)',
     },
     stockText: { color: THEME.white, fontSize: 10, fontWeight: 'bold' },
     productInfo: { marginTop: 10 },

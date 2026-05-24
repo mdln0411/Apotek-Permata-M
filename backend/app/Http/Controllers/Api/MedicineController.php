@@ -133,7 +133,7 @@ class MedicineController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Medicine::query()->where('category', '!=', 'Resep');
+        $query = Medicine::query()->active()->where('category', '!=', 'Resep');
         $searchLower = null;
 
         if ($request->filled('search')) {
@@ -193,7 +193,7 @@ class MedicineController extends Controller
      */
     public function show($id)
     {
-        $medicine = Medicine::find($id);
+        $medicine = Medicine::active()->find($id);
 
         if (!$medicine) {
             return response()->json([
@@ -228,6 +228,7 @@ class MedicineController extends Controller
     public function units()
     {
         $rawUnits = Medicine::query()
+            ->active()
             ->whereNotNull('unit')
             ->where('unit', '!=', '')
             ->distinct()
@@ -249,7 +250,7 @@ class MedicineController extends Controller
             'unit' => MedicineUnitService::displayUnit($medicine->unit),
             'price' => $medicine->price,
             'price_formatted' => 'Rp ' . number_format($medicine->price, 0, ',', '.'),
-            'stock' => $medicine->stock,
+            'stock' => max(0, (int) $medicine->stock),
             'image_url' => $medicine->image_url,
             'prescription_required' => $medicine->prescription_required,
         ];
@@ -300,6 +301,8 @@ class MedicineController extends Controller
             $validated['unit'] = MedicineUnitService::displayUnit($validated['unit']);
         }
 
+        $validated['is_active'] = true;
+
         $medicine = Medicine::create($validated);
 
         return response()->json(['status' => 'success', 'message' => 'Obat berhasil ditambahkan', 'data' => $medicine], 201);
@@ -345,11 +348,25 @@ class MedicineController extends Controller
 
     /**
      * DELETE /api/medicines/{id}
+     * Soft delete — obat disembunyikan dari katalog semua role.
      */
     public function destroy($id)
     {
-        Medicine::findOrFail($id)->delete();
-        return response()->json(['status' => 'success', 'message' => 'Obat berhasil dihapus']);
+        $medicine = Medicine::findOrFail($id);
+
+        if (!$medicine->is_active) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Obat sudah tidak ditampilkan di katalog',
+            ]);
+        }
+
+        $medicine->update(['is_active' => false]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Obat berhasil dihapus dari katalog',
+        ]);
     }
 
     /**

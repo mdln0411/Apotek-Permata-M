@@ -20,13 +20,7 @@ class FinanceStatsService
 
   public function isValidOrder(Order $order): bool
   {
-    if ($order->payment_status === 'paid') {
-      return true;
-    }
-
-    $status = strtolower(trim((string) $order->status));
-
-    return in_array($status, self::VALID_STATUSES, true);
+    return $order->payment_status === 'paid';
   }
 
   public function orderGrandTotal(Order $order): float

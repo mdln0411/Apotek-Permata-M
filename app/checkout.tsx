@@ -249,6 +249,7 @@ export default function CheckoutScreen() {
                 notes: isAmbilDiApotek
                     ? `Ambil di Apotek | Jam: ${jamJemput} | Pembayaran: ${selectedPayment.label}`
                     : `Pengantaran | Pembayaran: ${selectedPayment.label}`,
+                payment_method: selectedPayment?.label ?? '',
             };
 
             if (prescription_id) {

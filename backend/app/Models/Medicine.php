@@ -26,6 +26,7 @@ class Medicine extends Model
         'contraindications',
         'image_url',
         'prescription_required',
+        'is_active',
     ];
 
     /**
@@ -35,5 +36,11 @@ class Medicine extends Model
         'price'                  => 'integer',
         'stock'                  => 'integer',
         'prescription_required'  => 'boolean',
+        'is_active'              => 'boolean',
     ];
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
 }

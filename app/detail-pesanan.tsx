@@ -2,6 +2,7 @@ import axiosClient from '@/api/axiosClient';
 import { storageUrl } from '@/constants/api';
 import { useAuth } from '@/context/AuthContext';
 import { normalizeOrderStatus } from '@/utils/orderStatus';
+import { isPickupOrder } from '@/utils/orderFulfillment';
 import { showAppAlert } from '@/utils/alert';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -237,7 +238,10 @@ export default function DetailPesananScreen() {
 
             if (newStatus === 'verify_payment') {
                 response = await axiosClient.post(`/api/admin/orders/${orderId}/verify-payment`);
-                newActualStatus = 'perlu_diproses';
+                newActualStatus = response.data?.data?.status ?? (isPickupOrder(order ?? {}) ? 'sedang_diproses' : 'perlu_diproses');
+            } else if (newStatus === 'pickup_complete') {
+                response = await axiosClient.post(`/api/admin/orders/${orderId}/pickup-complete`);
+                newActualStatus = 'selesai';
             } else {
                 response = await axiosClient.put(`/api/admin/orders/${orderId}/status`, { status: newStatus });
             }
@@ -253,12 +257,14 @@ export default function DetailPesananScreen() {
                     successTitle = 'Pembayaran Diverifikasi!';
                     successMessage = `Pembayaran untuk pesanan #${order?.order_number} telah berhasil diverifikasi. Pesanan masuk ke tahap perlu diproses.`;
                 } else if (newActualStatus === 'sedang_diproses') {
-                    successTitle = 'Pesanan Diproses';
-                    successMessage = `Pesanan #${order?.order_number} sekarang sedang diproses.`;
+                    successTitle = order && isPickupOrder(order) ? 'Pesanan Siap Diproses!' : 'Pesanan Diproses';
+                    successMessage = order && isPickupOrder(order)
+                        ? `Pembayaran pesanan #${order?.order_number} diverifikasi. Obat sedang disiapkan untuk diambil di apotek.`
+                        : `Pesanan #${order?.order_number} sekarang sedang diproses.`;
                 } else if (newActualStatus === 'dikirim') {
                     successTitle = 'Pesanan Dikirim!';
                     successMessage = `Pesanan #${order?.order_number} telah berhasil diserahkan ke kurir dan sedang dalam perjalanan.`;
-                } else if (newStatus === 'selesai') {
+                } else if (newStatus === 'selesai' || newStatus === 'pickup_complete') {
                     successTitle = 'Pesanan Selesai!';
                     successMessage = `Pesanan #${order?.order_number} telah berhasil diselesaikan.`;
                 }
@@ -386,7 +392,11 @@ export default function DetailPesananScreen() {
                         </View>
                         <Text style={styles.modalTitle}>Ubah Status Pesanan?</Text>
                         <Text style={styles.modalSubtitle}>
-                            Apakah Anda yakin ingin mengubah status pesanan ini menjadi {pendingStatus?.toUpperCase()}?
+                            {pendingStatus === 'pickup_complete'
+                                ? 'Tandai pesanan ini sudah dijemput pasien dan selesai?'
+                                : pendingStatus === 'verify_payment' && isPickupOrder(o)
+                                  ? 'Verifikasi pembayaran dan mulai siapkan obat untuk diambil di apotek?'
+                                  : `Apakah Anda yakin ingin mengubah status pesanan ini menjadi ${pendingStatus?.toUpperCase()}?`}
                         </Text>
                         
                         <View style={styles.modalButtons}>
@@ -582,11 +592,18 @@ export default function DetailPesananScreen() {
                             (o.status || '').toLowerCase(),
                         ) && (
                         <View style={styles.progressSteps}>
-                            {[
-                                { key: 'proses', label: 'Diproses', done: ['perlu_diproses', 'sedang_diproses', 'diproses', 'processing', 'dikirim', 'selesai', 'completed'] },
-                                { key: 'dikirim', label: 'Dikirim', done: ['dikirim', 'selesai', 'completed'] },
-                                { key: 'selesai', label: 'Selesai', done: ['selesai', 'completed'] },
-                            ].map((step, index, arr) => {
+                            {(isPickupOrder(o)
+                                ? [
+                                    { key: 'proses', label: 'Diproses', done: ['perlu_diproses', 'sedang_diproses', 'diproses', 'processing', 'selesai', 'completed'] },
+                                    { key: 'jemput', label: 'Siap Diambil', done: ['sedang_diproses', 'selesai', 'completed'] },
+                                    { key: 'selesai', label: 'Selesai', done: ['selesai', 'completed'] },
+                                  ]
+                                : [
+                                    { key: 'proses', label: 'Diproses', done: ['perlu_diproses', 'sedang_diproses', 'diproses', 'processing', 'dikirim', 'selesai', 'completed'] },
+                                    { key: 'dikirim', label: 'Dikirim', done: ['dikirim', 'selesai', 'completed'] },
+                                    { key: 'selesai', label: 'Selesai', done: ['selesai', 'completed'] },
+                                  ]
+                            ).map((step, index, arr) => {
                                 const s = (o.status || '').toLowerCase();
                                 const isDone = step.done.includes(s);
                                 const isLast = index === arr.length - 1;
@@ -615,7 +632,9 @@ export default function DetailPesananScreen() {
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <Feather name="map-pin" size={18} color="#2E8B57" />
-                        <Text style={styles.sectionTitle}>Alamat Pengiriman</Text>
+                        <Text style={styles.sectionTitle}>
+                            {isPickupOrder(o) ? 'Pengambilan di Apotek' : 'Alamat Pengiriman'}
+                        </Text>
                     </View>
                     <View style={styles.addressBox}>
                         <Text style={styles.addressText}>{o.shipping_address}</Text>
@@ -793,13 +812,23 @@ export default function DetailPesananScreen() {
                                 </View>
                             )}
                             {o.status === 'sedang_diproses' && (
-                                <TouchableOpacity 
-                                    style={[styles.btnAction, { backgroundColor: '#EF6C00' }]} 
-                                    onPress={() => confirmStatusUpdate('dikirim')}
-                                    disabled={updating}
-                                >
-                                    <Text style={styles.btnActionText}>Kirim Pesanan</Text>
-                                </TouchableOpacity>
+                                isPickupOrder(o) ? (
+                                    <TouchableOpacity
+                                        style={[styles.btnAction, { backgroundColor: '#2E8B57' }]}
+                                        onPress={() => confirmStatusUpdate('pickup_complete')}
+                                        disabled={updating}
+                                    >
+                                        <Text style={styles.btnActionText}>Sudah di Jemput</Text>
+                                    </TouchableOpacity>
+                                ) : (
+                                    <TouchableOpacity
+                                        style={[styles.btnAction, { backgroundColor: '#EF6C00' }]}
+                                        onPress={() => confirmStatusUpdate('dikirim')}
+                                        disabled={updating}
+                                    >
+                                        <Text style={styles.btnActionText}>Kirim Pesanan</Text>
+                                    </TouchableOpacity>
+                                )
                             )}
                             {o.status === 'dikirim' && (
                                 <View style={[styles.btnAction, { backgroundColor: '#E0E0E0', elevation: 0 }]}>

@@ -47,14 +47,17 @@ export const QuantityModal: React.FC<QuantityModalProps> = ({
 
   if (!medicine) return null;
 
+  const stock = Math.max(0, Number(medicine.stock) || 0);
+
   const handleConfirm = () => {
+    if (stock < 1) return;
     const finalQty = quantity < 1 ? 1 : quantity;
     onConfirm(finalQty);
     setQuantity(1); // Reset
   };
 
   const increment = () => {
-    if (quantity < medicine.stock) setQuantity(quantity + 1);
+    if (quantity < stock) setQuantity(quantity + 1);
   };
 
   const decrement = () => {
@@ -68,8 +71,8 @@ export const QuantityModal: React.FC<QuantityModalProps> = ({
       return;
     }
     const val = parseInt(cleanText, 10);
-    if (val > medicine.stock) {
-      setQuantity(medicine.stock);
+    if (val > stock) {
+      setQuantity(stock);
     } else {
       setQuantity(val);
     }
@@ -102,7 +105,9 @@ export const QuantityModal: React.FC<QuantityModalProps> = ({
             </View>
             <View style={styles.info}>
               <Text style={styles.price}>{medicine.price_formatted}</Text>
-              <Text style={styles.stock}>Stok: {medicine.stock}</Text>
+              <Text style={[styles.stock, stock === 0 && styles.stockEmpty]}>
+                {stock === 0 ? 'Stok habis' : `Stok: ${stock}`}
+              </Text>
               <Text style={styles.unit}>{medicine.unit}</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -128,15 +133,18 @@ export const QuantityModal: React.FC<QuantityModalProps> = ({
                 selectTextOnFocus
                 underlineColorAndroid="transparent"
               />
-              <TouchableOpacity onPress={increment} style={[styles.qtyBtn, quantity >= medicine.stock && styles.disabled]}>
-                <Feather name="plus" size={18} color={quantity >= medicine.stock ? '#CCC' : '#2E8B57'} />
+              <TouchableOpacity onPress={increment} style={[styles.qtyBtn, quantity >= stock && styles.disabled]}>
+                <Feather name="plus" size={18} color={quantity >= stock ? '#CCC' : '#2E8B57'} />
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Confirm Button */}
-          <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
-            <Text style={styles.confirmText}>Masukkan Keranjang</Text>
+          <TouchableOpacity
+            style={[styles.confirmBtn, stock === 0 && styles.confirmBtnDisabled]}
+            onPress={handleConfirm}
+            disabled={stock === 0}
+          >
+            <Text style={styles.confirmText}>{stock === 0 ? 'Stok Habis' : 'Masukkan Keranjang'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -199,6 +207,10 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 4,
   },
+  stockEmpty: {
+    color: '#D32F2F',
+    fontWeight: '700',
+  },
   unit: {
     fontSize: 13,
     color: '#888',
@@ -260,6 +272,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
+  },
+  confirmBtnDisabled: {
+    backgroundColor: '#CCC',
   },
   confirmText: {
     color: '#FFF',
