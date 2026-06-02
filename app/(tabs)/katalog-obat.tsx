@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image'; // Gunakan expo-image untuk performa lebih baik
-import * as Notifications from 'expo-notifications';
+import { scheduleLocalNotification } from '@/utils/localNotifications';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { LoginPromptModal } from '@/components/LoginPromptModal';
@@ -86,6 +86,7 @@ export default function KatalogObatScreen() {
     const [selectedCategory, setSelectedCategory] = useState('Semua');
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState<string | null>(null);
     const [loginModalVisible, setLoginModalVisible] = useState(false);
     const [toastVisible, setToastVisible] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
@@ -179,19 +180,10 @@ export default function KatalogObatScreen() {
             await addToCart(selectedMedicine.id, quantity);
             setModalVisible(false);
 
-            // Trigger local push notification
-            try {
-                await Notifications.scheduleNotificationAsync({
-                    content: {
-                        title: "Keranjang Belanja 🛒",
-                        body: `${selectedMedicine.name} berhasil dimasukkan ke keranjang.`,
-                        sound: true,
-                    },
-                    trigger: null,
-                });
-            } catch (error) {
-                console.error('Error triggering notification:', error);
-            }
+            await scheduleLocalNotification({
+                title: 'Keranjang Belanja 🛒',
+                body: `${selectedMedicine.name} berhasil dimasukkan ke keranjang.`,
+            });
 
             setToastMessage(`${selectedMedicine.name} berhasil dimasukkan ke keranjang.`);
             setToastVisible(true);
@@ -213,8 +205,12 @@ export default function KatalogObatScreen() {
     // Ambil data obat dari API
     const fetchMedicines = useCallback(async (page = 1, reset = false) => {
         try {
-            if (page === 1) setLoading(true);
-            else setLoadingMore(true);
+            if (page === 1) {
+                setLoading(true);
+                setFetchError(null);
+            } else {
+                setLoadingMore(true);
+            }
 
             const params: any = { page, per_page: 10 };
             if (searchQuery.trim()) params.search = searchQuery.trim();
@@ -223,9 +219,16 @@ export default function KatalogObatScreen() {
 
             const res = await getMedicines(params);
 
-            setTotalData(res.pagination.total);
-            setHasMore(res.pagination.has_more);
-            setCurrentPage(res.pagination.current_page);
+            if (res.status !== 'success' || !Array.isArray(res.data)) {
+                setFetchError(res.message || 'Respons API tidak valid');
+                setMedicines([]);
+                return;
+            }
+
+            setFetchError(null);
+            setTotalData(res.pagination?.total ?? res.data.length);
+            setHasMore(res.pagination?.has_more ?? false);
+            setCurrentPage(res.pagination?.current_page ?? page);
 
             if (reset || page === 1) {
                 setMedicines(res.data);
@@ -234,6 +237,12 @@ export default function KatalogObatScreen() {
             }
         } catch (e) {
             console.error('Gagal ambil obat:', e);
+            if (page === 1) {
+                setMedicines([]);
+                setFetchError(
+                    'Tidak dapat terhubung ke server. Pastikan backend Laravel & Expo sudah berjalan, lalu tarik ke bawah untuk muat ulang.',
+                );
+            }
         } finally {
             setLoading(false);
             setLoadingMore(false);
@@ -244,15 +253,6 @@ export default function KatalogObatScreen() {
     // Load awal
     useEffect(() => {
         fetchCategories();
-        
-        // Request notification permissions
-        const requestPermissions = async () => {
-            const { status } = await Notifications.requestPermissionsAsync();
-            if (status !== 'granted') {
-                console.log('Izin notifikasi ditolak.');
-            }
-        };
-        requestPermissions();
     }, []);
 
     // Fetch ulang jika search/kategori/sort berubah
@@ -347,6 +347,21 @@ export default function KatalogObatScreen() {
 
     const renderEmpty = () => {
         if (loading) return null;
+        if (fetchError) {
+            return (
+                <View style={styles.emptyContainer}>
+                    <Ionicons name="cloud-offline-outline" size={64} color="#E57373" />
+                    <Text style={styles.emptyTitle}>Gagal memuat obat</Text>
+                    <Text style={styles.emptySubtitle}>{fetchError}</Text>
+                    <TouchableOpacity
+                        style={styles.retryBtn}
+                        onPress={() => fetchMedicines(1, true)}
+                    >
+                        <Text style={styles.retryBtnText}>Coba lagi</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
         return (
             <View style={styles.emptyContainer}>
                 <Ionicons name="search-outline" size={64} color="#CCC" />
@@ -834,6 +849,14 @@ const styles = StyleSheet.create({
     emptyContainer: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 40 },
     emptyTitle: { fontSize: 18, fontWeight: 'bold', color: '#555', marginTop: 16, marginBottom: 8 },
     emptySubtitle: { fontSize: 14, color: '#999', textAlign: 'center', lineHeight: 20 },
+    retryBtn: {
+        marginTop: 20,
+        backgroundColor: '#2E8B57',
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    retryBtnText: { color: '#FFF', fontWeight: '600', fontSize: 15 },
 
     // Modal Filter Styles
     modalOverlay: {

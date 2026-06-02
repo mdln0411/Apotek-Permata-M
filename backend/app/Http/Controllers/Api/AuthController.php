@@ -136,11 +136,16 @@ class AuthController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'email' => 'sometimes|required|email|unique:users,email,'.$id,
+            'password' => 'sometimes|nullable|string|min:8',
             'role' => 'sometimes|required|string|in:member,apoteker',
             'phone' => 'nullable|string',
             'address' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
         ]);
+
+        if (empty($validated['password'])) {
+            unset($validated['password']);
+        }
 
         $user->update($validated);
         return response()->json(['status' => 'success', 'message' => 'Data user berhasil diperbarui', 'data' => $user]);

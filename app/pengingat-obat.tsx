@@ -1,8 +1,12 @@
 import { TimePickerInput } from '@/components/TimePickerInput';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import * as Notifications from 'expo-notifications';
-import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { router, Stack } from 'expo-router';
+import {
+  cancelScheduledNotification,
+  initNotificationHandler,
+  requestNotificationPermissions,
+  scheduleDailyMedicineReminder,
+} from '@/utils/localNotifications';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -15,17 +19,6 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-
-// Konfigurasi Notifikasi
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
 
 interface Reminder {
   id: string;
@@ -64,34 +57,24 @@ export default function PengingatObatScreen() {
   const [showTimePickerSection, setShowTimePickerSection] = useState(false);
 
   useEffect(() => {
-    requestPermissions();
+    void initNotificationHandler();
+    void requestPermissions();
   }, []);
 
   const requestPermissions = async () => {
-    const { status } = await Notifications.requestPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Izin Botifikasi', 'Mohon izinkan notifikasi untuk menggunakan fitur pengingat.');
+    const granted = await requestNotificationPermissions();
+    if (!granted) {
+      Alert.alert('Izin Notifikasi', 'Mohon izinkan notifikasi untuk menggunakan fitur pengingat.');
     }
   };
 
   const scheduleNotification = async (medicineName: string, timeStr: string) => {
     const [hours, minutes] = timeStr.split(':').map(Number);
-    
-    const id = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "Waktunya Minum Obat! 💊",
-        body: `Jangan lupa minum ${medicineName} sekarang.`,
-        sound: true,
-      },
-      trigger: {
-        type: SchedulableTriggerInputTypes.CALENDAR,
-        hour: hours,
-        minute: minutes,
-        repeats: true,
-      } as any,
+    return scheduleDailyMedicineReminder({
+      medicineName,
+      hour: hours,
+      minute: minutes,
     });
-    
-    return id;
   };
 
   const handleAddReminder = async () => {
@@ -103,7 +86,7 @@ export default function PengingatObatScreen() {
     const notificationIds: string[] = [];
     for (const time of tempTimes) {
       const id = await scheduleNotification(newMedicineName, time);
-      notificationIds.push(id);
+      if (id) notificationIds.push(id);
     }
 
     const newReminder: Reminder = {
@@ -148,7 +131,7 @@ export default function PengingatObatScreen() {
     if (reminder) {
       // Cancel all notifications for this reminder
       for (const notifId of reminder.notificationIds) {
-        await Notifications.cancelScheduledNotificationAsync(notifId);
+        await cancelScheduledNotification(notifId);
       }
     }
     setReminders(reminders.filter(r => r.id !== id));

@@ -15,16 +15,10 @@ function getHostFromExpo(): string | null {
   return host;
 }
 
-/**
- * Di Expo Go, hostUri = IP:8081 (sama dengan Metro).
- * Request API lewat port 8081 → di-proxy ke Laravel :8000 (metro.config.js).
- */
+/** Expo Go: hostUri = IP:8081 (Metro). /api & /storage di-proxy ke Laravel :8000 */
 function getApiUrlViaMetroProxy(): string | null {
   const hostUri = Constants.expoConfig?.hostUri;
-  if (!hostUri) return null;
-
-  if (!getHostFromExpo()) return null;
-
+  if (!hostUri || !getHostFromExpo()) return null;
   return `http://${hostUri}`;
 }
 
@@ -60,61 +54,76 @@ function isAndroidEmulator(): boolean {
   );
 }
 
-function resolveDevApiUrl(): string {
+/** Kandidat base URL (urutan prioritas) — dipakai axios dengan failover */
+export function getApiBaseUrlCandidates(): string[] {
+  const configured = getConfiguredApiUrl();
+  if (configured) return [configured];
+
+  const host = getHostFromExpo();
+  const candidates: string[] = [];
+
+  if (__DEV__ && host) {
+    const viaMetro = getApiUrlViaMetroProxy();
+    if (viaMetro) candidates.push(viaMetro);
+    candidates.push(`http://${host}:${LARAVEL_PORT}`);
+  }
+
+  if (Platform.OS === 'android') {
+    candidates.push(
+      isAndroidEmulator()
+        ? `http://10.0.2.2:${LARAVEL_PORT}`
+        : `http://${getConfiguredLanIp()}:${LARAVEL_PORT}`,
+    );
+  } else if (Platform.OS === 'ios') {
+    candidates.push(
+      Device.isDevice
+        ? `http://${getConfiguredLanIp()}:${LARAVEL_PORT}`
+        : `http://localhost:${LARAVEL_PORT}`,
+    );
+  } else if (Platform.OS === 'web') {
+    candidates.push(`http://localhost:${LARAVEL_PORT}`);
+  } else {
+    candidates.push(`http://${getConfiguredLanIp()}:${LARAVEL_PORT}`);
+  }
+
+  return [...new Set(candidates)];
+}
+
+let cachedPrimaryUrl: string | null = null;
+let cachedHostUri: string | undefined;
+
+/** Base URL utama — di-resolve ulang jika hostUri Expo berubah */
+export function getApiBaseUrl(): string {
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (cachedPrimaryUrl && cachedHostUri === hostUri) {
+    return cachedPrimaryUrl;
+  }
+  cachedHostUri = hostUri;
+  cachedPrimaryUrl = getApiBaseUrlCandidates()[0] ?? `http://localhost:${LARAVEL_PORT}`;
+  return cachedPrimaryUrl;
+}
+
+/** @deprecated Pakai getApiBaseUrl() — tetap diekspor untuk kompatibilitas */
+export const API_BASE_URL = getApiBaseUrl();
+
+export function getLaravelBaseUrl(): string {
+  const configured = getConfiguredApiUrl()?.replace(/\/$/, '');
+  if (configured) {
+    if (/:8081$/.test(configured)) return configured;
+    return configured;
+  }
+
   if (__DEV__) {
     const viaMetro = getApiUrlViaMetroProxy();
     if (viaMetro) return viaMetro;
   }
 
-  const configured = getConfiguredApiUrl();
-  if (configured) return configured;
+  const host = getHostFromExpo();
+  if (host) return `http://${host}:${LARAVEL_PORT}`;
 
-  const lan = getConfiguredLanIp();
-
-  if (Platform.OS === 'android') {
-    return isAndroidEmulator()
-      ? `http://10.0.2.2:${LARAVEL_PORT}`
-      : `http://${lan}:${LARAVEL_PORT}`;
-  }
-
-  if (Platform.OS === 'ios') {
-    return Device.isDevice
-      ? `http://${lan}:${LARAVEL_PORT}`
-      : `http://localhost:${LARAVEL_PORT}`;
-  }
-
-  // Web / platform lain: browser di PC yang sama → localhost
-  if (Platform.OS === 'web') {
-    return `http://localhost:${LARAVEL_PORT}`;
-  }
-
-  return `http://${lan}:${LARAVEL_PORT}`;
-}
-
-/** Base URL backend Laravel (tanpa trailing slash) */
-export const API_BASE_URL = resolveDevApiUrl();
-
-/**
- * URL dasar Laravel untuk file storage (selalu port 8000).
- * Gambar tidak boleh lewat Metro :8081 karena proxy hanya meneruskan /api.
- */
-export function getLaravelBaseUrl(): string {
-  const configured = getConfiguredApiUrl()?.replace(/\/$/, '');
-  if (configured) {
-    if (/:8081$/.test(configured)) {
-      const host = configured.replace(/^https?:\/\//, '').split(':')[0];
-      const protocol = configured.startsWith('https') ? 'https' : 'http';
-      return `${protocol}://${host}:${LARAVEL_PORT}`;
-    }
-    return configured;
-  }
   return `http://${getConfiguredLanIp()}:${LARAVEL_PORT}`;
 }
 
-/**
- * URL publik file di storage Laravel.
- * Menormalisasi URL lama (localhost / IP Wi-Fi lama) ke host yang bisa diakses perangkat.
- */
 export function storageUrl(path: string): string {
   if (!path) return '';
 

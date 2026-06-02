@@ -1,7 +1,7 @@
 import axiosClient from "@/api/axiosClient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import * as Notifications from "expo-notifications";
 import { Stack, useRouter } from "expo-router";
+import { addNotificationReceivedListener } from "@/utils/localNotifications";
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -91,29 +91,22 @@ export default function NotificationScreen() {
   useEffect(() => {
     fetchNotifications();
 
-    // Listen for incoming notifications while app is open
-    const subscription = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        const data = notification.request.content.data;
-        if (data && data.type) {
-          const newNotif: AppNotification = {
-            id: Math.random().toString(),
-            data: {
-              title: String(
-                data.title || notification.request.content.title || "",
-              ),
-              message: String(
-                data.message || notification.request.content.body || "",
-              ),
-              type: data.type as any,
-            },
-            read_at: null,
-            created_at: new Date().toISOString(),
-          };
-          setNotifs((prev) => [newNotif, ...prev]);
-        }
-      },
-    );
+    const subscription = addNotificationReceivedListener((notification) => {
+      const data = notification.data;
+      if (data && data.type) {
+        const newNotif: AppNotification = {
+          id: Math.random().toString(),
+          data: {
+            title: String(data.title || notification.title || ""),
+            message: String(data.message || notification.body || ""),
+            type: data.type as AppNotification["data"]["type"],
+          },
+          read_at: null,
+          created_at: new Date().toISOString(),
+        };
+        setNotifs((prev) => [newNotif, ...prev]);
+      }
+    });
 
     return () => subscription.remove();
   }, []);

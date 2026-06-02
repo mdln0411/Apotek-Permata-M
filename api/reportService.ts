@@ -121,3 +121,37 @@ export const getAdminReports = async (filters: ReportFilters = {}) => {
   );
   return response.data;
 };
+
+/** Ambil laporan lengkap (semua halaman transaksi) untuk export PDF. */
+export async function fetchReportForPdfExport(
+  filters: ReportFilters = {},
+): Promise<ReportData> {
+  const base = await getAdminReports({ ...filters, per_page: 100, page: 1 });
+  if (base.status !== 'success') {
+    throw new Error('Gagal memuat data laporan');
+  }
+
+  const data = base.data;
+  const { last_page, total } = data.transactions.pagination;
+  if (last_page <= 1) return data;
+
+  const allTransactions = [...data.transactions.data];
+  for (let page = 2; page <= last_page; page++) {
+    const next = await getAdminReports({ ...filters, per_page: 100, page });
+    if (next.status !== 'success') break;
+    allTransactions.push(...next.data.transactions.data);
+  }
+
+  return {
+    ...data,
+    transactions: {
+      data: allTransactions,
+      pagination: {
+        current_page: 1,
+        last_page: 1,
+        per_page: total,
+        total,
+      },
+    },
+  };
+}

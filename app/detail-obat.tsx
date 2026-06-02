@@ -3,7 +3,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import * as Notifications from 'expo-notifications';
+import {
+    requestNotificationPermissions,
+    scheduleLocalNotification,
+} from '@/utils/localNotifications';
 import React, { useEffect, useState } from 'react';
 import { LoginPromptModal } from '@/components/LoginPromptModal';
 import { SuccessToast } from '@/components/SuccessToast';
@@ -114,19 +117,10 @@ export default function DetailObatScreen() {
             setAdding(true);
             await addToCart(Number(id), jumlah);
 
-            // Trigger local push notification
-            try {
-                await Notifications.scheduleNotificationAsync({
-                    content: {
-                        title: "Keranjang Belanja 🛒",
-                        body: `${medicine?.name || 'Obat'} berhasil dimasukkan ke keranjang.`,
-                        sound: true,
-                    },
-                    trigger: null,
-                });
-            } catch (error) {
-                console.error('Error triggering notification:', error);
-            }
+            await scheduleLocalNotification({
+                title: 'Keranjang Belanja 🛒',
+                body: `${medicine?.name || 'Obat'} berhasil dimasukkan ke keranjang.`,
+            });
 
             if (checkout) {
                 router.push('/keranjang' as any);
@@ -141,15 +135,8 @@ export default function DetailObatScreen() {
         }
     };
 
-    // Request permissions for notifications
     useEffect(() => {
-        const requestPermissions = async () => {
-            const { status } = await Notifications.requestPermissionsAsync();
-            if (status !== 'granted') {
-                console.log('Izin notifikasi ditolak.');
-            }
-        };
-        requestPermissions();
+        requestNotificationPermissions();
     }, []);
 
     const tambahJumlah = () => {

@@ -110,9 +110,23 @@ export default function ManageUsers() {
             return;
         }
 
+        if (formData.password && formData.password.length < 8) {
+            alert('Password minimal 8 karakter');
+            return;
+        }
+
         try {
             if (isEditing && currentId) {
-                const { password, ...updateData } = formData;
+                const updateData: Record<string, string> = {
+                    name: formData.name,
+                    email: formData.email,
+                    role: formData.role,
+                    phone: formData.phone,
+                    address: formData.address,
+                };
+                if (formData.password.trim()) {
+                    updateData.password = formData.password;
+                }
                 await axiosClient.put(`/api/admin/users/${currentId}`, updateData);
                 alert('Data user berhasil diperbarui');
             } else {
@@ -230,18 +244,16 @@ export default function ManageUsers() {
                                     onChangeText={(text) => setFormData({...formData, address: text})}
                                 />
 
-                                {!isEditing && (
-                                    <>
-                                        <Text style={styles.inputLabel}>Password *</Text>
-                                        <TextInput 
-                                            style={styles.input}
-                                            placeholder="Minimal 8 karakter"
-                                            secureTextEntry
-                                            value={formData.password}
-                                            onChangeText={(text) => setFormData({...formData, password: text})}
-                                        />
-                                    </>
-                                )}
+                                <Text style={styles.inputLabel}>
+                                    {isEditing ? 'Password Baru (opsional)' : 'Password *'}
+                                </Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    placeholder={isEditing ? 'Kosongkan jika tidak diubah' : 'Minimal 8 karakter'}
+                                    secureTextEntry
+                                    value={formData.password}
+                                    onChangeText={(text) => setFormData({...formData, password: text})}
+                                />
 
                                 <Text style={styles.inputLabel}>Role / Peran *</Text>
                                 <View style={styles.roleSelection}>

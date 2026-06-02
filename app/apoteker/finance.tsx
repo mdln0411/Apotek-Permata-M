@@ -1,4 +1,5 @@
 import { getFinanceSummary, getOrderGrandTotal } from '@/api/financeService';
+import { getOrderStatusColors, getOrderStatusLabel } from '@/utils/orderStatus';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
@@ -82,15 +83,11 @@ export default function KeuanganApoteker() {
     );
 
     const StatusBadge = ({ status }: { status: string }) => {
-        const s = status?.toLowerCase();
-        let color = THEME.info;
-        if (s === 'selesai' || s === 'completed') color = THEME.success;
-        if (s === 'menunggu' || s === 'pending') color = THEME.warning;
-        if (s === 'dibatalkan' || s === 'cancelled') color = THEME.danger;
+        const { bg, text } = getOrderStatusColors(status);
 
         return (
-            <View style={[styles.statusTag, { backgroundColor: color + '15' }]}>
-                <Text style={[styles.statusText, { color }]}>{status.toUpperCase()}</Text>
+            <View style={[styles.statusTag, { backgroundColor: bg }]}>
+                <Text style={[styles.statusText, { color: text }]}>{getOrderStatusLabel(status)}</Text>
             </View>
         );
     };

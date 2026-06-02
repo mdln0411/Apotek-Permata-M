@@ -119,12 +119,15 @@ export default function HomeScreen() {
 
     const fetchMedicines = async () => {
         try {
-            const response = await axiosClient.get('/api/medicines');
-            if (response.data && response.data.data) {
+            const response = await axiosClient.get('/api/medicines', {
+                params: { per_page: 10 },
+            });
+            if (response.data?.status === 'success' && Array.isArray(response.data.data)) {
                 setMedicines(response.data.data);
             }
         } catch (error) {
             console.error('Error fetching medicines:', error);
+            setMedicines([]);
         } finally {
             setLoading(false);
         }

@@ -1,8 +1,47 @@
 import { Stack, useRouter, useRootNavigationState, useSegments } from 'expo-router';
+import type { ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { CartProvider } from '../context/CartContext';
+
+/** Menangkap crash route — menggantikan layar "Something went wrong" Expo Go */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return (
+    <View style={ebStyles.container}>
+      <Text style={ebStyles.title}>Aplikasi terhenti</Text>
+      <Text style={ebStyles.message}>{error.message}</Text>
+      <Text style={ebStyles.hint}>
+        Tutup Expo Go → jalankan: npx expo start -c --port 8082{'\n'}
+        Pastikan backend: php artisan serve --host=0.0.0.0 --port=8000
+      </Text>
+      <TouchableOpacity style={ebStyles.button} onPress={retry}>
+        <Text style={ebStyles.buttonText}>Coba lagi</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const ebStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#F0F4F7',
+  },
+  title: { fontSize: 20, fontWeight: '700', color: '#2C3E50', marginBottom: 8 },
+  message: { fontSize: 13, color: '#E74C3C', textAlign: 'center', marginBottom: 12 },
+  hint: { fontSize: 13, color: '#7F8C8D', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  button: {
+    backgroundColor: '#2E8B57',
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 10,
+  },
+  buttonText: { color: '#FFF', fontWeight: '600', fontSize: 16 },
+});
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -64,7 +103,7 @@ function InitialLayout() {
 
   return (
     <Stack screenOptions={{ headerShown: false }} initialRouteName="(tabs)">
-      <Stack.Screen name="index" redirect href="/(tabs)" />
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="admin" options={{ headerShown: false }} />
       <Stack.Screen name="apoteker" options={{ headerShown: false }} />

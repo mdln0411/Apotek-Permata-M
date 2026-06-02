@@ -83,7 +83,7 @@ export default function AdminReports() {
     if (!reportData) return;
     setExporting(true);
     try {
-      await printReport(reportData);
+      await printReport(reportData, filters);
     } catch {
       setAlert({ title: 'Gagal Cetak', message: 'Tidak dapat membuka dialog cetak.', type: 'error' });
     } finally {
@@ -95,7 +95,7 @@ export default function AdminReports() {
     if (!reportData) return;
     setExporting(true);
     try {
-      const { shared } = await exportReportPdf(reportData);
+      const { shared } = await exportReportPdf(reportData, filters);
       setAlert({
         title: 'Export Berhasil',
         message: shared

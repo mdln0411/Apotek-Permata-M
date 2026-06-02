@@ -3,8 +3,13 @@ import { TimePickerInput } from '@/components/TimePickerInput';
 import { SuccessToast } from '@/components/SuccessToast';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
+import {
+    cancelAllScheduledNotifications,
+    initNotificationHandler,
+    requestNotificationPermissions,
+    scheduleDailyMedicineReminder,
+} from '@/utils/localNotifications';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -24,15 +29,6 @@ import {
 } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// Konfigurasi Notifikasi
-Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldBadge: false,
-    } as any),
-});
 
 interface Reminder {
     id: number;
@@ -78,12 +74,8 @@ export default function PengingatScreen() {
 
     const setupNotifications = async () => {
         if (Device.isDevice || Platform.OS === 'web') {
-            const { status: existingStatus } = await Notifications.getPermissionsAsync();
-            let finalStatus = existingStatus;
-            if (existingStatus !== 'granted') {
-                const { status } = await Notifications.requestPermissionsAsync();
-                finalStatus = status;
-            }
+            await initNotificationHandler();
+            await requestNotificationPermissions();
         }
     };
 
@@ -113,31 +105,21 @@ export default function PengingatScreen() {
         }
 
         try {
-            // Hapus semua jadwal lama agar tidak duplikat
-            await Notifications.cancelAllScheduledNotificationsAsync();
-            
+            await cancelAllScheduledNotifications();
+
             for (const item of items) {
                 if (item.is_active) {
                     const [hours, minutes] = item.reminder_time.split(':').map(Number);
-                    
-                    await Notifications.scheduleNotificationAsync({
-                        content: {
-                            title: "Waktunya Minum Obat! 💊",
-                            body: `Jangan lupa minum ${item.medicine_name} (${item.dosage || 'Dosis Sesuai Petunjuk'})`,
-                            sound: true,
-                            priority: Notifications.AndroidImportance.HIGH as any,
-                            data: {
-                                type: 'reminder',
-                                title: "Waktunya Minum Obat! 💊",
-                                message: `Jangan lupa minum ${item.medicine_name} (${item.dosage || 'Dosis Sesuai Petunjuk'})`
-                            }
+                    await scheduleDailyMedicineReminder({
+                        medicineName: item.medicine_name,
+                        dosage: item.dosage || 'Dosis Sesuai Petunjuk',
+                        hour: hours,
+                        minute: minutes,
+                        data: {
+                            type: 'reminder',
+                            title: 'Waktunya Minum Obat! 💊',
+                            message: `Jangan lupa minum ${item.medicine_name} (${item.dosage || 'Dosis Sesuai Petunjuk'})`,
                         },
-                        trigger: {
-                            type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-                            hour: hours,
-                            minute: minutes,
-                            repeats: true,
-                        } as any,
                     });
                 }
             }
